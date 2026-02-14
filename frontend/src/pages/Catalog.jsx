@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { catalogService } from '@/services/catalogService';
 import CatalogCard from '../components/catalog/CatalogCard';
@@ -16,23 +16,47 @@ export default function Catalog() {
     engine_types: [],
     transmissions: [],
     drive_types: [],
-    price_range: [0, 15000000],
     available_only: true,
   });
   const [sortBy, setSortBy] = useState('newest');
   const [searchQuery, setSearchQuery] = useState('');
 
+  const queryParams = useMemo(() => {
+    const params = {};
+    
+    if (filters.brands && filters.brands.length > 0) {
+      params.brand_id = filters.brands.join(',');
+    }
+    
+    if (filters.engine_types && filters.engine_types.length > 0) {
+      params.engine_type_id = filters.engine_types.join(',');
+    }
+    
+    if (filters.transmissions && filters.transmissions.length > 0) {
+      params.transmission_id = filters.transmissions.join(',');
+    }
+    
+    if (filters.drive_types && filters.drive_types.length > 0) {
+      params.drive_type_id = filters.drive_types.join(',');
+    }
+    
+    if (filters.available_only !== undefined) {
+      params.is_available = filters.available_only;
+    }
+    
+    return params;
+  }, [filters]);
+
+  const queryKey = useMemo(() => ['trims', queryParams], [queryParams]);
+
   const { data: trims, isLoading: trimsLoading } = useQuery({
-    queryKey: ['trims', filters],
-    queryFn: () => catalogService.getTrims({
-      brand_id: filters.brands.length > 0 ? filters.brands : undefined,
-      engine_type_id: filters.engine_types.length > 0 ? filters.engine_types : undefined,
-      transmission_id: filters.transmissions.length > 0 ? filters.transmissions : undefined,
-      drive_type_id: filters.drive_types.length > 0 ? filters.drive_types : undefined,
-      min_price: filters.price_range[0],
-      max_price: filters.price_range[1],
-      is_available: filters.available_only,
-    }),
+    queryKey,
+    queryFn: () => catalogService.getTrims(queryParams),
+    keepPreviousData: true,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
+    staleTime: 5 * 60 * 1000,
   });
 
   const { data: brands } = useQuery({
@@ -60,34 +84,36 @@ export default function Catalog() {
 
     let result = [...trims];
 
-    // Search filter
     if (searchQuery) {
-      const query = searchQuery.toLowerCase();
+      const query = searchQuery.toLowerCase().trim();
       result = result.filter(t => 
         (t.brand_name?.toLowerCase().includes(query)) ||
         (t.model_name?.toLowerCase().includes(query)) ||
         (t.name?.toLowerCase().includes(query)) ||
-        (t.trim_name?.toLowerCase().includes(query))
+        (t.generation_name?.toLowerCase().includes(query))
       );
     }
 
-    // Sorting
     if (sortBy === 'price_asc') {
       result.sort((a, b) => (a.base_price || 0) - (b.base_price || 0));
     } else if (sortBy === 'price_desc') {
       result.sort((a, b) => (b.base_price || 0) - (a.base_price || 0));
     } else if (sortBy === 'name_asc') {
       result.sort((a, b) => {
-        const nameA = `${a.brand_name || ''} ${a.model_name || ''}`.toLowerCase();
-        const nameB = `${b.brand_name || ''} ${b.model_name || ''}`.toLowerCase();
-        return nameA.localeCompare(nameB);
+        const nameA = `${a.brand_name || ''} ${a.model_name || ''} ${a.name || ''}`.toLowerCase();
+        const nameB = `${b.brand_name || ''} ${b.model_name || ''} ${b.name || ''}`.toLowerCase();
+        return nameA.localeCompare(nameB, 'ru');
       });
     } else if (sortBy === 'newest') {
-      result.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+      result.sort((a, b) => {
+        const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return dateB - dateA;
+      });
     }
 
     return result;
-  }, [trims, filters, sortBy, searchQuery]);
+  }, [trims, sortBy, searchQuery]);
 
   if (trimsLoading) return <PageLoader />;
 
@@ -100,7 +126,6 @@ export default function Catalog() {
         />
 
         <div className="flex gap-6 lg:gap-8">
-          {/* Filters */}
           <FilterPanel 
             filters={filters} 
             setFilters={setFilters} 
@@ -110,9 +135,7 @@ export default function Catalog() {
             driveTypes={driveTypes || []}
           />
 
-          {/* Main content */}
           <div className="flex-1 min-w-0">
-            {/* Search + Sort */}
             <div className="flex flex-col sm:flex-row gap-3 mb-6">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -126,12 +149,10 @@ export default function Catalog() {
               <SortSelect value={sortBy} onChange={setSortBy} />
             </div>
 
-            {/* Results count */}
             <p className="text-sm text-slate-500 mb-4">
               Найдено автомобилей: <span className="font-semibold text-slate-900">{filteredAndSortedTrims.length}</span>
             </p>
 
-            {/* Grid */}
             {filteredAndSortedTrims.length === 0 ? (
               <EmptyState 
                 icon={Car}
