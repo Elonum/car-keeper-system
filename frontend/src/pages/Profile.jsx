@@ -15,9 +15,9 @@ import ServiceAppointmentsList from '../components/profile/ServiceAppointmentsLi
 import { Car, Settings, FileText, Wrench, ShoppingCart } from 'lucide-react';
 
 export default function Profile() {
-  const [searchParams] = useSearchParams();
-  const initialTab = searchParams.get('tab') || 'configurations';
-  const [activeTab, setActiveTab] = useState(initialTab);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabFromUrl = searchParams.get('tab') || 'configurations';
+  const [activeTab, setActiveTab] = useState(tabFromUrl);
   const { user, isAuthenticated, navigateToLogin } = useAuth();
 
   useEffect(() => {
@@ -25,6 +25,16 @@ export default function Profile() {
       navigateToLogin();
     }
   }, [isAuthenticated, navigateToLogin]);
+
+  useEffect(() => {
+    const tab = searchParams.get('tab') || 'configurations';
+    setActiveTab(tab);
+  }, [searchParams]);
+
+  const handleTabChange = (value) => {
+    setActiveTab(value);
+    setSearchParams({ tab: value }, { replace: true });
+  };
 
   const { data: configurations, isLoading: configsLoading } = useQuery({
     queryKey: ['my-configurations'],
@@ -68,7 +78,7 @@ export default function Profile() {
           description={`Добро пожаловать, ${getUserDisplayName()}`}
         />
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
           <TabsList className="bg-white p-1.5 h-auto rounded-xl shadow-sm">
             <TabsTrigger value="configurations" className="gap-2 data-[state=active]:bg-slate-900 data-[state=active]:text-white rounded-lg px-4 py-2.5">
               <Settings className="w-4 h-4" />

@@ -43,7 +43,7 @@ export default function Layout({ children, currentPageName }) {
   };
 
   const handleLogin = () => {
-    window.location.href = '/login';
+    window.location.href = createPageUrl('Login');
   };
 
   const getUserDisplayName = () => {
@@ -235,9 +235,9 @@ export default function Layout({ children, currentPageName }) {
               <div>
                 <h4 className="font-semibold text-sm mb-3 text-slate-300 uppercase tracking-wider">Контакты</h4>
                 <div className="space-y-2 text-sm text-slate-400">
-                  <p>+7 (800) 123-45-67</p>
+                  <p>+7 937 579 1975</p>
                   <p>info@carkeeper.ru</p>
-                  <p>Москва, ул. Автомобильная, 1</p>
+                  <p>Казань, ул. Большая Красная, 55</p>
                 </div>
               </div>
             </div>

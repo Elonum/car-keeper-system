@@ -65,15 +65,18 @@ export default function FilterPanel({ filters, setFilters, brands }) {
         <div>
           <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3 block">Бренд</Label>
           <div className="space-y-2">
-            {brands.map(brand => (
-              <label key={brand.id} className="flex items-center gap-2.5 cursor-pointer group">
-                <Checkbox
-                  checked={(filters.brands || []).includes(brand.id)}
-                  onCheckedChange={() => toggleFilter('brands', brand.id)}
-                />
-                <span className="text-sm text-slate-700 group-hover:text-slate-900">{brand.name}</span>
-              </label>
-            ))}
+            {brands.map(brand => {
+              const brandId = brand.brand_id || brand.id;
+              return (
+                <label key={brandId} className="flex items-center gap-2.5 cursor-pointer group">
+                  <Checkbox
+                    checked={(filters.brands || []).includes(brandId)}
+                    onCheckedChange={() => toggleFilter('brands', brandId)}
+                  />
+                  <span className="text-sm text-slate-700 group-hover:text-slate-900">{brand.name}</span>
+                </label>
+              );
+            })}
           </div>
         </div>
       )}
