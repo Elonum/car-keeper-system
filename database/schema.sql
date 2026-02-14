@@ -14,14 +14,15 @@ $$ LANGUAGE plpgsql;
 
 -- Users table
 CREATE TABLE users (
-    user_id     uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    first_name  varchar(100) NOT NULL,
-    last_name   varchar(100) NOT NULL,
-    email       varchar(255) NOT NULL UNIQUE,
-    phone       varchar(30) UNIQUE,
-    role        varchar(30) NOT NULL DEFAULT 'customer',
-    created_at  timestamptz NOT NULL DEFAULT now(),
-    updated_at  timestamptz NOT NULL DEFAULT now(),
+    user_id      uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    first_name   varchar(100) NOT NULL,
+    last_name    varchar(100) NOT NULL,
+    email        varchar(255) NOT NULL UNIQUE,
+    phone        varchar(30) UNIQUE,
+    password_hash varchar(255) NOT NULL,
+    role         varchar(30) NOT NULL DEFAULT 'customer',
+    created_at   timestamptz NOT NULL DEFAULT now(),
+    updated_at   timestamptz NOT NULL DEFAULT now(),
     CHECK (role IN ('customer','manager','admin'))
 );
 
@@ -243,6 +244,22 @@ CREATE INDEX idx_user_cars_user_id ON user_cars(user_id);
 CREATE INDEX idx_user_cars_trim_id ON user_cars(trim_id);
 CREATE INDEX idx_user_cars_vin ON user_cars(vin);
 
+-- Service types table (типы сервисных услуг)
+CREATE TABLE service_types (
+    service_type_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    name           varchar(150) NOT NULL UNIQUE,
+    category       varchar(50) NOT NULL,
+    description    text,
+    price          numeric(12,2) NOT NULL CHECK (price >= 0),
+    duration_minutes integer CHECK (duration_minutes IS NULL OR duration_minutes > 0),
+    is_available   boolean NOT NULL DEFAULT true,
+    created_at     timestamptz NOT NULL DEFAULT now(),
+    CHECK (category IN ('maintenance','repair','diagnostics','detailing','tires'))
+);
+
+CREATE INDEX idx_service_types_category ON service_types(category);
+CREATE INDEX idx_service_types_is_available ON service_types(is_available);
+
 -- Service appointments table
 CREATE TABLE service_appointments (
     service_appointment_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -262,6 +279,15 @@ CREATE INDEX idx_service_branch_id ON service_appointments(branch_id);
 CREATE INDEX idx_service_manager_id ON service_appointments(manager_id);
 CREATE INDEX idx_service_status ON service_appointments(status);
 CREATE INDEX idx_service_appointment_date ON service_appointments(appointment_date);
+
+-- Service appointment types junction table (связь записей на ТО с типами услуг)
+CREATE TABLE service_appointment_types (
+    service_appointment_id uuid NOT NULL REFERENCES service_appointments(service_appointment_id) ON DELETE CASCADE,
+    service_type_id        uuid NOT NULL REFERENCES service_types(service_type_id) ON DELETE RESTRICT,
+    PRIMARY KEY (service_appointment_id, service_type_id)
+);
+
+CREATE INDEX idx_service_appointment_types_service_type_id ON service_appointment_types(service_type_id);
 
 CREATE TRIGGER trg_service_appointments_updated_at
 BEFORE UPDATE ON service_appointments
