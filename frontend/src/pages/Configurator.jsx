@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/lib/AuthContext';
@@ -23,15 +23,28 @@ export default function Configurator() {
   const { user, isAuthenticated, navigateToLogin } = useAuth();
   const [searchParams] = useSearchParams();
   const trimId = searchParams.get('trim_id');
+  const configId = searchParams.get('config_id');
+  const isEditMode = !!configId;
   
   const [currentStep, setCurrentStep] = useState(0);
   const [selectedColorId, setSelectedColorId] = useState(null);
   const [selectedOptionIds, setSelectedOptionIds] = useState([]);
 
+  const { data: existingConfig, isLoading: configLoading } = useQuery({
+    queryKey: ['configuration', configId],
+    queryFn: () => configuratorService.getConfiguration(configId),
+    enabled: isEditMode && !!configId,
+  });
+
+  // Use trim_id from existing config if in edit mode, otherwise use from URL
+  const effectiveTrimId = isEditMode && existingConfig 
+    ? (existingConfig.trim_id || existingConfig.trimId || trimId)
+    : trimId;
+
   const { data: trim, isLoading: trimLoading } = useQuery({
-    queryKey: ['trim', trimId],
-    queryFn: () => catalogService.getTrim(trimId),
-    enabled: !!trimId,
+    queryKey: ['trim', effectiveTrimId],
+    queryFn: () => catalogService.getTrim(effectiveTrimId),
+    enabled: !!effectiveTrimId,
   });
 
   const { data: colors, isLoading: colorsLoading } = useQuery({
@@ -40,10 +53,27 @@ export default function Configurator() {
   });
 
   const { data: options, isLoading: optionsLoading } = useQuery({
-    queryKey: ['options', trimId],
-    queryFn: () => configuratorService.getOptions(trimId),
-    enabled: !!trimId,
+    queryKey: ['options', effectiveTrimId],
+    queryFn: () => configuratorService.getOptions(effectiveTrimId),
+    enabled: !!effectiveTrimId,
   });
+
+  // Load existing configuration data when in edit mode
+  useEffect(() => {
+    if (existingConfig && isEditMode) {
+      // Set selected color
+      const colorId = existingConfig.color_id || existingConfig.colorId;
+      if (colorId) {
+        setSelectedColorId(colorId);
+      }
+      
+      // Set selected options
+      if (existingConfig.options && Array.isArray(existingConfig.options)) {
+        const optionIds = existingConfig.options.map(opt => opt.option_id || opt.id).filter(Boolean);
+        setSelectedOptionIds(optionIds);
+      }
+    }
+  }, [existingConfig, isEditMode]);
 
   const selectedColor = useMemo(() => 
     colors?.find(c => c.color_id === selectedColorId || c.id === selectedColorId),
@@ -69,21 +99,81 @@ export default function Configurator() {
         return;
       }
 
-      if (!trimId || !selectedColorId) {
-        throw new Error('Необходимо выбрать комплектацию и цвет');
-      }
-
-      const config = await configuratorService.createConfiguration({
-        trim_id: trimId,
-        color_id: selectedColorId,
-        option_ids: selectedOptionIds,
+      console.log('[Configurator] Save mutation called:', {
+        isEditMode,
+        configId,
         status,
-        total_price: totalPrice,
+        hasExistingConfig: !!existingConfig,
+        selectedColorId,
+        selectedOptionIds,
+        effectiveTrimId,
       });
 
+      let config;
+
+      if (isEditMode && configId && existingConfig) {
+        // Update existing configuration
+        // Use existing values if new ones are not selected
+        const finalTrimId = effectiveTrimId || existingConfig.trim_id || existingConfig.trimId || trimId;
+        const finalColorId = selectedColorId || existingConfig.color_id || existingConfig.colorId;
+        
+        if (!finalTrimId || !finalColorId) {
+          throw new Error('Необходимо выбрать комплектацию и цвет');
+        }
+
+        // Ensure option_ids is always an array (even if empty)
+        const optionIdsArray = Array.isArray(selectedOptionIds) ? selectedOptionIds : [];
+        
+        // Build update payload - EXPLICITLY exclude status field
+        const updatePayload = {
+          trim_id: finalTrimId,
+          color_id: finalColorId,
+          option_ids: optionIdsArray,
+        };
+        
+        // Explicitly ensure status is NOT in the payload
+        if ('status' in updatePayload) {
+          delete updatePayload.status;
+        }
+        
+        console.log('[Configurator] Updating configuration:', {
+          configId,
+          payload: updatePayload,
+          payloadKeys: Object.keys(updatePayload),
+        });
+        
+        // Do NOT include status in full update - it will be handled separately if needed
+        config = await configuratorService.updateConfiguration(configId, updatePayload);
+      } else {
+        // Create new configuration (backend will set status to 'draft' by default)
+        const finalTrimId = effectiveTrimId || trimId;
+        if (!finalTrimId || !selectedColorId) {
+          throw new Error('Необходимо выбрать комплектацию и цвет');
+        }
+        
+        // Ensure option_ids is always an array (even if empty)
+        const optionIdsArray = Array.isArray(selectedOptionIds) ? selectedOptionIds : [];
+        
+        const createPayload = {
+          trim_id: finalTrimId,
+          color_id: selectedColorId,
+          option_ids: optionIdsArray,
+        };
+        
+        console.log('[Configurator] Creating configuration:', {
+          payload: createPayload,
+        });
+        
+        config = await configuratorService.createConfiguration(createPayload);
+      }
+
+      // If status is 'confirmed', update configuration status and create order
       if (status === 'confirmed') {
+        const finalConfigId = config.configuration_id || config.id;
+        console.log('[Configurator] Confirming configuration:', finalConfigId);
+        await configuratorService.updateConfiguration(finalConfigId, { status: 'confirmed' });
         await orderService.createOrder({
-          configuration_id: config.configuration_id || config.id,
+          configuration_id: finalConfigId,
           final_price: totalPrice,
           status: 'pending',
         });
@@ -98,7 +188,7 @@ export default function Configurator() {
       queryClient.invalidateQueries({ queryKey: ['orders'] });
       
       if (data.status === 'draft') {
-        toast.success('Конфигурация сохранена как черновик');
+        toast.success(isEditMode ? 'Конфигурация обновлена' : 'Конфигурация сохранена как черновик');
         navigate(createPageUrl("Profile") + "?tab=configurations");
       } else {
         toast.success('Заказ успешно создан!');
@@ -106,7 +196,9 @@ export default function Configurator() {
       }
     },
     onError: (error) => {
-      toast.error(error.message || 'Ошибка при сохранении конфигурации');
+      const errorMessage = error?.message || error?.data?.error || error?.response?.data?.error || 'Ошибка при сохранении конфигурации';
+      toast.error(errorMessage);
+      console.error('Configuration save error:', error);
     },
   });
 
@@ -134,7 +226,7 @@ export default function Configurator() {
     );
   };
 
-  if (trimLoading || colorsLoading || optionsLoading) return <PageLoader />;
+  if (trimLoading || colorsLoading || optionsLoading || (isEditMode && configLoading)) return <PageLoader />;
   if (!trim) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">

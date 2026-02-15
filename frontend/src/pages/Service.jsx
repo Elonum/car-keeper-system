@@ -30,16 +30,17 @@ const categoryColors = {
 export default function Services() {
   const [selectedCategory, setSelectedCategory] = useState('all');
 
-  const { data: services = [], isLoading } = useQuery({
+  const { data: services, isLoading } = useQuery({
     queryKey: ['serviceTypes', { is_available: true }],
     queryFn: () => serviceService.getServiceTypes({ is_available: true }),
   });
 
+  const safeServices = Array.isArray(services) ? services : [];
   const categories = ['all', ...Object.keys(categoryLabels)];
 
   const filteredServices = selectedCategory === 'all' 
-    ? services 
-    : services.filter(s => s.category === selectedCategory);
+    ? safeServices 
+    : safeServices.filter(s => s.category === selectedCategory);
 
   const serviceId = (s) => s.service_type_id || s.id;
 
@@ -126,7 +127,7 @@ export default function Services() {
           </div>
         )}
 
-        {filteredServices.length === 0 && services.length > 0 && (
+        {filteredServices.length === 0 && safeServices.length > 0 && (
           <div className="text-center py-12">
             <Wrench className="w-12 h-12 text-slate-300 mx-auto mb-3" />
             <p className="text-slate-500">Нет доступных услуг в этой категории</p>

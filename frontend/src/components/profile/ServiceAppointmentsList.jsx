@@ -61,12 +61,14 @@ export default function ServiceAppointmentsList({ appointments, isLoading }) {
                   <h3 className="text-lg font-bold text-slate-900 mb-1">
                     {appt.car_display || 'Сервисная запись'}
                   </h3>
-                  <div className="flex items-center gap-2 text-sm text-slate-500 mb-2">
-                    <Calendar className="w-3.5 h-3.5" />
-                    <span>
-                      {format(new Date(appt.appointment_date), 'd MMMM yyyy, HH:mm', { locale: ru })}
-                    </span>
-                  </div>
+                  {appt.appointment_date && (
+                    <div className="flex items-center gap-2 text-sm text-slate-500 mb-2">
+                      <Calendar className="w-3.5 h-3.5" />
+                      <span>
+                        {format(new Date(appt.appointment_date), 'd MMMM yyyy, HH:mm', { locale: ru })}
+                      </span>
+                    </div>
+                  )}
                   <StatusBadge status={appt.status} />
                 </div>
               </div>

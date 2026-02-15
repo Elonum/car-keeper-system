@@ -40,7 +40,7 @@ export default function ServiceAppointment() {
   const [selectedTime, setSelectedTime] = useState('');
   const [description, setDescription] = useState('');
 
-  const { data: userCars = [], isLoading: carsLoading } = useQuery({
+  const { data: userCars, isLoading: carsLoading } = useQuery({
     queryKey: ['userCars'],
     queryFn: () => serviceService.getUserCars(),
     enabled: isAuthenticated,
@@ -56,7 +56,8 @@ export default function ServiceAppointment() {
     queryFn: () => serviceService.getServiceTypes({ is_available: true }),
   });
 
-  const selectedCar = userCars.find(c => (c.user_car_id || c.id) === selectedCarId);
+  const safeUserCars = Array.isArray(userCars) ? userCars : [];
+  const selectedCar = safeUserCars.find(c => (c.user_car_id || c.id) === selectedCarId);
   const selectedBranch = branches.find(b => (b.branch_id || b.id) === selectedBranchId);
   const getServiceId = (s) => s.service_type_id || s.id;
   const selectedServices = serviceTypes.filter(s => selectedServiceIds.includes(getServiceId(s)));
@@ -106,6 +107,30 @@ export default function ServiceAppointment() {
 
   if (carsLoading || branchesLoading || servicesLoading) return <PageLoader />;
 
+  if (!carsLoading && safeUserCars.length === 0) {
+    return (
+      <div className="min-h-screen bg-slate-50">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
+          <div className="mb-8">
+            <h1 className="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight">Запись на ТО</h1>
+            <p className="text-slate-500 mt-1">Запишите ваш автомобиль на обслуживание</p>
+          </div>
+          <div className="text-center py-12 bg-white rounded-2xl shadow-sm border border-slate-100">
+            <Car className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+            <h2 className="text-xl font-bold text-slate-900 mb-2">У вас нет автомобилей</h2>
+            <p className="text-slate-500 mb-6">Для записи на обслуживание необходимо добавить автомобиль в личном кабинете</p>
+            <Button 
+              onClick={() => navigate(createPageUrl("Profile") + "?tab=cars")}
+              className="bg-slate-900 hover:bg-slate-800"
+            >
+              Перейти в личный кабинет
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const canProceed = () => {
     switch (step) {
       case 0: return !!selectedCarId;
@@ -130,7 +155,7 @@ export default function ServiceAppointment() {
 
         {step === 0 && (
           <CarSelector 
-            cars={userCars} 
+            cars={safeUserCars} 
             selectedCarId={selectedCarId} 
             onSelect={setSelectedCarId} 
           />

@@ -21,8 +21,9 @@ export default function MyConfigurations({ configurations, refetch }) {
       toast.success("Конфигурация отменена");
       if (refetch) refetch();
     },
-    onError: () => {
-      toast.error('Ошибка при отмене конфигурации');
+    onError: (error) => {
+      const errorMessage = error?.message || error?.data?.error || 'Ошибка при отмене конфигурации';
+      toast.error(errorMessage);
     },
   });
 
@@ -33,8 +34,9 @@ export default function MyConfigurations({ configurations, refetch }) {
       toast.success("Конфигурация удалена");
       if (refetch) refetch();
     },
-    onError: () => {
-      toast.error('Ошибка при удалении конфигурации');
+    onError: (error) => {
+      const errorMessage = error?.message || error?.data?.error || 'Ошибка при удалении конфигурации';
+      toast.error(errorMessage);
     },
   });
 
@@ -63,7 +65,7 @@ export default function MyConfigurations({ configurations, refetch }) {
                 <StatusBadge status={config.status} />
               </div>
               <p className="text-sm text-slate-500">Цвет: {config.color_name || '—'}</p>
-              {config.option_names && config.option_names.length > 0 && (
+              {config.option_names && Array.isArray(config.option_names) && config.option_names.length > 0 && (
                 <p className="text-xs text-slate-400 mt-1">
                   Опции: {config.option_names.join(', ')}
                 </p>

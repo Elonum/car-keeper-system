@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Check, Car, Gauge } from 'lucide-react';
 
 export default function CarSelector({ cars, selectedCarId, onSelect }) {
-  if (cars.length === 0) {
+  if (!cars || !Array.isArray(cars) || cars.length === 0) {
     return (
       <div className="text-center py-12">
         <Car className="w-12 h-12 text-slate-300 mx-auto mb-3" />
@@ -20,11 +20,12 @@ export default function CarSelector({ cars, selectedCarId, onSelect }) {
       <p className="text-sm text-slate-500 mb-5">Выберите авто для записи на обслуживание</p>
       <div className="grid gap-3">
         {cars.map(car => {
-          const isSelected = selectedCarId === car.id;
+          const carId = car.user_car_id || car.id;
+          const isSelected = selectedCarId === carId;
           return (
             <button
-              key={car.id}
-              onClick={() => onSelect(car.id)}
+              key={carId}
+              onClick={() => onSelect(carId)}
               className={cn(
                 "flex items-center gap-4 p-4 rounded-xl border-2 text-left transition-all w-full",
                 isSelected ? "border-slate-900 bg-slate-50" : "border-slate-100 bg-white hover:border-slate-200"

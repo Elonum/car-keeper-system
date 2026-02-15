@@ -16,12 +16,13 @@ export default function ColorSelection({ colors, selectedColorId, onSelectColor 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
       {colors.map(color => {
-        const isSelected = selectedColorId === color.id;
+        const colorId = color.color_id || color.id;
+        const isSelected = selectedColorId === colorId;
         const isAvailable = color.is_available !== false;
 
         return (
           <button
-            key={color.id}
+            key={colorId}
             onClick={() => isAvailable && onSelectColor(color)}
             disabled={!isAvailable}
             className={cn(
@@ -36,7 +37,7 @@ export default function ColorSelection({ colors, selectedColorId, onSelectColor 
             <div className="relative mb-3">
               <div 
                 className="w-16 h-16 mx-auto rounded-full border-2 border-slate-200 shadow-inner"
-                style={{ backgroundColor: color.hex_code }}
+                style={{ backgroundColor: color.hex_code || '#cccccc' }}
               />
               {isSelected && (
                 <div className="absolute inset-0 flex items-center justify-center">

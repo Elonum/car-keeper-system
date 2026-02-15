@@ -39,7 +39,7 @@ export default function ConfigurationSummary({ trim, color, selectedOptions, tot
           <div className="flex items-center gap-3">
             <div 
               className="w-10 h-10 rounded-full border-2 border-slate-200 shadow-sm flex-shrink-0"
-              style={{ backgroundColor: color.hex_code }}
+              style={{ backgroundColor: color.hex_code || '#cccccc' }}
             />
             <div className="flex-1">
               <p className="font-semibold text-slate-900">{color.name}</p>
@@ -63,15 +63,18 @@ export default function ConfigurationSummary({ trim, color, selectedOptions, tot
             </h3>
           </div>
           <div className="space-y-2">
-            {selectedOptions.map(opt => (
-              <div key={opt.id} className="flex items-start justify-between gap-3 py-2 border-b border-slate-100 last:border-0">
+            {selectedOptions.map(opt => {
+              const optionId = opt.option_id || opt.id;
+              return (
+              <div key={optionId} className="flex items-start justify-between gap-3 py-2 border-b border-slate-100 last:border-0">
                 <div className="flex items-start gap-2 flex-1">
                   <Check className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
                   <p className="text-sm text-slate-700">{opt.name}</p>
                 </div>
                 <PriceDisplay price={opt.price} size="sm" className="text-sm flex-shrink-0" prefix="+" />
               </div>
-            ))}
+              );
+            })}
           </div>
         </Card>
       )}

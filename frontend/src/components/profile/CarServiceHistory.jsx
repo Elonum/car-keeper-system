@@ -50,9 +50,11 @@ export default function CarServiceHistory({ carId }) {
               )}
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="font-semibold text-slate-900">
-                    {appt.appointment_date && format(new Date(appt.appointment_date), 'd MMM yyyy', { locale: ru })}
-                  </span>
+                  {appt.appointment_date && (
+                    <span className="font-semibold text-slate-900">
+                      {format(new Date(appt.appointment_date), 'd MMM yyyy', { locale: ru })}
+                    </span>
+                  )}
                   {appt.status === 'completed' && (
                     <Badge className="bg-green-100 text-green-700 border-green-200 border text-xs">
                       Завершено
@@ -75,12 +77,12 @@ export default function CarServiceHistory({ carId }) {
               </div>
             </div>
             
-            {appt.total_cost > 0 && (
+            {appt.total_cost && appt.total_cost > 0 && (
               <PriceDisplay price={appt.total_cost} size="md" />
             )}
           </div>
 
-          {appt.service_names && appt.service_names.length > 0 && (
+          {appt.service_names && Array.isArray(appt.service_names) && appt.service_names.length > 0 && (
             <div className="mb-3">
               <p className="text-xs text-slate-400 mb-1.5">Услуги:</p>
               <div className="flex flex-wrap gap-1.5">

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { configuratorService } from '@/services/configuratorService';
 import { orderService } from '@/services/orderService';
@@ -6,6 +6,16 @@ import { Link } from 'react-router-dom';
 import { createPageUrl } from '../../utils';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import StatusBadge from '../common/StatusBadge';
 import PriceDisplay from '../common/PriceDisplay';
 import EmptyState from '../common/EmptyState';
@@ -16,17 +26,33 @@ import { toast } from 'sonner';
 
 export default function ConfigurationList({ configurations, isLoading }) {
   const queryClient = useQueryClient();
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [configToDelete, setConfigToDelete] = useState(null);
 
   const deleteMutation = useMutation({
     mutationFn: (id) => configuratorService.deleteConfiguration(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['my-configurations'] });
       toast.success('Конфигурация удалена');
+      setDeleteDialogOpen(false);
+      setConfigToDelete(null);
     },
-    onError: () => {
-      toast.error('Ошибка при удалении конфигурации');
+    onError: (error) => {
+      const errorMessage = error?.message || error?.data?.error || 'Ошибка при удалении конфигурации';
+      toast.error(errorMessage);
     },
   });
+
+  const handleDeleteClick = (config) => {
+    setConfigToDelete(config);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = () => {
+    if (configToDelete) {
+      deleteMutation.mutate(configToDelete.configuration_id || configToDelete.id);
+    }
+  };
 
   const createOrderMutation = useMutation({
     mutationFn: async (config) => {
@@ -42,8 +68,9 @@ export default function ConfigurationList({ configurations, isLoading }) {
       queryClient.invalidateQueries({ queryKey: ['my-orders'] });
       toast.success('Заказ создан!');
     },
-    onError: () => {
-      toast.error('Ошибка при создании заказа');
+    onError: (error) => {
+      const errorMessage = error?.message || error?.data?.error || 'Ошибка при создании заказа';
+      toast.error(errorMessage);
     },
   });
 
@@ -92,9 +119,11 @@ export default function ConfigurationList({ configurations, isLoading }) {
                   <h3 className="text-lg font-bold text-slate-900 mb-1">
                     {config.trim_name || 'Конфигурация'}
                   </h3>
-                  <p className="text-sm text-slate-500 mb-2">
-                    Создано: {format(new Date(config.created_at || config.created_date), 'd MMMM yyyy', { locale: ru })}
-                  </p>
+                  {(config.created_at || config.created_date) && (
+                    <p className="text-sm text-slate-500 mb-2">
+                      Создано: {format(new Date(config.created_at || config.created_date), 'd MMMM yyyy', { locale: ru })}
+                    </p>
+                  )}
                   <StatusBadge status={config.status} />
                 </div>
               </div>
@@ -104,7 +133,7 @@ export default function ConfigurationList({ configurations, isLoading }) {
                   <span className="font-medium">Цвет:</span> {config.color_name}
                 </p>
               )}
-              {config.option_names && config.option_names.length > 0 && (
+              {config.option_names && Array.isArray(config.option_names) && config.option_names.length > 0 && (
                 <p className="text-sm text-slate-600">
                   <span className="font-medium">Опции:</span> {config.option_names.join(', ')}
                 </p>
@@ -117,7 +146,7 @@ export default function ConfigurationList({ configurations, isLoading }) {
               <div className="flex flex-wrap gap-2">
                 {config.status === 'draft' && (
                   <>
-                    <Link to={createPageUrl("Configurator") + `?trim_id=${config.trim_id}&config_id=${config.configuration_id || config.id}`}>
+                    <Link to={createPageUrl("Configurator") + `?trim_id=${config.trim_id || config.trimId || ''}&config_id=${config.configuration_id || config.id}`}>
                       <Button size="sm" variant="outline" className="gap-1.5">
                         <Edit className="w-3.5 h-3.5" />
                         Редактировать
@@ -134,20 +163,50 @@ export default function ConfigurationList({ configurations, isLoading }) {
                     </Button>
                   </>
                 )}
-                <Button 
-                  size="sm" 
-                  variant="ghost" 
-                  onClick={() => deleteMutation.mutate(config.configuration_id || config.id)}
-                  disabled={deleteMutation.isPending}
-                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </Button>
+                {config.status === 'draft' && (
+                  <Button 
+                    size="sm" 
+                    variant="ghost" 
+                    onClick={() => handleDeleteClick(config)}
+                    disabled={deleteMutation.isPending}
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </Button>
+                )}
               </div>
             </div>
           </div>
         </Card>
       ))}
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Удалить конфигурацию?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {configToDelete?.status === 'draft' 
+                ? 'Вы уверены, что хотите удалить эту конфигурацию? Это действие нельзя отменить.'
+                : 'Можно удалять только черновики. Эта конфигурация уже заказана и не может быть удалена.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setDeleteDialogOpen(false);
+              setConfigToDelete(null);
+            }}>Отмена</AlertDialogCancel>
+            {configToDelete?.status === 'draft' && (
+              <AlertDialogAction
+                onClick={handleDeleteConfirm}
+                disabled={deleteMutation.isPending}
+                className="bg-red-600 hover:bg-red-700"
+              >
+                {deleteMutation.isPending ? 'Удаление...' : 'Удалить'}
+              </AlertDialogAction>
+            )}
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

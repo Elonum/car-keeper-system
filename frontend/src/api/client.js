@@ -47,9 +47,15 @@ apiClient.interceptors.response.use(
       }
       
       const backendResponse = data || {};
+      // Extract error message from various possible locations
+      const errorMessage = backendResponse.error || 
+                          backendResponse.message || 
+                          (typeof backendResponse === 'string' ? backendResponse : null) ||
+                          error.message || 
+                          `Request failed with status ${status}`;
       return Promise.reject({
         status,
-        message: backendResponse.error || backendResponse.message || error.message,
+        message: errorMessage,
         data: backendResponse,
       });
     } else if (error.request) {

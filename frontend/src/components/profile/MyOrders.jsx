@@ -8,7 +8,7 @@ import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 
 export default function MyOrders({ orders }) {
-  if (orders.length === 0) {
+  if (!orders || !Array.isArray(orders) || orders.length === 0) {
     return <EmptyState icon={ShoppingCart} title="Нет заказов" description="Оформите заказ через конфигуратор" />;
   }
 

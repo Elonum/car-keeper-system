@@ -3,17 +3,26 @@ import { cn } from "@/lib/utils";
 import { Check, MapPin, Phone, Mail } from 'lucide-react';
 
 export default function BranchSelector({ branches, selectedBranchId, onSelect }) {
+  if (!branches || !Array.isArray(branches) || branches.length === 0) {
+    return (
+      <div className="text-center py-12 text-slate-500">
+        <p>Нет доступных филиалов</p>
+      </div>
+    );
+  }
+
   return (
     <div>
       <h2 className="text-xl font-bold text-slate-900 mb-1">Выберите филиал</h2>
       <p className="text-sm text-slate-500 mb-5">Выберите удобный для вас сервисный центр</p>
       <div className="grid gap-3">
         {branches.map(branch => {
-          const isSelected = selectedBranchId === branch.id;
+          const branchId = branch.branch_id || branch.id;
+          const isSelected = selectedBranchId === branchId;
           return (
             <button
-              key={branch.id}
-              onClick={() => onSelect(branch.id)}
+              key={branchId}
+              onClick={() => onSelect(branchId)}
               className={cn(
                 "flex items-start gap-4 p-5 rounded-xl border-2 text-left transition-all w-full",
                 isSelected ? "border-slate-900 bg-slate-50" : "border-slate-100 bg-white hover:border-slate-200"

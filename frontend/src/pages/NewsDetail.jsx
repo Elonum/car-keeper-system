@@ -80,9 +80,11 @@ export default function NewsDetail() {
               )}
             </div>
 
-            <div className="prose prose-slate max-w-none prose-headings:font-bold prose-a:text-blue-600 prose-img:rounded-xl">
-              <ReactMarkdown>{news.content}</ReactMarkdown>
-            </div>
+            {news.content && (
+              <div className="prose prose-slate max-w-none prose-headings:font-bold prose-a:text-blue-600 prose-img:rounded-xl">
+                <ReactMarkdown>{news.content}</ReactMarkdown>
+              </div>
+            )}
           </div>
         </article>
       </div>

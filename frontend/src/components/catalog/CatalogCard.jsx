@@ -83,7 +83,7 @@ export default function CatalogCard({ trim }) {
             <p className="text-xs text-slate-400 mb-0.5">от</p>
             <PriceDisplay price={trim.base_price} size="md" />
           </div>
-          <Link to={createPageUrl("Configurator") + `?trim_id=${trim.id}`}>
+          <Link to={createPageUrl("Configurator") + `?trim_id=${trim.trim_id || trim.id || ''}`}>
             <Button size="sm" className="bg-slate-900 hover:bg-blue-600 transition-colors text-white gap-1.5 rounded-xl h-9 px-4">
               Собрать
               <ArrowRight className="w-3.5 h-3.5" />

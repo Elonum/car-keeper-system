@@ -9,7 +9,7 @@ import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 
 export default function MyCars({ cars }) {
-  if (cars.length === 0) {
+  if (!cars || !Array.isArray(cars) || cars.length === 0) {
     return <EmptyState icon={Car} title="Нет автомобилей" description="У вас пока нет добавленных автомобилей" />;
   }
 

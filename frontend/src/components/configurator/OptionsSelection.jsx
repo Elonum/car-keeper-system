@@ -11,6 +11,8 @@ const categoryLabels = {
   interior: "Интерьер",
   technology: "Технологии",
   performance: "Производительность",
+  other: "Прочее",
+  others: "Прочее",
 };
 
 const categoryColors = {
@@ -52,16 +54,17 @@ export default function OptionsSelection({ options, selectedOptionIds, onToggleO
 
           <div className="grid gap-3">
             {opts.map(option => {
-              const isSelected = selectedOptionIds.includes(option.id);
+              const optionId = option.option_id || option.id;
+              const isSelected = selectedOptionIds.includes(optionId);
               const isAvailable = option.is_available !== false;
 
               return (
                 <Card 
-                  key={option.id}
+                  key={optionId}
                   className={`p-4 transition-all cursor-pointer ${
                     isSelected ? 'border-blue-600 bg-blue-50/30 shadow-md' : 'hover:border-slate-300 hover:shadow-sm'
                   } ${!isAvailable ? 'opacity-50' : ''}`}
-                  onClick={() => isAvailable && onToggleOption(option.id)}
+                  onClick={() => isAvailable && onToggleOption(optionId)}
                 >
                   <div className="flex items-start gap-4">
                     <Checkbox 

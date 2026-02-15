@@ -287,6 +287,54 @@ func (r *ConfigurationRepository) UpdateStatus(ctx context.Context, configID uui
 	return nil
 }
 
+func (r *ConfigurationRepository) Update(ctx context.Context, configID uuid.UUID, update model.ConfigurationCreate, totalPrice float64) (*model.Configuration, error) {
+	tx, err := r.db.Pool.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	// Update configuration
+	query := `
+		UPDATE configurations 
+		SET trim_id = $1, color_id = $2, total_price = $3, updated_at = NOW()
+		WHERE configuration_id = $4
+		RETURNING configuration_id, user_id, trim_id, color_id, status, total_price, created_at, updated_at
+	`
+	var config model.Configuration
+	err = tx.QueryRow(ctx, query, update.TrimID, update.ColorID, totalPrice, configID).Scan(
+		&config.ConfigurationID, &config.UserID, &config.TrimID, &config.ColorID,
+		&config.Status, &config.TotalPrice, &config.CreatedAt, &config.UpdatedAt,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update configuration: %w", err)
+	}
+
+	// Delete existing options
+	_, err = tx.Exec(ctx, `DELETE FROM configuration_options WHERE configuration_id = $1`, configID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to delete existing options: %w", err)
+	}
+
+	// Insert new options
+	if len(update.OptionIDs) > 0 {
+		optQuery := `
+			INSERT INTO configuration_options (configuration_id, option_id)
+			SELECT $1, unnest($2::uuid[])
+		`
+		_, err = tx.Exec(ctx, optQuery, configID, update.OptionIDs)
+		if err != nil {
+			return nil, fmt.Errorf("failed to insert configuration options: %w", err)
+		}
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return &config, nil
+}
+
 func (r *ConfigurationRepository) Delete(ctx context.Context, configID uuid.UUID) error {
 	query := `DELETE FROM configurations WHERE configuration_id = $1`
 	_, err := r.db.Pool.Exec(ctx, query, configID)
