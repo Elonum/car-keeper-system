@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/carkeeper/backend/database"
+	"github.com/carkeeper/backend/internal/apperr"
 	"github.com/carkeeper/backend/internal/model"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -132,10 +133,10 @@ func (r *UserCarRepository) DeleteOwned(ctx context.Context, userID, userCarID u
 		userCarID, userID,
 	)
 	if err != nil {
-		return fmt.Errorf("failed to delete user car: %w", err)
+		return apperr.Internal(err)
 	}
 	if ct.RowsAffected() == 0 {
-		return fmt.Errorf("user car not found")
+		return fmt.Errorf("%w", apperr.ErrNotFound)
 	}
 	return nil
 }

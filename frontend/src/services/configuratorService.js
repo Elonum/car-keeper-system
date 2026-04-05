@@ -14,27 +14,10 @@ export const configuratorService = {
   },
 
   updateConfiguration: async (configId, configData) => {
-    // Log the request payload for debugging
-    console.log('[configuratorService] updateConfiguration called:', {
-      configId,
-      configData,
-      hasStatus: 'status' in configData,
-      statusValue: configData?.status,
-      keys: Object.keys(configData || {}),
-    });
-    
-    // Explicitly remove status if it's empty or undefined (for full updates)
     const payload = { ...configData };
     if (payload.status === '' || payload.status === undefined || payload.status === null) {
       delete payload.status;
-      console.log('[configuratorService] Removed empty/undefined status from payload');
     }
-    
-    console.log('[configuratorService] Sending payload:', {
-      payload,
-      keys: Object.keys(payload),
-    });
-    
     return await apiClient.put(`/configurator/configurations/${configId}`, payload);
   },
 
@@ -46,4 +29,3 @@ export const configuratorService = {
     return await apiClient.delete(`/configurator/configurations/${configId}`);
   },
 };
-

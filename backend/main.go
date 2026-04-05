@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -27,13 +28,15 @@ func main() {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
+	initLogging(cfg)
+
 	db, err := database.New(cfg)
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
 	defer db.Close()
 
-	log.Println("Database connection established")
+	slog.Info("database connection established")
 
 	fileStore, err := storage.NewLocal(cfg.Storage.RootPath)
 	if err != nil {
@@ -54,7 +57,7 @@ func main() {
 	}
 
 	go func() {
-		log.Printf("Server starting on %s", cfg.Server.Address())
+		slog.Info("server starting", "addr", cfg.Server.Address())
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("Server failed to start: %v", err)
 		}
@@ -64,7 +67,7 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	log.Println("Shutting down server...")
+	slog.Info("shutting down server")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -73,7 +76,17 @@ func main() {
 		log.Fatalf("Server forced to shutdown: %v", err)
 	}
 
-	log.Println("Server exited")
+	slog.Info("server exited")
+}
+
+func initLogging(cfg *config.Config) {
+	var h slog.Handler
+	if cfg.Env == "production" {
+		h = slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})
+	} else {
+		h = slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug})
+	}
+	slog.SetDefault(slog.New(h))
 }
 
 func setupRouter(handlers *handler.Handler, cfg *config.Config, db *database.DB) *chi.Mux {
@@ -81,7 +94,8 @@ func setupRouter(handlers *handler.Handler, cfg *config.Config, db *database.DB)
 
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
-	r.Use(middleware.Logger)
+	r.Use(authMiddleware.LimitRequestBody(cfg.Server.MaxJSONBodyBytes))
+	r.Use(authMiddleware.RequestLogger)
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(60 * time.Second))
 
@@ -97,6 +111,18 @@ func setupRouter(handlers *handler.Handler, cfg *config.Config, db *database.DB)
 	r.Get("/health", handler.Health(db))
 
 	r.Route("/api", func(r chi.Router) {
+		r.Get("/order-statuses", handlers.GetOrderStatuses)
+
+		r.Route("/admin", func(r chi.Router) {
+			r.Use(authMiddleware.AuthMiddleware(handlers.Services().Auth))
+			r.Route("/order-statuses", func(r chi.Router) {
+				r.Get("/", handlers.AdminListOrderStatuses)
+				r.Post("/", handlers.AdminCreateOrderStatus)
+				r.Patch("/{id}", handlers.AdminUpdateOrderStatus)
+				r.Delete("/{id}", handlers.AdminDeleteOrderStatus)
+			})
+		})
+
 		r.Route("/auth", func(r chi.Router) {
 			r.Post("/register", handlers.Register)
 			r.Post("/login", handlers.Login)
@@ -148,6 +174,7 @@ func setupRouter(handlers *handler.Handler, cfg *config.Config, db *database.DB)
 				r.Get("/user-cars", handlers.GetUserCars)
 				r.Post("/appointments", handlers.CreateAppointment)
 				r.Get("/appointments", handlers.GetUserAppointments)
+				r.Patch("/appointments/{id}/reschedule", handlers.RescheduleAppointment)
 				r.Get("/appointments/{id}", handlers.GetAppointment)
 				r.Patch("/appointments/{id}/cancel", handlers.CancelAppointment)
 			})

@@ -1,11 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { serviceService } from '@/services/serviceService';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import StatusBadge from '../common/StatusBadge';
 import EmptyState from '../common/EmptyState';
-import { Wrench, MapPin, Calendar, X } from 'lucide-react';
+import RescheduleAppointmentDialog from './RescheduleAppointmentDialog';
+import { Wrench, MapPin, Calendar, X, CalendarClock } from 'lucide-react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { toast } from 'sonner';
@@ -13,6 +14,7 @@ import { getApiErrorMessage } from '@/lib/apiErrors';
 
 export default function ServiceAppointmentsList({ appointments, isLoading }) {
   const queryClient = useQueryClient();
+  const [rescheduleTarget, setRescheduleTarget] = useState(null);
 
   const cancelMutation = useMutation({
     mutationFn: (id) => serviceService.cancelAppointment(id),
@@ -58,16 +60,22 @@ export default function ServiceAppointmentsList({ appointments, isLoading }) {
                 <div className="w-10 h-10 rounded-lg bg-blue-600 flex items-center justify-center flex-shrink-0">
                   <Wrench className="w-5 h-5 text-white" />
                 </div>
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <h3 className="text-lg font-bold text-slate-900 mb-1">
                     {appt.user_car_vin || appt.car_display || 'Сервисная запись'}
                   </h3>
                   {appt.appointment_date && (
-                    <div className="flex items-center gap-2 text-sm text-slate-500 mb-2">
-                      <Calendar className="w-3.5 h-3.5" />
-                      <span>
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-500 mb-2">
+                      <span className="flex items-center gap-2">
+                        <Calendar className="w-3.5 h-3.5 flex-shrink-0" />
                         {format(new Date(appt.appointment_date), 'd MMMM yyyy, HH:mm', { locale: ru })}
                       </span>
+                      {typeof appt.duration_minutes === 'number' && appt.duration_minutes > 0 && (
+                        <span className="flex items-center gap-1.5 text-slate-600">
+                          <CalendarClock className="w-3.5 h-3.5 flex-shrink-0" />
+                          ~{appt.duration_minutes} мин
+                        </span>
+                      )}
                     </div>
                   )}
                   <StatusBadge status={appt.status} />
@@ -84,6 +92,17 @@ export default function ServiceAppointmentsList({ appointments, isLoading }) {
                 </div>
               )}
 
+              {Array.isArray(appt.service_types) && appt.service_types.length > 0 && (
+                <div className="mt-3 rounded-lg border border-slate-100 bg-slate-50/80 px-3 py-2">
+                  <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1.5">Услуги</p>
+                  <ul className="text-sm text-slate-700 space-y-0.5 list-disc list-inside">
+                    {appt.service_types.map((st) => (
+                      <li key={st.service_type_id || st.id}>{st.name}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
               {appt.description && (
                 <p className="text-sm text-slate-600 mt-3 p-3 bg-slate-50 rounded-lg">
                   {appt.description}
@@ -92,20 +111,41 @@ export default function ServiceAppointmentsList({ appointments, isLoading }) {
             </div>
 
             {appt.status === 'scheduled' && (
-              <Button 
-                size="sm" 
-                variant="ghost" 
-                onClick={() => cancelMutation.mutate(appt.service_appointment_id || appt.id)}
-                disabled={cancelMutation.isPending}
-                className="text-red-600 hover:text-red-700 hover:bg-red-50 gap-1.5"
-              >
-                <X className="w-3.5 h-3.5" />
-                Отменить
-              </Button>
+              <div className="flex flex-col sm:flex-row gap-2 shrink-0">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setRescheduleTarget(appt)}
+                  className="gap-1.5"
+                >
+                  <CalendarClock className="w-3.5 h-3.5" />
+                  Перенести
+                </Button>
+                <Button 
+                  type="button"
+                  size="sm" 
+                  variant="ghost" 
+                  onClick={() => cancelMutation.mutate(appt.service_appointment_id || appt.id)}
+                  disabled={cancelMutation.isPending}
+                  className="text-red-600 hover:text-red-700 hover:bg-red-50 gap-1.5"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  Отменить
+                </Button>
+              </div>
             )}
           </div>
         </Card>
       ))}
+
+      <RescheduleAppointmentDialog
+        open={Boolean(rescheduleTarget)}
+        onOpenChange={(open) => {
+          if (!open) setRescheduleTarget(null);
+        }}
+        appointment={rescheduleTarget}
+      />
     </div>
   );
 }

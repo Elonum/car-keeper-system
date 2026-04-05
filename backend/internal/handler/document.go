@@ -79,7 +79,7 @@ func (h *Handler) CreateDocument(w http.ResponseWriter, r *http.Request) {
 		case errors.Is(err, apperr.ErrForbidden):
 			Forbidden(w, "not allowed to attach document to this resource")
 		default:
-			BadRequest(w, err.Error())
+			HandleError(w, r, err)
 		}
 		return
 	}
@@ -117,7 +117,7 @@ func (h *Handler) ListDocuments(w http.ResponseWriter, r *http.Request) {
 			Forbidden(w, "not allowed to list these documents")
 			return
 		}
-		BadRequest(w, err.Error())
+		HandleError(w, r, err)
 		return
 	}
 	Success(w, list)
@@ -135,11 +135,7 @@ func (h *Handler) GetDocument(w http.ResponseWriter, r *http.Request) {
 	}
 	doc, err := h.services.Document.Get(r.Context(), id, requester, role)
 	if err != nil {
-		if errors.Is(err, apperr.ErrNotFound) {
-			NotFound(w, "document not found")
-			return
-		}
-		NotFound(w, err.Error())
+		HandleError(w, r, err)
 		return
 	}
 	Success(w, doc)
@@ -157,11 +153,7 @@ func (h *Handler) DownloadDocument(w http.ResponseWriter, r *http.Request) {
 	}
 	rc, doc, err := h.services.Document.OpenFile(r.Context(), id, requester, role)
 	if err != nil {
-		if errors.Is(err, apperr.ErrNotFound) {
-			NotFound(w, "document not found")
-			return
-		}
-		NotFound(w, err.Error())
+		HandleError(w, r, err)
 		return
 	}
 	defer rc.Close()
@@ -201,7 +193,7 @@ func (h *Handler) DeleteDocument(w http.ResponseWriter, r *http.Request) {
 			Forbidden(w, "not allowed to delete this document")
 			return
 		}
-		BadRequest(w, err.Error())
+		HandleError(w, r, err)
 		return
 	}
 	Success(w, map[string]string{"message": "document deleted"})

@@ -29,8 +29,9 @@ type DatabaseConfig struct {
 }
 
 type ServerConfig struct {
-	Port string
-	Host string
+	Port              string
+	Host              string
+	MaxJSONBodyBytes  int64
 }
 
 type JWTConfig struct {
@@ -57,8 +58,9 @@ func Load() (*Config, error) {
 			SSLMode:  getEnv("DB_SSLMODE", "disable"),
 		},
 		Server: ServerConfig{
-			Port: getEnv("SERVER_PORT", "8080"),
-			Host: getEnv("SERVER_HOST", "localhost"),
+			Port:             getEnv("SERVER_PORT", "8080"),
+			Host:             getEnv("SERVER_HOST", "localhost"),
+			MaxJSONBodyBytes: getEnvAsInt64("MAX_JSON_BODY_BYTES", 1<<20),
 		},
 		JWT: JWTConfig{
 			Secret:      getEnv("JWT_SECRET", "change-me-in-production"),
@@ -94,6 +96,9 @@ func (c *Config) validate() error {
 	}
 	if c.Storage.MaxUploadBytes < 1<<20 {
 		c.Storage.MaxUploadBytes = 15 << 20
+	}
+	if c.Server.MaxJSONBodyBytes < 4096 {
+		c.Server.MaxJSONBodyBytes = 1 << 20
 	}
 	return nil
 }

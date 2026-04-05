@@ -38,19 +38,7 @@ func (s *ServiceService) CreateAppointment(ctx context.Context, userID uuid.UUID
 		return nil, err
 	}
 
-	// Deduplicate service type IDs (client may send duplicates; DB PK would reject second insert)
-	if len(create.ServiceTypeIDs) > 0 {
-		seen := make(map[uuid.UUID]struct{}, len(create.ServiceTypeIDs))
-		uniq := make([]uuid.UUID, 0, len(create.ServiceTypeIDs))
-		for _, id := range create.ServiceTypeIDs {
-			if _, ok := seen[id]; ok {
-				continue
-			}
-			seen[id] = struct{}{}
-			uniq = append(uniq, id)
-		}
-		create.ServiceTypeIDs = uniq
-	}
+	create.ServiceTypeIDs = dedupeUUIDs(create.ServiceTypeIDs)
 
 	// Verify user car belongs to user
 	userCar, err := s.repo.UserCar.GetByID(ctx, create.UserCarID)
@@ -133,6 +121,41 @@ func (s *ServiceService) CancelAppointment(ctx context.Context, appointmentID uu
 		return fmt.Errorf("cannot cancel completed appointment")
 	}
 	return s.repo.ServiceAppointment.UpdateStatus(ctx, appointmentID, "cancelled")
+}
+
+// RescheduleAppointment updates appointment_date for the car owner; services and duration stay unchanged.
+func (s *ServiceService) RescheduleAppointment(ctx context.Context, userID uuid.UUID, appointmentID uuid.UUID, newDate time.Time) (*model.ServiceAppointmentWithDetails, error) {
+	now := time.Now()
+	if err := validate.AppointmentDate(newDate, now); err != nil {
+		return nil, err
+	}
+	a, err := s.repo.ServiceAppointment.GetByID(ctx, appointmentID)
+	if err != nil {
+		return nil, err
+	}
+	if a.OwnerUserID != userID {
+		return nil, fmt.Errorf("%w", apperr.ErrForbidden)
+	}
+	if a.Status != "scheduled" {
+		return nil, fmt.Errorf("only scheduled appointments can be rescheduled")
+	}
+
+	branch, err := s.repo.Branch.GetByID(ctx, a.BranchID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get branch: %w", err)
+	}
+	if !branch.IsActive {
+		return nil, fmt.Errorf("branch is not active")
+	}
+	if err := validateAppointmentSlot(branch, newDate, a.DurationMinutes); err != nil {
+		return nil, err
+	}
+
+	if err := s.repo.ServiceAppointment.RescheduleOwned(ctx, appointmentID, userID, a.BranchID, newDate, a.DurationMinutes, branch.ConcurrentBays); err != nil {
+		return nil, err
+	}
+
+	return s.repo.ServiceAppointment.GetByID(ctx, appointmentID)
 }
 
 func boolPtr(b bool) *bool {

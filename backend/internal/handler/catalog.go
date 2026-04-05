@@ -13,7 +13,7 @@ import (
 func (h *Handler) GetBrands(w http.ResponseWriter, r *http.Request) {
 	brands, err := h.services.Catalog.GetBrands(r.Context())
 	if err != nil {
-		InternalServerError(w, err.Error())
+		HandleError(w, r, err)
 		return
 	}
 	Success(w, brands)
@@ -34,7 +34,7 @@ func (h *Handler) GetModels(w http.ResponseWriter, r *http.Request) {
 
 	models, err := h.services.Catalog.GetModels(r.Context(), brandID)
 	if err != nil {
-		InternalServerError(w, err.Error())
+		HandleError(w, r, err)
 		return
 	}
 	Success(w, models)
@@ -55,7 +55,7 @@ func (h *Handler) GetGenerations(w http.ResponseWriter, r *http.Request) {
 
 	generations, err := h.services.Catalog.GetGenerations(r.Context(), modelID)
 	if err != nil {
-		InternalServerError(w, err.Error())
+		HandleError(w, r, err)
 		return
 	}
 	Success(w, generations)
@@ -128,7 +128,7 @@ func (h *Handler) GetTrims(w http.ResponseWriter, r *http.Request) {
 
 	trims, err := h.services.Catalog.GetTrims(r.Context(), filters)
 	if err != nil {
-		InternalServerError(w, err.Error())
+		HandleError(w, r, err)
 		return
 	}
 	Success(w, trims)
@@ -144,7 +144,7 @@ func (h *Handler) GetTrim(w http.ResponseWriter, r *http.Request) {
 
 	trim, err := h.services.Catalog.GetTrim(r.Context(), trimID)
 	if err != nil {
-		NotFound(w, err.Error())
+		HandleError(w, r, err)
 		return
 	}
 	Success(w, trim)
@@ -153,7 +153,7 @@ func (h *Handler) GetTrim(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetEngineTypes(w http.ResponseWriter, r *http.Request) {
 	engineTypes, err := h.services.Catalog.GetEngineTypes(r.Context())
 	if err != nil {
-		InternalServerError(w, err.Error())
+		HandleError(w, r, err)
 		return
 	}
 	Success(w, engineTypes)
@@ -162,7 +162,7 @@ func (h *Handler) GetEngineTypes(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetTransmissions(w http.ResponseWriter, r *http.Request) {
 	transmissions, err := h.services.Catalog.GetTransmissions(r.Context())
 	if err != nil {
-		InternalServerError(w, err.Error())
+		HandleError(w, r, err)
 		return
 	}
 	Success(w, transmissions)
@@ -171,7 +171,7 @@ func (h *Handler) GetTransmissions(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetDriveTypes(w http.ResponseWriter, r *http.Request) {
 	driveTypes, err := h.services.Catalog.GetDriveTypes(r.Context())
 	if err != nil {
-		InternalServerError(w, err.Error())
+		HandleError(w, r, err)
 		return
 	}
 	Success(w, driveTypes)

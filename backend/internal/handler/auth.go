@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"github.com/carkeeper/backend/internal/middleware"
@@ -33,8 +32,7 @@ func validateUserRegisterInput(in *model.UserRegisterInput) string {
 
 func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 	var in model.UserRegisterInput
-	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
-		BadRequest(w, "Invalid request body")
+	if !DecodeJSON(w, r, &in) {
 		return
 	}
 	if msg := validateUserRegisterInput(&in); msg != "" {
@@ -44,7 +42,7 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 
 	user, err := h.services.Auth.Register(r.Context(), in)
 	if err != nil {
-		BadRequest(w, err.Error())
+		HandleError(w, r, err)
 		return
 	}
 
@@ -53,14 +51,13 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	var login model.UserLogin
-	if err := json.NewDecoder(r.Body).Decode(&login); err != nil {
-		BadRequest(w, "Invalid request body")
+	if !DecodeJSON(w, r, &login) {
 		return
 	}
 
 	token, user, err := h.services.Auth.Login(r.Context(), login)
 	if err != nil {
-		Unauthorized(w, err.Error())
+		HandleError(w, r, err)
 		return
 	}
 
@@ -79,7 +76,7 @@ func (h *Handler) GetMe(w http.ResponseWriter, r *http.Request) {
 
 	user, err := h.services.Auth.GetUser(r.Context(), userID)
 	if err != nil {
-		NotFound(w, err.Error())
+		HandleError(w, r, err)
 		return
 	}
 

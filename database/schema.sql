@@ -210,16 +210,43 @@ CREATE TABLE configuration_options (
 CREATE INDEX idx_configuration_options_option_id ON configuration_options(option_id);
 
 -- Orders table
+-- Order status dictionary (managed by admin; orders reference stable code)
+CREATE TABLE order_status_definitions (
+    order_status_id   uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    code              varchar(32) NOT NULL UNIQUE,
+    customer_label_ru varchar(120) NOT NULL,
+    admin_label_ru    varchar(120),
+    description       text,
+    sort_order        integer NOT NULL DEFAULT 0,
+    is_active         boolean NOT NULL DEFAULT true,
+    is_terminal       boolean NOT NULL DEFAULT false,
+    created_at        timestamptz NOT NULL DEFAULT now(),
+    updated_at        timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_order_status_definitions_sort ON order_status_definitions (sort_order, code);
+
+CREATE TRIGGER trg_order_status_definitions_updated_at
+BEFORE UPDATE ON order_status_definitions
+FOR EACH ROW
+EXECUTE FUNCTION set_updated_at();
+
+INSERT INTO order_status_definitions (code, customer_label_ru, admin_label_ru, sort_order, is_terminal) VALUES
+    ('pending', 'Принят, ожидает обработки', 'Ожидание', 10, false),
+    ('approved', 'Подтверждён менеджером', 'Одобрен', 20, false),
+    ('paid', 'Оплачен', 'Оплачен', 30, false),
+    ('completed', 'Выполнен', 'Завершён', 40, true),
+    ('cancelled', 'Отменён', 'Отменён', 50, true);
+
 CREATE TABLE orders (
     order_id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id          uuid NOT NULL REFERENCES users(user_id) ON DELETE RESTRICT,
     configuration_id uuid NOT NULL UNIQUE REFERENCES configurations(configuration_id) ON DELETE RESTRICT,
     manager_id       uuid REFERENCES users(user_id) ON DELETE SET NULL,
-    status           varchar(30) NOT NULL DEFAULT 'pending',
+    status           varchar(32) NOT NULL DEFAULT 'pending' REFERENCES order_status_definitions(code) ON UPDATE CASCADE ON DELETE RESTRICT,
     final_price      numeric(12,2) NOT NULL CHECK (final_price >= 0),
     created_at       timestamptz NOT NULL DEFAULT now(),
-    updated_at       timestamptz NOT NULL DEFAULT now(),
-    CHECK (status IN ('pending','approved','paid','completed','cancelled'))
+    updated_at       timestamptz NOT NULL DEFAULT now()
 );
 
 CREATE INDEX idx_orders_user_id ON orders(user_id);

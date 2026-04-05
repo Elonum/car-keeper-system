@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/carkeeper/backend/config"
+	"github.com/carkeeper/backend/internal/apperr"
 	"github.com/carkeeper/backend/internal/model"
 	"github.com/carkeeper/backend/internal/repository"
 	"github.com/carkeeper/backend/internal/validate"
@@ -35,16 +36,16 @@ func (s *AuthService) Register(ctx context.Context, in model.UserRegisterInput) 
 	// Check if email already exists
 	exists, err := s.repo.User.EmailExists(ctx, create.Email)
 	if err != nil {
-		return nil, fmt.Errorf("failed to check email: %w", err)
+		return nil, err
 	}
 	if exists {
-		return nil, fmt.Errorf("email already exists")
+		return nil, apperr.Conflict("This email is already registered")
 	}
 
 	// Create user
 	user, err := s.repo.User.Create(ctx, create)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create user: %w", err)
+		return nil, apperr.Internal(err)
 	}
 
 	response := user.ToResponse()
@@ -55,13 +56,16 @@ func (s *AuthService) Login(ctx context.Context, login model.UserLogin) (string,
 	// Verify credentials
 	user, err := s.repo.User.VerifyPassword(ctx, login.Email, login.Password)
 	if err != nil {
-		return "", nil, fmt.Errorf("invalid credentials")
+		if errors.Is(err, apperr.ErrInvalidCredentials) {
+			return "", nil, apperr.Unauthorized("Invalid email or password")
+		}
+		return "", nil, err
 	}
 
 	// Generate JWT token
 	token, err := s.generateToken(user.UserID, user.Role)
 	if err != nil {
-		return "", nil, fmt.Errorf("failed to generate token: %w", err)
+		return "", nil, apperr.Internal(err)
 	}
 
 	response := user.ToResponse()
@@ -71,7 +75,10 @@ func (s *AuthService) Login(ctx context.Context, login model.UserLogin) (string,
 func (s *AuthService) GetUser(ctx context.Context, userID uuid.UUID) (*model.UserResponse, error) {
 	user, err := s.repo.User.GetByID(ctx, userID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get user: %w", err)
+		if errors.Is(err, apperr.ErrNotFound) {
+			return nil, apperr.NotFoundErr("User not found")
+		}
+		return nil, err
 	}
 
 	response := user.ToResponse()
@@ -81,15 +88,21 @@ func (s *AuthService) GetUser(ctx context.Context, userID uuid.UUID) (*model.Use
 // ChangePassword requires the current password and validates the new password strength.
 func (s *AuthService) ChangePassword(ctx context.Context, userID uuid.UUID, currentPassword, newPassword string) error {
 	if msg := validate.NewPassword(newPassword); msg != "" {
-		return fmt.Errorf("%s", msg)
+		return apperr.BadRequest(msg)
 	}
 	if err := s.repo.User.VerifyPasswordForUserID(ctx, userID, currentPassword); err != nil {
-		return fmt.Errorf("current password is incorrect")
+		if errors.Is(err, apperr.ErrInvalidCredentials) {
+			return apperr.Unauthorized("Current password is incorrect")
+		}
+		return err
 	}
 	if msg := validate.NewPasswordMustDifferFromCurrent(currentPassword, newPassword); msg != "" {
-		return fmt.Errorf("%s", msg)
+		return apperr.BadRequest(msg)
 	}
-	return s.repo.User.UpdatePassword(ctx, userID, newPassword)
+	if err := s.repo.User.UpdatePassword(ctx, userID, newPassword); err != nil {
+		return apperr.Internal(err)
+	}
+	return nil
 }
 
 func (s *AuthService) generateToken(userID uuid.UUID, role string) (string, error) {

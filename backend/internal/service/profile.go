@@ -28,32 +28,32 @@ func (s *ProfileService) GetUserCars(ctx context.Context, userID uuid.UUID) ([]m
 func (s *ProfileService) CreateUserCar(ctx context.Context, userID uuid.UUID, create model.UserCarCreate) (*model.UserCarWithDetails, error) {
 	create.VIN = validate.NormalizeVIN(create.VIN)
 	if msg := validate.VIN(create.VIN); msg != "" {
-		return nil, fmt.Errorf("%s", msg)
+		return nil, apperr.BadRequest(msg)
 	}
 	y := time.Now().UTC().Year()
 	if create.Year < 1900 || create.Year > y+1 {
-		return nil, fmt.Errorf("invalid vehicle year")
+		return nil, apperr.BadRequest("Invalid vehicle year")
 	}
 	if create.CurrentMileage < 0 {
-		return nil, fmt.Errorf("mileage must be non-negative")
+		return nil, apperr.BadRequest("Mileage must be non-negative")
 	}
 
 	exists, err := s.repo.UserCar.VINExists(ctx, create.VIN)
 	if err != nil {
-		return nil, fmt.Errorf("failed to check VIN: %w", err)
+		return nil, apperr.Internal(err)
 	}
 	if exists {
-		return nil, fmt.Errorf("VIN already exists")
+		return nil, apperr.Conflict("This VIN is already registered")
 	}
 
 	userCar, err := s.repo.UserCar.Create(ctx, userID, create)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create user car: %w", err)
+		return nil, apperr.Internal(err)
 	}
 
 	userCarWithDetails, err := s.repo.UserCar.GetByID(ctx, userCar.UserCarID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get user car details: %w", err)
+		return nil, err
 	}
 
 	return userCarWithDetails, nil

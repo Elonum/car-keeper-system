@@ -57,15 +57,7 @@ func (s *ServiceService) BranchAvailability(ctx context.Context, branchID uuid.U
 		return nil, fmt.Errorf("branch is not active")
 	}
 
-	seen := make(map[uuid.UUID]struct{})
-	var uniq []uuid.UUID
-	for _, id := range serviceTypeIDs {
-		if _, ok := seen[id]; ok {
-			continue
-		}
-		seen[id] = struct{}{}
-		uniq = append(uniq, id)
-	}
+	uniq := dedupeUUIDs(serviceTypeIDs)
 	if len(uniq) == 0 {
 		return nil, fmt.Errorf("at least one service type is required")
 	}
@@ -139,4 +131,20 @@ func sameDay(a, b time.Time) bool {
 	ay, am, ad := a.Date()
 	by, bm, bd := b.Date()
 	return ay == by && am == bm && ad == bd
+}
+
+func dedupeUUIDs(ids []uuid.UUID) []uuid.UUID {
+	if len(ids) == 0 {
+		return nil
+	}
+	seen := make(map[uuid.UUID]struct{}, len(ids))
+	out := make([]uuid.UUID, 0, len(ids))
+	for _, id := range ids {
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		out = append(out, id)
+	}
+	return out
 }

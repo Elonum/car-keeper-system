@@ -19,6 +19,7 @@ type Repository struct {
 	News                *NewsRepository
 	Dictionary          *DictionaryRepository
 	Document            *DocumentRepository
+	OrderStatus         *OrderStatusRepository
 }
 
 func New(db *database.DB) *Repository {
@@ -39,6 +40,7 @@ func New(db *database.DB) *Repository {
 		News:               NewNewsRepository(db),
 		Dictionary:         NewDictionaryRepository(db),
 		Document:           NewDocumentRepository(db),
+		OrderStatus:        NewOrderStatusRepository(db),
 	}
 }
 

@@ -34,6 +34,12 @@ export const serviceService = {
     return await apiClient.patch(`/service/appointments/${appointmentId}/cancel`);
   },
 
+  rescheduleAppointment: async (appointmentId, { appointment_date }) => {
+    return await apiClient.patch(`/service/appointments/${appointmentId}/reschedule`, {
+      appointment_date,
+    });
+  },
+
   getServiceTypes: async (params = {}) => {
     return await apiClient.get('/service/types', { params });
   },

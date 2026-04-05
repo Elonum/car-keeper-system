@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/carkeeper/backend/database"
+	"github.com/carkeeper/backend/internal/apperr"
 	"github.com/carkeeper/backend/internal/model"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -195,9 +196,9 @@ func (r *ConfigurationRepository) GetByID(ctx context.Context, configID uuid.UUI
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, fmt.Errorf("configuration not found")
+			return nil, fmt.Errorf("%w", apperr.ErrNotFound)
 		}
-		return nil, fmt.Errorf("failed to get configuration: %w", err)
+		return nil, apperr.Internal(err)
 	}
 
 	// Get options

@@ -349,3 +349,70 @@ func (r *ServiceAppointmentRepository) UpdateStatus(ctx context.Context, appoint
 	return nil
 }
 
+// RescheduleOwned moves a scheduled appointment to newStart after advisory lock and overlap check (excluding this row).
+func (r *ServiceAppointmentRepository) RescheduleOwned(ctx context.Context, appointmentID, ownerUserID, branchID uuid.UUID, newStart time.Time, durationMin, concurrentBays int) error {
+	if durationMin <= 0 {
+		return fmt.Errorf("invalid duration")
+	}
+	tx, err := r.db.Pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtext($1::text))`, branchID.String()); err != nil {
+		return fmt.Errorf("lock branch: %w", err)
+	}
+
+	var stub int
+	err = tx.QueryRow(ctx, `
+		SELECT 1
+		FROM service_appointments sa
+		JOIN user_cars uc ON sa.user_car_id = uc.user_car_id
+		WHERE sa.service_appointment_id = $1
+		  AND uc.user_id = $2
+		  AND sa.status = 'scheduled'
+	`, appointmentID, ownerUserID).Scan(&stub)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return fmt.Errorf("appointment not found or cannot be rescheduled")
+		}
+		return fmt.Errorf("verify appointment: %w", err)
+	}
+
+	newEnd := newStart.Add(time.Duration(durationMin) * time.Minute)
+	var overlap int
+	err = tx.QueryRow(ctx, `
+		SELECT COUNT(*)::int FROM service_appointments
+		WHERE branch_id = $1
+		  AND status = 'scheduled'
+		  AND service_appointment_id <> $2
+		  AND appointment_date < $4
+		  AND (appointment_date + (duration_minutes || ' minutes')::interval) > $3
+	`, branchID, appointmentID, newStart, newEnd).Scan(&overlap)
+	if err != nil {
+		return fmt.Errorf("overlap check: %w", err)
+	}
+	if overlap >= concurrentBays {
+		return fmt.Errorf("this time slot is no longer available")
+	}
+
+	tag, err := tx.Exec(ctx, `
+		UPDATE service_appointments
+		SET appointment_date = $1, updated_at = now()
+		WHERE service_appointment_id = $2
+		  AND status = 'scheduled'
+	`, newStart, appointmentID)
+	if err != nil {
+		return fmt.Errorf("failed to reschedule: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return fmt.Errorf("appointment could not be updated")
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("failed to commit: %w", err)
+	}
+	return nil
+}
+

@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/carkeeper/backend/database"
+	"github.com/carkeeper/backend/internal/apperr"
 	"github.com/carkeeper/backend/internal/model"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -82,9 +83,9 @@ func (r *UserRepository) GetByID(ctx context.Context, userID uuid.UUID) (*model.
 
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, fmt.Errorf("user not found")
+			return nil, fmt.Errorf("%w", apperr.ErrNotFound)
 		}
-		return nil, fmt.Errorf("failed to get user: %w", err)
+		return nil, apperr.Internal(err)
 	}
 
 	return &user, nil
@@ -147,13 +148,13 @@ func (r *UserRepository) VerifyPassword(ctx context.Context, email, password str
 
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, fmt.Errorf("invalid credentials")
+			return nil, fmt.Errorf("%w", apperr.ErrInvalidCredentials)
 		}
-		return nil, fmt.Errorf("failed to get user: %w", err)
+		return nil, apperr.Internal(err)
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(password)); err != nil {
-		return nil, fmt.Errorf("invalid credentials")
+		return nil, fmt.Errorf("%w", apperr.ErrInvalidCredentials)
 	}
 
 	return &user, nil
@@ -164,7 +165,7 @@ func (r *UserRepository) EmailExists(ctx context.Context, email string) (bool, e
 	query := `SELECT EXISTS(SELECT 1 FROM users WHERE email = $1)`
 	err := r.db.Pool.QueryRow(ctx, query, email).Scan(&exists)
 	if err != nil {
-		return false, fmt.Errorf("failed to check email: %w", err)
+		return false, apperr.Internal(err)
 	}
 	return exists, nil
 }
@@ -178,12 +179,12 @@ func (r *UserRepository) VerifyPasswordForUserID(ctx context.Context, userID uui
 	).Scan(&passwordHash)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return fmt.Errorf("invalid credentials")
+			return fmt.Errorf("%w", apperr.ErrInvalidCredentials)
 		}
-		return fmt.Errorf("failed to verify password: %w", err)
+		return apperr.Internal(err)
 	}
 	if err := bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(plain)); err != nil {
-		return fmt.Errorf("invalid credentials")
+		return fmt.Errorf("%w", apperr.ErrInvalidCredentials)
 	}
 	return nil
 }
@@ -227,9 +228,9 @@ func (r *UserRepository) UpdateProfile(ctx context.Context, userID uuid.UUID, fi
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, fmt.Errorf("user not found")
+			return nil, fmt.Errorf("%w", apperr.ErrNotFound)
 		}
-		return nil, fmt.Errorf("failed to update profile: %w", err)
+		return nil, apperr.Internal(err)
 	}
 	return &user, nil
 }

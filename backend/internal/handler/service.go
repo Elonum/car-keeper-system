@@ -1,11 +1,11 @@
 package handler
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/carkeeper/backend/internal/apperr"
 	"github.com/carkeeper/backend/internal/model"
@@ -29,7 +29,7 @@ func (h *Handler) GetServiceTypes(w http.ResponseWriter, r *http.Request) {
 
 	serviceTypes, err := h.services.Service.GetServiceTypes(r.Context(), category, isAvailable)
 	if err != nil {
-		InternalServerError(w, err.Error())
+		HandleError(w, r, err)
 		return
 	}
 	Success(w, serviceTypes)
@@ -45,7 +45,7 @@ func (h *Handler) GetBranches(w http.ResponseWriter, r *http.Request) {
 
 	branches, err := h.services.Service.GetBranches(r.Context(), isActive)
 	if err != nil {
-		InternalServerError(w, err.Error())
+		HandleError(w, r, err)
 		return
 	}
 	Success(w, branches)
@@ -92,7 +92,7 @@ func (h *Handler) GetBranchAvailability(w http.ResponseWriter, r *http.Request) 
 	}
 	avail, err := h.services.Service.BranchAvailability(r.Context(), branchID, dateStr, ids)
 	if err != nil {
-		BadRequest(w, err.Error())
+		HandleError(w, r, err)
 		return
 	}
 	Success(w, avail)
@@ -106,7 +106,7 @@ func (h *Handler) GetUserCars(w http.ResponseWriter, r *http.Request) {
 
 	userCars, err := h.services.Profile.GetUserCars(r.Context(), userID)
 	if err != nil {
-		InternalServerError(w, err.Error())
+		HandleError(w, r, err)
 		return
 	}
 	Success(w, userCars)
@@ -119,8 +119,7 @@ func (h *Handler) CreateAppointment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var create model.ServiceAppointmentCreate
-	if err := json.NewDecoder(r.Body).Decode(&create); err != nil {
-		BadRequest(w, "Invalid request body")
+	if !DecodeJSON(w, r, &create) {
 		return
 	}
 
@@ -131,10 +130,45 @@ func (h *Handler) CreateAppointment(w http.ResponseWriter, r *http.Request) {
 
 	appointment, err := h.services.Service.CreateAppointment(r.Context(), userID, create)
 	if err != nil {
-		BadRequest(w, err.Error())
+		HandleError(w, r, err)
 		return
 	}
 
+	Success(w, appointment)
+}
+
+func (h *Handler) RescheduleAppointment(w http.ResponseWriter, r *http.Request) {
+	userID, _, ok := RequesterAndRole(w, r)
+	if !ok {
+		return
+	}
+	appointmentIDStr := chi.URLParam(r, "id")
+	appointmentID, err := uuid.Parse(appointmentIDStr)
+	if err != nil {
+		BadRequest(w, "Invalid appointment ID")
+		return
+	}
+
+	var body struct {
+		AppointmentDate time.Time `json:"appointment_date"`
+	}
+	if !DecodeJSON(w, r, &body) {
+		return
+	}
+	if body.AppointmentDate.IsZero() {
+		BadRequest(w, "appointment_date is required")
+		return
+	}
+
+	appointment, err := h.services.Service.RescheduleAppointment(r.Context(), userID, appointmentID, body.AppointmentDate)
+	if err != nil {
+		if errors.Is(err, apperr.ErrForbidden) {
+			Forbidden(w, "Not allowed to reschedule this appointment")
+			return
+		}
+		HandleError(w, r, err)
+		return
+	}
 	Success(w, appointment)
 }
 
@@ -146,7 +180,7 @@ func (h *Handler) GetUserAppointments(w http.ResponseWriter, r *http.Request) {
 
 	appointments, err := h.services.Service.GetUserAppointments(r.Context(), userID)
 	if err != nil {
-		InternalServerError(w, err.Error())
+		HandleError(w, r, err)
 		return
 	}
 	Success(w, appointments)
@@ -167,11 +201,7 @@ func (h *Handler) GetAppointment(w http.ResponseWriter, r *http.Request) {
 
 	appointment, err := h.services.Service.GetAppointment(r.Context(), appointmentID, requester, role)
 	if err != nil {
-		if errors.Is(err, apperr.ErrNotFound) {
-			NotFound(w, "Appointment not found")
-			return
-		}
-		NotFound(w, err.Error())
+		HandleError(w, r, err)
 		return
 	}
 	Success(w, appointment)
@@ -195,18 +225,14 @@ func (h *Handler) CancelAppointment(w http.ResponseWriter, r *http.Request) {
 		case errors.Is(err, apperr.ErrForbidden):
 			Forbidden(w, "Not allowed to cancel this appointment")
 		default:
-			BadRequest(w, err.Error())
+			HandleError(w, r, err)
 		}
 		return
 	}
 
 	appointment, err := h.services.Service.GetAppointment(r.Context(), appointmentID, requester, role)
 	if err != nil {
-		if errors.Is(err, apperr.ErrNotFound) {
-			NotFound(w, "Appointment not found")
-			return
-		}
-		InternalServerError(w, err.Error())
+		HandleError(w, r, err)
 		return
 	}
 	Success(w, appointment)

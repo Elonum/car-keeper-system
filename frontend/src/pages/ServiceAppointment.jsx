@@ -4,6 +4,8 @@ import { useAuth } from '@/lib/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { serviceService } from '@/services/serviceService';
 import { createPageUrl } from '../utils';
+import { pagesConfig } from '../pages.config';
+import { formatAppointmentInTimeZone } from '@/lib/appointmentDisplay';
 import StepIndicator from '../components/configurator/StepIndicator';
 import CarSelector from '../components/service/CarSelector';
 import BranchSelector from '../components/service/BranchSelector';
@@ -26,11 +28,6 @@ function truncateDescription(s, maxChars) {
   const arr = Array.from(String(s ?? ''));
   if (arr.length <= maxChars) return s || undefined;
   return arr.slice(0, maxChars).join('');
-}
-
-function formatInTimeZone(isoString, timeZone, opts) {
-  const tz = timeZone || 'Europe/Moscow';
-  return new Intl.DateTimeFormat('ru-RU', { timeZone: tz, ...opts }).format(new Date(isoString));
 }
 
 export default function ServiceAppointment() {
@@ -213,7 +210,11 @@ export default function ServiceAppointment() {
       setStep((s) => s - 1);
       return;
     }
-    navigate(-1);
+    if (typeof window !== 'undefined' && window.history.length > 1) {
+      navigate(-1);
+      return;
+    }
+    navigate(createPageUrl(pagesConfig.mainPage));
   };
 
   return (
@@ -373,7 +374,7 @@ export default function ServiceAppointment() {
                             : 'bg-white border border-slate-200 text-slate-700 hover:border-slate-300'
                         }`}
                       >
-                        {formatInTimeZone(iso, branchTimezone, { hour: '2-digit', minute: '2-digit', hour12: false })}
+                        {formatAppointmentInTimeZone(iso, branchTimezone, { hour: '2-digit', minute: '2-digit', hour12: false })}
                       </button>
                     ))}
                   </div>
@@ -467,7 +468,7 @@ export default function ServiceAppointment() {
                       <p className="text-xs text-slate-400 uppercase tracking-wider font-medium">Дата</p>
                       <p className="font-semibold text-slate-900">
                         {selectedSlotISO &&
-                          formatInTimeZone(selectedSlotISO, branchTimezone, {
+                          formatAppointmentInTimeZone(selectedSlotISO, branchTimezone, {
                             day: 'numeric',
                             month: 'long',
                             year: 'numeric',
@@ -483,7 +484,7 @@ export default function ServiceAppointment() {
                       <p className="text-xs text-slate-400 uppercase tracking-wider font-medium">Время</p>
                       <p className="font-semibold text-slate-900">
                         {selectedSlotISO &&
-                          formatInTimeZone(selectedSlotISO, branchTimezone, {
+                          formatAppointmentInTimeZone(selectedSlotISO, branchTimezone, {
                             hour: '2-digit',
                             minute: '2-digit',
                             hour12: false,

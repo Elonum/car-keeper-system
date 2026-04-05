@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/carkeeper/backend/database"
+	"github.com/carkeeper/backend/internal/apperr"
 	"github.com/carkeeper/backend/internal/model"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -81,9 +82,9 @@ func (r *NewsRepository) GetByID(ctx context.Context, newsID uuid.UUID) (*model.
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, fmt.Errorf("news not found")
+			return nil, fmt.Errorf("%w", apperr.ErrNotFound)
 		}
-		return nil, fmt.Errorf("failed to get news: %w", err)
+		return nil, apperr.Internal(err)
 	}
 
 	return &news, nil

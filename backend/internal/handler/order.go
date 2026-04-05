@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
 
@@ -18,14 +17,13 @@ func (h *Handler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var create model.OrderCreate
-	if err := json.NewDecoder(r.Body).Decode(&create); err != nil {
-		BadRequest(w, "Invalid request body")
+	if !DecodeJSON(w, r, &create) {
 		return
 	}
 
 	order, err := h.services.Order.CreateOrder(r.Context(), userID, create)
 	if err != nil {
-		BadRequest(w, err.Error())
+		HandleError(w, r, err)
 		return
 	}
 
@@ -40,7 +38,7 @@ func (h *Handler) GetUserOrders(w http.ResponseWriter, r *http.Request) {
 
 	orders, err := h.services.Order.GetUserOrders(r.Context(), userID)
 	if err != nil {
-		InternalServerError(w, err.Error())
+		HandleError(w, r, err)
 		return
 	}
 	Success(w, orders)
@@ -61,11 +59,7 @@ func (h *Handler) GetOrder(w http.ResponseWriter, r *http.Request) {
 
 	order, err := h.services.Order.GetOrder(r.Context(), orderID, requester, role)
 	if err != nil {
-		if errors.Is(err, apperr.ErrNotFound) {
-			NotFound(w, "Order not found")
-			return
-		}
-		NotFound(w, err.Error())
+		HandleError(w, r, err)
 		return
 	}
 	Success(w, order)
@@ -87,28 +81,22 @@ func (h *Handler) UpdateOrderStatus(w http.ResponseWriter, r *http.Request) {
 	var update struct {
 		Status string `json:"status"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&update); err != nil {
-		BadRequest(w, "Invalid request body")
+	if !DecodeJSON(w, r, &update) {
 		return
 	}
 
 	if err := h.services.Order.UpdateOrderStatus(r.Context(), orderID, update.Status, requester, role); err != nil {
-		switch {
-		case errors.Is(err, apperr.ErrForbidden):
+		if errors.Is(err, apperr.ErrForbidden) {
 			Forbidden(w, "Not allowed to update this order")
-		default:
-			BadRequest(w, err.Error())
+			return
 		}
+		HandleError(w, r, err)
 		return
 	}
 
 	order, err := h.services.Order.GetOrder(r.Context(), orderID, requester, role)
 	if err != nil {
-		if errors.Is(err, apperr.ErrNotFound) {
-			NotFound(w, "Order not found")
-			return
-		}
-		InternalServerError(w, err.Error())
+		HandleError(w, r, err)
 		return
 	}
 	Success(w, order)

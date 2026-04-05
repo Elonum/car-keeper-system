@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"encoding/json"
 	"net/http"
 	"strings"
 	"unicode/utf8"
@@ -40,7 +39,7 @@ func (h *Handler) GetNews(w http.ResponseWriter, r *http.Request) {
 
 	news, err := h.services.News.GetNews(r.Context(), filter)
 	if err != nil {
-		InternalServerError(w, err.Error())
+		HandleError(w, r, err)
 		return
 	}
 	Success(w, news)
@@ -56,7 +55,7 @@ func (h *Handler) GetNewsByID(w http.ResponseWriter, r *http.Request) {
 
 	item, err := h.services.News.GetNewsByID(r.Context(), newsID)
 	if err != nil {
-		NotFound(w, err.Error())
+		HandleError(w, r, err)
 		return
 	}
 
@@ -76,8 +75,7 @@ func (h *Handler) CreateNews(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var create model.NewsCreate
-	if err := json.NewDecoder(r.Body).Decode(&create); err != nil {
-		BadRequest(w, "Invalid request body")
+	if !DecodeJSON(w, r, &create) {
 		return
 	}
 
@@ -94,7 +92,7 @@ func (h *Handler) CreateNews(w http.ResponseWriter, r *http.Request) {
 
 	news, err := h.services.News.CreateNews(r.Context(), userID, create)
 	if err != nil {
-		BadRequest(w, err.Error())
+		HandleError(w, r, err)
 		return
 	}
 
@@ -117,19 +115,18 @@ func (h *Handler) UpdateNews(w http.ResponseWriter, r *http.Request) {
 		Title   string `json:"title"`
 		Content string `json:"content"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&update); err != nil {
-		BadRequest(w, "Invalid request body")
+	if !DecodeJSON(w, r, &update) {
 		return
 	}
 
 	if err := h.services.News.UpdateNews(r.Context(), newsID, update.Title, update.Content); err != nil {
-		BadRequest(w, err.Error())
+		HandleError(w, r, err)
 		return
 	}
 
 	news, err := h.services.News.GetNewsByID(r.Context(), newsID)
 	if err != nil {
-		InternalServerError(w, err.Error())
+		HandleError(w, r, err)
 		return
 	}
 	Success(w, news)
@@ -148,13 +145,13 @@ func (h *Handler) PublishNews(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.services.News.PublishNews(r.Context(), newsID); err != nil {
-		BadRequest(w, err.Error())
+		HandleError(w, r, err)
 		return
 	}
 
 	news, err := h.services.News.GetNewsByID(r.Context(), newsID)
 	if err != nil {
-		InternalServerError(w, err.Error())
+		HandleError(w, r, err)
 		return
 	}
 	Success(w, news)
@@ -173,13 +170,13 @@ func (h *Handler) UnpublishNews(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.services.News.UnpublishNews(r.Context(), newsID); err != nil {
-		BadRequest(w, err.Error())
+		HandleError(w, r, err)
 		return
 	}
 
 	news, err := h.services.News.GetNewsByID(r.Context(), newsID)
 	if err != nil {
-		InternalServerError(w, err.Error())
+		HandleError(w, r, err)
 		return
 	}
 	Success(w, news)
@@ -198,7 +195,7 @@ func (h *Handler) DeleteNews(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.services.News.DeleteNews(r.Context(), newsID); err != nil {
-		InternalServerError(w, err.Error())
+		HandleError(w, r, err)
 		return
 	}
 

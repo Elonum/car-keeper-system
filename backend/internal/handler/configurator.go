@@ -1,11 +1,9 @@
 package handler
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
 	"strconv"
-	"strings"
 
 	"github.com/carkeeper/backend/internal/apperr"
 	"github.com/carkeeper/backend/internal/model"
@@ -23,7 +21,7 @@ func (h *Handler) GetColors(w http.ResponseWriter, r *http.Request) {
 
 	colors, err := h.services.Configurator.GetColors(r.Context(), isAvailable)
 	if err != nil {
-		InternalServerError(w, err.Error())
+		HandleError(w, r, err)
 		return
 	}
 	Success(w, colors)
@@ -44,7 +42,7 @@ func (h *Handler) GetOptions(w http.ResponseWriter, r *http.Request) {
 
 	options, err := h.services.Configurator.GetOptions(r.Context(), trimID)
 	if err != nil {
-		InternalServerError(w, err.Error())
+		HandleError(w, r, err)
 		return
 	}
 	Success(w, options)
@@ -61,8 +59,7 @@ func (h *Handler) CreateConfiguration(w http.ResponseWriter, r *http.Request) {
 		ColorID   string   `json:"color_id"`
 		OptionIDs []string `json:"option_ids"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&createRequest); err != nil {
-		BadRequest(w, "Invalid request body: "+err.Error())
+	if !DecodeJSON(w, r, &createRequest) {
 		return
 	}
 
@@ -82,7 +79,7 @@ func (h *Handler) CreateConfiguration(w http.ResponseWriter, r *http.Request) {
 	for _, optIDStr := range createRequest.OptionIDs {
 		optID, err := uuid.Parse(optIDStr)
 		if err != nil {
-			BadRequest(w, "Invalid option_id format: "+optIDStr)
+			BadRequest(w, "Invalid option_id format")
 			return
 		}
 		optionIDs = append(optionIDs, optID)
@@ -96,7 +93,7 @@ func (h *Handler) CreateConfiguration(w http.ResponseWriter, r *http.Request) {
 
 	config, err := h.services.Configurator.CreateConfiguration(r.Context(), userID, create)
 	if err != nil {
-		BadRequest(w, err.Error())
+		HandleError(w, r, err)
 		return
 	}
 
@@ -118,11 +115,7 @@ func (h *Handler) GetConfiguration(w http.ResponseWriter, r *http.Request) {
 
 	config, err := h.services.Configurator.GetConfiguration(r.Context(), configID, requester, role)
 	if err != nil {
-		if errors.Is(err, apperr.ErrNotFound) {
-			NotFound(w, "Configuration not found")
-			return
-		}
-		NotFound(w, err.Error())
+		HandleError(w, r, err)
 		return
 	}
 	Success(w, config)
@@ -147,8 +140,7 @@ func (h *Handler) UpdateConfiguration(w http.ResponseWriter, r *http.Request) {
 		ColorID   *string  `json:"color_id,omitempty"`
 		OptionIDs []string `json:"option_ids,omitempty"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&updateRequest); err != nil {
-		BadRequest(w, "Invalid request body: "+err.Error())
+	if !DecodeJSON(w, r, &updateRequest) {
 		return
 	}
 
@@ -166,21 +158,16 @@ func (h *Handler) UpdateConfiguration(w http.ResponseWriter, r *http.Request) {
 
 	if isStatusOnlyUpdate {
 		if err := h.services.Configurator.UpdateConfigurationStatus(r.Context(), configID, userID, role, *updateRequest.Status); err != nil {
-			switch {
-			case errors.Is(err, apperr.ErrForbidden):
+			if errors.Is(err, apperr.ErrForbidden) {
 				Forbidden(w, "Not allowed to update this configuration status")
-			default:
-				BadRequest(w, err.Error())
+				return
 			}
+			HandleError(w, r, err)
 			return
 		}
 		config, err := h.services.Configurator.GetConfiguration(r.Context(), configID, userID, role)
 		if err != nil {
-			if errors.Is(err, apperr.ErrNotFound) {
-				NotFound(w, "Configuration not found")
-				return
-			}
-			InternalServerError(w, err.Error())
+			HandleError(w, r, err)
 			return
 		}
 		Success(w, config)
@@ -216,7 +203,7 @@ func (h *Handler) UpdateConfiguration(w http.ResponseWriter, r *http.Request) {
 			}
 			optID, err := uuid.Parse(optIDStr)
 			if err != nil {
-				BadRequest(w, "Invalid option_id format: "+optIDStr)
+				BadRequest(w, "Invalid option_id format")
 				return
 			}
 			optionIDs = append(optionIDs, optID)
@@ -231,11 +218,7 @@ func (h *Handler) UpdateConfiguration(w http.ResponseWriter, r *http.Request) {
 
 	config, err := h.services.Configurator.UpdateConfiguration(r.Context(), configID, userID, role, create)
 	if err != nil {
-		if errors.Is(err, apperr.ErrNotFound) {
-			NotFound(w, "Configuration not found")
-			return
-		}
-		BadRequest(w, err.Error())
+		HandleError(w, r, err)
 		return
 	}
 
@@ -256,15 +239,7 @@ func (h *Handler) DeleteConfiguration(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.services.Configurator.DeleteConfiguration(r.Context(), configID, requester, role); err != nil {
-		if errors.Is(err, apperr.ErrNotFound) {
-			NotFound(w, "Configuration not found")
-			return
-		}
-		if strings.Contains(err.Error(), "can only delete draft") {
-			BadRequest(w, err.Error())
-			return
-		}
-		InternalServerError(w, err.Error())
+		HandleError(w, r, err)
 		return
 	}
 

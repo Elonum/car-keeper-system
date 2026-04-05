@@ -1,12 +1,9 @@
 package handler
 
 import (
-	"encoding/json"
-	"errors"
 	"net/http"
 	"time"
 
-	"github.com/carkeeper/backend/internal/apperr"
 	"github.com/carkeeper/backend/internal/model"
 	"github.com/carkeeper/backend/internal/validate"
 	"github.com/go-chi/chi/v5"
@@ -28,8 +25,7 @@ func (h *Handler) CreateUserCar(w http.ResponseWriter, r *http.Request) {
 		PurchaseDate  *string `json:"purchase_date,omitempty"`
 	}
 
-	if err := json.NewDecoder(r.Body).Decode(&createRequest); err != nil {
-		BadRequest(w, "Invalid request body: "+err.Error())
+	if !DecodeJSON(w, r, &createRequest) {
 		return
 	}
 
@@ -64,7 +60,7 @@ func (h *Handler) CreateUserCar(w http.ResponseWriter, r *http.Request) {
 
 	userCar, err := h.services.Profile.CreateUserCar(r.Context(), userID, create)
 	if err != nil {
-		BadRequest(w, err.Error())
+		HandleError(w, r, err)
 		return
 	}
 
@@ -84,7 +80,7 @@ func (h *Handler) DeleteUserCar(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.services.Profile.DeleteUserCar(r.Context(), userID, userCarID); err != nil {
-		NotFound(w, "User car not found")
+		HandleError(w, r, err)
 		return
 	}
 	Success(w, map[string]string{"status": "ok"})
@@ -105,11 +101,7 @@ func (h *Handler) GetUserCar(w http.ResponseWriter, r *http.Request) {
 
 	userCar, err := h.services.Profile.GetUserCar(r.Context(), userCarID, requester, role)
 	if err != nil {
-		if errors.Is(err, apperr.ErrNotFound) {
-			NotFound(w, "User car not found")
-			return
-		}
-		NotFound(w, err.Error())
+		HandleError(w, r, err)
 		return
 	}
 	Success(w, userCar)
@@ -123,7 +115,7 @@ func (h *Handler) GetUserConfigurations(w http.ResponseWriter, r *http.Request) 
 
 	configurations, err := h.services.Configurator.GetUserConfigurations(r.Context(), userID)
 	if err != nil {
-		InternalServerError(w, err.Error())
+		HandleError(w, r, err)
 		return
 	}
 	Success(w, configurations)
@@ -141,8 +133,7 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		LastName  string  `json:"last_name"`
 		Phone     *string `json:"phone"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		BadRequest(w, "Invalid request body")
+	if !DecodeJSON(w, r, &body) {
 		return
 	}
 
@@ -159,7 +150,7 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 
 	user, err := h.services.Profile.UpdateProfile(r.Context(), userID, fn, ln, ph)
 	if err != nil {
-		BadRequest(w, err.Error())
+		HandleError(w, r, err)
 		return
 	}
 	Success(w, user)
@@ -176,8 +167,7 @@ func (h *Handler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 		CurrentPassword string `json:"current_password"`
 		NewPassword     string `json:"new_password"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		BadRequest(w, "Invalid request body")
+	if !DecodeJSON(w, r, &body) {
 		return
 	}
 	if body.CurrentPassword == "" {
@@ -186,7 +176,7 @@ func (h *Handler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.services.Auth.ChangePassword(r.Context(), userID, body.CurrentPassword, body.NewPassword); err != nil {
-		BadRequest(w, err.Error())
+		HandleError(w, r, err)
 		return
 	}
 	Success(w, map[string]string{"status": "ok"})

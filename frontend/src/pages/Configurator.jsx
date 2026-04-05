@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ArrowLeft, ArrowRight, Save, ShoppingCart, Check } from 'lucide-react';
 import { toast } from 'sonner';
+import { getApiErrorMessage } from '@/lib/apiErrors';
 
 const STEPS = ['Комплектация', 'Цвет', 'Опции', 'Итог'];
 
@@ -99,21 +100,9 @@ export default function Configurator() {
         return;
       }
 
-      console.log('[Configurator] Save mutation called:', {
-        isEditMode,
-        configId,
-        status,
-        hasExistingConfig: !!existingConfig,
-        selectedColorId,
-        selectedOptionIds,
-        effectiveTrimId,
-      });
-
       let config;
 
       if (isEditMode && configId && existingConfig) {
-        // Update existing configuration
-        // Use existing values if new ones are not selected
         const finalTrimId = effectiveTrimId || existingConfig.trim_id || existingConfig.trimId || trimId;
         const finalColorId = selectedColorId || existingConfig.color_id || existingConfig.colorId;
         
@@ -121,56 +110,30 @@ export default function Configurator() {
           throw new Error('Необходимо выбрать комплектацию и цвет');
         }
 
-        // Ensure option_ids is always an array (even if empty)
         const optionIdsArray = Array.isArray(selectedOptionIds) ? selectedOptionIds : [];
-        
-        // Build update payload - EXPLICITLY exclude status field
         const updatePayload = {
           trim_id: finalTrimId,
           color_id: finalColorId,
           option_ids: optionIdsArray,
         };
-        
-        // Explicitly ensure status is NOT in the payload
-        if ('status' in updatePayload) {
-          delete updatePayload.status;
-        }
-        
-        console.log('[Configurator] Updating configuration:', {
-          configId,
-          payload: updatePayload,
-          payloadKeys: Object.keys(updatePayload),
-        });
-        
-        // Do NOT include status in full update - it will be handled separately if needed
         config = await configuratorService.updateConfiguration(configId, updatePayload);
       } else {
-        // Create new configuration (backend will set status to 'draft' by default)
         const finalTrimId = effectiveTrimId || trimId;
         if (!finalTrimId || !selectedColorId) {
           throw new Error('Необходимо выбрать комплектацию и цвет');
         }
         
-        // Ensure option_ids is always an array (even if empty)
         const optionIdsArray = Array.isArray(selectedOptionIds) ? selectedOptionIds : [];
-        
         const createPayload = {
           trim_id: finalTrimId,
           color_id: selectedColorId,
           option_ids: optionIdsArray,
         };
-        
-        console.log('[Configurator] Creating configuration:', {
-          payload: createPayload,
-        });
-        
         config = await configuratorService.createConfiguration(createPayload);
       }
 
-      // If status is 'confirmed', update configuration status and create order
       if (status === 'confirmed') {
         const finalConfigId = config.configuration_id || config.id;
-        console.log('[Configurator] Confirming configuration:', finalConfigId);
         await configuratorService.updateConfiguration(finalConfigId, { status: 'confirmed' });
         await orderService.createOrder({
           configuration_id: finalConfigId,
@@ -196,9 +159,7 @@ export default function Configurator() {
       }
     },
     onError: (error) => {
-      const errorMessage = error?.message || error?.data?.error || error?.response?.data?.error || 'Ошибка при сохранении конфигурации';
-      toast.error(errorMessage);
-      console.error('Configuration save error:', error);
+      toast.error(getApiErrorMessage(error, 'Ошибка при сохранении конфигурации'));
     },
   });
 

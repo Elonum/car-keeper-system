@@ -51,6 +51,16 @@ const BACKEND_TO_RU = [
   [/invalid date format/i, 'Некорректная дата'],
   [/invalid service duration/i, 'Некорректная длительность услуг'],
   [/failed to get branch/i, 'Не удалось загрузить филиал'],
+  [/only scheduled appointments can be rescheduled/i, 'Перенести можно только активную запись'],
+  [
+    /appointment not found or cannot be rescheduled/i,
+    'Запись не найдена или её нельзя перенести',
+  ],
+  [/appointment could not be updated/i, 'Не удалось обновить запись. Попробуйте ещё раз'],
+  [
+    /not allowed to reschedule this appointment/i,
+    'Нет прав на перенос этой записи',
+  ],
 ];
 
 /** Turns a backend `error` string into Russian when we know the English phrase. */

@@ -2,7 +2,9 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/carkeeper/backend/internal/apperr"
 	"github.com/carkeeper/backend/internal/authz"
@@ -20,37 +22,34 @@ func NewOrderService(repos *repository.Repository) *OrderService {
 }
 
 func (s *OrderService) CreateOrder(ctx context.Context, userID uuid.UUID, create model.OrderCreate) (*model.OrderWithDetails, error) {
-	// Get configuration to get final price
 	config, err := s.repo.Configuration.GetByID(ctx, create.ConfigurationID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get configuration: %w", err)
+		if errors.Is(err, apperr.ErrNotFound) {
+			return nil, apperr.NotFoundErr("Configuration not found")
+		}
+		return nil, err
 	}
 
-	// Verify configuration belongs to user
 	if config.UserID != userID {
-		return nil, fmt.Errorf("configuration does not belong to user")
+		return nil, apperr.Forbidden("Configuration does not belong to your account")
 	}
 
-	// Verify configuration is in valid status
 	if config.Status != "confirmed" && config.Status != "draft" {
-		return nil, fmt.Errorf("configuration must be in 'draft' or 'confirmed' status")
+		return nil, apperr.BadRequest("Configuration cannot be ordered in its current status")
 	}
 
-	// Create order
 	order, err := s.repo.Order.Create(ctx, userID, create, config.TotalPrice)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create order: %w", err)
+		return nil, err
 	}
 
-	// Update configuration status to 'ordered'
 	if err := s.repo.Configuration.UpdateStatus(ctx, create.ConfigurationID, "ordered"); err != nil {
-		return nil, fmt.Errorf("failed to update configuration status: %w", err)
+		return nil, err
 	}
 
-	// Get full order details
 	orderWithDetails, err := s.repo.Order.GetByID(ctx, order.OrderID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get order details: %w", err)
+		return nil, err
 	}
 
 	return orderWithDetails, nil
@@ -72,11 +71,21 @@ func (s *OrderService) GetUserOrders(ctx context.Context, userID uuid.UUID) ([]m
 }
 
 func (s *OrderService) UpdateOrderStatus(ctx context.Context, orderID uuid.UUID, status string, requester uuid.UUID, role string) error {
-	validStatuses := map[string]bool{
-		"pending": true, "approved": true, "paid": true, "completed": true, "cancelled": true,
+	status = strings.TrimSpace(status)
+	if status == "" {
+		return apperr.BadRequest("status is required")
 	}
-	if !validStatuses[status] {
-		return fmt.Errorf("invalid status: %s", status)
+
+	target, err := s.repo.OrderStatus.GetByCode(ctx, status)
+	if err != nil {
+		if errors.Is(err, apperr.ErrNotFound) {
+			return apperr.BadRequest("Unknown order status")
+		}
+		return err
+	}
+
+	if !authz.IsStaff(role) && !target.IsActive {
+		return apperr.BadRequest("This order status is not available")
 	}
 
 	order, err := s.repo.Order.GetByID(ctx, orderID)
@@ -89,4 +98,3 @@ func (s *OrderService) UpdateOrderStatus(ctx context.Context, orderID uuid.UUID,
 
 	return s.repo.Order.UpdateStatus(ctx, orderID, status)
 }
-

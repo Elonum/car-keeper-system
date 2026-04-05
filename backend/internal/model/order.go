@@ -12,6 +12,7 @@ type Order struct {
 	ConfigurationID uuid.UUID  `db:"configuration_id" json:"configuration_id"`
 	ManagerID       *uuid.UUID `db:"manager_id" json:"manager_id,omitempty"`
 	Status          string     `db:"status" json:"status"`
+	StatusLabel     string     `db:"status_label" json:"status_label,omitempty"`
 	FinalPrice      float64    `db:"final_price" json:"final_price"`
 	CreatedAt       time.Time  `db:"created_at" json:"created_at"`
 	UpdatedAt       time.Time  `db:"updated_at" json:"updated_at"`
