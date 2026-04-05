@@ -31,6 +31,19 @@ const BACKEND_TO_RU = [
   [/vin already exists/i, 'Этот VIN уже зарегистрирован в системе'],
   [/invalid vehicle year/i, 'Укажите корректный год выпуска'],
   [/mileage must be non-negative/i, 'Пробег не может быть отрицательным'],
+  [/appointment_date is required/i, 'Укажите дату и время записи'],
+  [/appointment must be in the future/i, 'Выберите дату и время в будущем'],
+  [
+    /appointment date is too far in the future/i,
+    'Дата записи слишком далеко вперёди (не более года)',
+  ],
+  [/description is too long/i, 'Описание слишком длинное'],
+  [/at least one service type is required/i, 'Выберите хотя бы одну услугу'],
+  [/branch is not active/i, 'Выбранный филиал недоступен'],
+  [/branch not found/i, 'Филиал не найден'],
+  [/user car not found/i, 'Автомобиль не найден'],
+  [/user car does not belong to user/i, 'Этот автомобиль недоступен для записи'],
+  [/service type .* not found or not available/i, 'Одна из услуг недоступна'],
 ];
 
 /** Turns a backend `error` string into Russian when we know the English phrase. */

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/carkeeper/backend/internal/apperr"
 	"github.com/carkeeper/backend/internal/model"
@@ -77,13 +76,9 @@ func (h *Handler) CreateAppointment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Parse appointment_date if it's a string
 	if create.AppointmentDate.IsZero() {
-		if dateStr := r.URL.Query().Get("appointment_date"); dateStr != "" {
-			if t, err := time.Parse(time.RFC3339, dateStr); err == nil {
-				create.AppointmentDate = t
-			}
-		}
+		BadRequest(w, "appointment_date is required")
+		return
 	}
 
 	appointment, err := h.services.Service.CreateAppointment(r.Context(), userID, create)

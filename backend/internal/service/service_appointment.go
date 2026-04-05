@@ -3,11 +3,13 @@ package service
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/carkeeper/backend/internal/apperr"
 	"github.com/carkeeper/backend/internal/authz"
 	"github.com/carkeeper/backend/internal/model"
 	"github.com/carkeeper/backend/internal/repository"
+	"github.com/carkeeper/backend/internal/validate"
 	"github.com/google/uuid"
 )
 
@@ -28,6 +30,28 @@ func (s *ServiceService) GetBranches(ctx context.Context, isActive *bool) ([]mod
 }
 
 func (s *ServiceService) CreateAppointment(ctx context.Context, userID uuid.UUID, create model.ServiceAppointmentCreate) (*model.ServiceAppointmentWithDetails, error) {
+	now := time.Now()
+	if err := validate.AppointmentDate(create.AppointmentDate, now); err != nil {
+		return nil, err
+	}
+	if err := validate.AppointmentDescription(create.Description); err != nil {
+		return nil, err
+	}
+
+	// Deduplicate service type IDs (client may send duplicates; DB PK would reject second insert)
+	if len(create.ServiceTypeIDs) > 0 {
+		seen := make(map[uuid.UUID]struct{}, len(create.ServiceTypeIDs))
+		uniq := make([]uuid.UUID, 0, len(create.ServiceTypeIDs))
+		for _, id := range create.ServiceTypeIDs {
+			if _, ok := seen[id]; ok {
+				continue
+			}
+			seen[id] = struct{}{}
+			uniq = append(uniq, id)
+		}
+		create.ServiceTypeIDs = uniq
+	}
+
 	// Verify user car belongs to user
 	userCar, err := s.repo.UserCar.GetByID(ctx, create.UserCarID)
 	if err != nil {

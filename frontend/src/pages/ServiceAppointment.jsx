@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -13,20 +13,44 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { UI_LIMITS } from '@/lib/authValidation';
+import { getApiErrorMessage } from '@/lib/apiErrors';
 import { toast } from "sonner";
-import { ArrowLeft, ArrowRight, Check, Wrench, Car, MapPin, Clock, Package } from 'lucide-react';
-import { format } from 'date-fns';
+import { ArrowLeft, ArrowRight, Check, Wrench, Car, MapPin, Clock, Package, CalendarDays } from 'lucide-react';
+import { format, startOfDay, isBefore, isSameDay } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { Calendar } from "@/components/ui/calendar";
 import { Label } from "@/components/ui/label";
 
-const STEPS = ["Автомобиль", "Филиал", "Услуги", "Дата и время", "Подтверждение"];
+const STEPS = ["Автомобиль", "Филиал", "Услуги", "Дата", "Подтверждение"];
 
-const timeSlots = [
+const TIME_SLOTS = [
   "09:00", "09:30", "10:00", "10:30", "11:00", "11:30",
   "12:00", "12:30", "13:00", "13:30", "14:00", "14:30",
   "15:00", "15:30", "16:00", "16:30", "17:00", "17:30",
 ];
+
+/** Slots still available relative to «now» when the selected day is today (minutes buffer). */
+function getAvailableTimeSlots(selectedDate) {
+  if (!selectedDate) return TIME_SLOTS;
+  const todayStart = startOfDay(new Date());
+  const dayStart = startOfDay(selectedDate);
+  if (isBefore(dayStart, todayStart)) return [];
+  if (!isSameDay(selectedDate, new Date())) return TIME_SLOTS;
+
+  const now = new Date();
+  const bufferMin = 15;
+  const minTotal = now.getHours() * 60 + now.getMinutes() + bufferMin;
+  return TIME_SLOTS.filter((slot) => {
+    const [h, m] = slot.split(':').map(Number);
+    return h * 60 + m >= minTotal;
+  });
+}
+
+function truncateDescription(s, maxChars) {
+  const arr = Array.from(String(s ?? ''));
+  if (arr.length <= maxChars) return s || undefined;
+  return arr.slice(0, maxChars).join('');
+}
 
 export default function ServiceAppointment() {
   const navigate = useNavigate();
@@ -40,6 +64,18 @@ export default function ServiceAppointment() {
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedTime, setSelectedTime] = useState('');
   const [description, setDescription] = useState('');
+
+  const availableTimeSlots = useMemo(
+    () => getAvailableTimeSlots(selectedDate),
+    [selectedDate],
+  );
+
+  useEffect(() => {
+    if (!selectedTime) return;
+    if (!availableTimeSlots.includes(selectedTime)) {
+      setSelectedTime('');
+    }
+  }, [availableTimeSlots, selectedTime]);
 
   const { data: userCars, isLoading: carsLoading } = useQuery({
     queryKey: ['userCars'],
@@ -69,18 +105,25 @@ export default function ServiceAppointment() {
       if (!selectedCarId || !selectedBranchId || !selectedDate || !selectedTime) {
         throw new Error('Заполните все обязательные поля');
       }
+      if (!TIME_SLOTS.includes(selectedTime)) {
+        throw new Error('Выберите время из списка');
+      }
+      if (!availableTimeSlots.includes(selectedTime)) {
+        throw new Error('Выберите доступное время');
+      }
 
       const appointmentDate = new Date(selectedDate);
-      const [hours, minutes] = selectedTime.split(':');
-      appointmentDate.setHours(parseInt(hours), parseInt(minutes));
+      const [hours, minutes] = selectedTime.split(':').map(Number);
+      appointmentDate.setHours(hours, minutes, 0, 0);
+
+      const desc = truncateDescription(description.trim(), UI_LIMITS.APPOINTMENT_DESCRIPTION);
 
       return await serviceService.createAppointment({
         user_car_id: selectedCarId,
         branch_id: selectedBranchId,
         appointment_date: appointmentDate.toISOString(),
         service_type_ids: selectedServiceIds,
-        status: 'scheduled',
-        description: description || undefined,
+        description: desc || undefined,
       });
     },
     onSuccess: () => {
@@ -89,7 +132,7 @@ export default function ServiceAppointment() {
       navigate(createPageUrl("Profile") + "?tab=service");
     },
     onError: (error) => {
-      toast.error(error.message || 'Ошибка при создании записи');
+      toast.error(getApiErrorMessage(error, 'Ошибка при создании записи'));
     },
   });
 
@@ -137,9 +180,14 @@ export default function ServiceAppointment() {
       case 0: return !!selectedCarId;
       case 1: return !!selectedBranchId;
       case 2: return selectedServiceIds.length > 0;
-      case 3: return !!selectedDate && !!selectedTime;
+      case 3: return !!selectedDate && !!selectedTime && availableTimeSlots.includes(selectedTime);
       default: return true;
     }
+  };
+
+  const isCalendarDisabled = (date) => {
+    const today = startOfDay(new Date());
+    return isBefore(startOfDay(date), today) || date.getDay() === 0;
   };
 
   return (
@@ -177,7 +225,7 @@ export default function ServiceAppointment() {
 
             {serviceTypes.length === 0 ? (
               <Card className="p-6 text-center">
-                <p className="text-slate-500">Список услуг будет доступен после настройки backend</p>
+                <p className="text-slate-500">Список услуг временно недоступен</p>
               </Card>
             ) : (
               <div className="space-y-3">
@@ -187,6 +235,7 @@ export default function ServiceAppointment() {
                   return (
                     <button
                       key={serviceId}
+                      type="button"
                       onClick={() => {
                         setSelectedServiceIds(prev => 
                           prev.includes(serviceId)
@@ -242,8 +291,8 @@ export default function ServiceAppointment() {
         
         {step === 3 && (
           <div>
-            <h2 className="text-xl font-bold text-slate-900 mb-1">Выберите дату и время</h2>
-            <p className="text-sm text-slate-500 mb-5">Выберите удобные дату и время визита</p>
+            <h2 className="text-xl font-bold text-slate-900 mb-1">Выберите дату</h2>
+            <p className="text-sm text-slate-500 mb-5">Укажите дату и удобное время визита (по воскресеньям не работаем)</p>
 
             <div className="grid md:grid-cols-2 gap-6">
               <div>
@@ -253,27 +302,34 @@ export default function ServiceAppointment() {
                     mode="single"
                     selected={selectedDate}
                     onSelect={setSelectedDate}
-                    disabled={(date) => date < new Date() || date.getDay() === 0}
+                    disabled={isCalendarDisabled}
                   />
                 </Card>
               </div>
               <div>
                 <Label className="text-sm font-medium mb-2 block">Время</Label>
-                <div className="grid grid-cols-3 gap-2">
-                  {timeSlots.map(time => (
-                    <button
-                      key={time}
-                      onClick={() => setSelectedTime(time)}
-                      className={`px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                        selectedTime === time
-                          ? 'bg-slate-900 text-white'
-                          : 'bg-white border border-slate-200 text-slate-700 hover:border-slate-300'
-                      }`}
-                    >
-                      {time}
-                    </button>
-                  ))}
-                </div>
+                {availableTimeSlots.length === 0 ? (
+                  <p className="text-sm text-amber-700 bg-amber-50 border border-amber-100 rounded-xl px-4 py-3">
+                    На сегодня свободных слотов уже нет. Выберите другой день.
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-3 gap-2">
+                    {availableTimeSlots.map(time => (
+                      <button
+                        key={time}
+                        type="button"
+                        onClick={() => setSelectedTime(time)}
+                        className={`px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                          selectedTime === time
+                            ? 'bg-slate-900 text-white'
+                            : 'bg-white border border-slate-200 text-slate-700 hover:border-slate-300'
+                        }`}
+                      >
+                        {time}
+                      </button>
+                    ))}
+                  </div>
+                )}
 
                 <div className="mt-6">
                   <Label className="text-sm font-medium mb-2 block">Описание проблемы (необязательно)</Label>
@@ -333,7 +389,7 @@ export default function ServiceAppointment() {
                       <p className="text-xs text-slate-400 uppercase tracking-wider font-medium mb-2">Услуги</p>
                       <div className="space-y-1.5">
                         {selectedServices.map(service => (
-                          <div key={service.id} className="flex items-center justify-between text-sm">
+                          <div key={getServiceId(service)} className="flex items-center justify-between text-sm">
                             <span className="text-slate-700">{service.name}</span>
                             <PriceDisplay price={service.price} size="sm" />
                           </div>
@@ -349,15 +405,26 @@ export default function ServiceAppointment() {
               )}
 
               <Card className="p-5 border-0 shadow-sm">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center">
-                    <Clock className="w-5 h-5 text-purple-600" />
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center">
+                      <CalendarDays className="w-5 h-5 text-purple-600" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-400 uppercase tracking-wider font-medium">Дата</p>
+                      <p className="font-semibold text-slate-900">
+                        {selectedDate && format(selectedDate, 'd MMMM yyyy', { locale: ru })}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-xs text-slate-400 uppercase tracking-wider font-medium">Дата и время</p>
-                    <p className="font-semibold text-slate-900">
-                      {selectedDate && format(selectedDate, 'd MMMM yyyy', { locale: ru })} в {selectedTime}
-                    </p>
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center">
+                      <Clock className="w-5 h-5 text-slate-600" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-400 uppercase tracking-wider font-medium">Время</p>
+                      <p className="font-semibold text-slate-900">{selectedTime}</p>
+                    </div>
                   </div>
                 </div>
               </Card>
