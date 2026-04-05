@@ -1,6 +1,11 @@
 import apiClient from '@/api/client';
 
 export const orderService = {
+  /** Active statuses for clients (code + customer_label_ru); matches GET /api/order-statuses */
+  getPublicOrderStatuses: async () => {
+    return await apiClient.get('/order-statuses');
+  },
+
   createOrder: async (orderData) => {
     return await apiClient.post('/orders', orderData);
   },

@@ -13,6 +13,7 @@ import {
 import EmptyState from '../common/EmptyState';
 import { FileText, Upload, Trash2, Download } from 'lucide-react';
 import { toast } from 'sonner';
+import { getApiErrorMessage } from '@/lib/apiErrors';
 import {
   documentService,
   DOCUMENT_TYPE_LABELS,
@@ -41,7 +42,7 @@ export default function MyDocuments({ orders = [], appointments = [] }) {
       setFile(null);
     },
     onError: (e) => {
-      toast.error(e.message || 'Не удалось загрузить файл');
+      toast.error(getApiErrorMessage(e, 'Не удалось загрузить файл'));
     },
   });
 
@@ -52,7 +53,7 @@ export default function MyDocuments({ orders = [], appointments = [] }) {
       toast.success('Документ удалён');
     },
     onError: (e) => {
-      toast.error(e.message || 'Ошибка удаления');
+      toast.error(getApiErrorMessage(e, 'Не удалось удалить документ'));
     },
   });
 
@@ -217,7 +218,7 @@ export default function MyDocuments({ orders = [], appointments = [] }) {
                       size="sm"
                       onClick={() =>
                         documentService.download(id, name).catch((err) => {
-                          toast.error(err.message || 'Ошибка скачивания');
+                          toast.error(getApiErrorMessage(err, 'Не удалось скачать файл'));
                         })
                       }
                     >

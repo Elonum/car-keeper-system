@@ -1,5 +1,6 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { authService } from '@/services/authService';
+import { getApiErrorMessage } from '@/lib/apiErrors';
 
 const AuthContext = createContext();
 
@@ -39,7 +40,7 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       setAuthError({
         type: 'unknown',
-        message: error.message || 'Failed to check authentication',
+        message: getApiErrorMessage(error, 'Не удалось проверить авторизацию'),
       });
       setIsAuthenticated(false);
       setUser(null);
@@ -60,7 +61,7 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       setAuthError({
         type: 'login_failed',
-        message: error.message || 'Login failed',
+        message: getApiErrorMessage(error, 'Вход не выполнен'),
       });
       throw error;
     }
@@ -75,7 +76,7 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       setAuthError({
         type: 'register_failed',
-        message: error.message || 'Registration failed',
+        message: getApiErrorMessage(error, 'Регистрация не выполнена'),
       });
       throw error;
     }

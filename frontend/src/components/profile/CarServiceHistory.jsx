@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { serviceService } from '@/services/serviceService';
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import AppointmentStatusBadge from '../common/AppointmentStatusBadge';
 import PageLoader from '../common/PageLoader';
 import PriceDisplay from '../common/PriceDisplay';
 import { MapPin, Wrench, FileText, CheckCircle } from 'lucide-react';
@@ -55,21 +56,7 @@ export default function CarServiceHistory({ carId }) {
                       {format(new Date(appt.appointment_date), 'd MMM yyyy', { locale: ru })}
                     </span>
                   )}
-                  {appt.status === 'completed' && (
-                    <Badge className="bg-green-100 text-green-700 border-green-200 border text-xs">
-                      Завершено
-                    </Badge>
-                  )}
-                  {appt.status === 'cancelled' && (
-                    <Badge className="bg-red-100 text-red-700 border-red-200 border text-xs">
-                      Отменено
-                    </Badge>
-                  )}
-                  {appt.status === 'scheduled' && (
-                    <Badge className="bg-blue-100 text-blue-700 border-blue-200 border text-xs">
-                      Запланировано
-                    </Badge>
-                  )}
+                  <AppointmentStatusBadge code={appt.status} className="text-xs" />
                 </div>
                 <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1">
                   <MapPin className="w-3 h-3" /> {appt.branch_name || appt.branch_display || '—'}

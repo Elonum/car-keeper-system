@@ -23,6 +23,7 @@ import { Settings, Edit, Trash2, ShoppingCart } from 'lucide-react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { toast } from 'sonner';
+import { getApiErrorMessage } from '@/lib/apiErrors';
 
 export default function ConfigurationList({ configurations, isLoading }) {
   const queryClient = useQueryClient();
@@ -38,8 +39,7 @@ export default function ConfigurationList({ configurations, isLoading }) {
       setConfigToDelete(null);
     },
     onError: (error) => {
-      const errorMessage = error?.message || error?.data?.error || 'Ошибка при удалении конфигурации';
-      toast.error(errorMessage);
+      toast.error(getApiErrorMessage(error, 'Не удалось удалить конфигурацию'));
     },
   });
 
@@ -69,8 +69,7 @@ export default function ConfigurationList({ configurations, isLoading }) {
       toast.success('Заказ создан!');
     },
     onError: (error) => {
-      const errorMessage = error?.message || error?.data?.error || 'Ошибка при создании заказа';
-      toast.error(errorMessage);
+      toast.error(getApiErrorMessage(error, 'Не удалось создать заказ'));
     },
   });
 

@@ -1,4 +1,5 @@
 import apiClient from '@/api/client';
+import { formatBackendErrorMessage } from '@/lib/apiErrors';
 
 export const getDocumentsApiBaseUrl = () =>
   import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
@@ -33,14 +34,24 @@ export const documentService = {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
     if (!res.ok) {
-      let msg = `Download failed (${res.status})`;
+      let raw = '';
       try {
         const data = await res.json();
-        if (data?.error) msg = data.error;
+        raw = data?.error || data?.message || '';
       } catch {
-        /* ignore */
+        /* not JSON */
       }
-      throw new Error(msg);
+      const message =
+        formatBackendErrorMessage(raw) ||
+        raw ||
+        (res.status === 401
+          ? 'Требуется вход'
+          : res.status === 404
+            ? 'Файл не найден'
+            : 'Не удалось скачать файл');
+      const err = new Error(message);
+      err.status = res.status;
+      throw err;
     }
     const blob = await res.blob();
     const cd = res.headers.get('Content-Disposition');
