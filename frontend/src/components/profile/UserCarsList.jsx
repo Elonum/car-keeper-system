@@ -1,22 +1,16 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '../../utils';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import EmptyState from '../common/EmptyState';
-import CarServiceHistory from './CarServiceHistory';
-import { Car, Calendar, Gauge, Wrench, History, ChevronDown, ChevronUp } from 'lucide-react';
+import { Car, Calendar, Gauge, Wrench } from 'lucide-react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+
+
 
 export default function UserCarsList({ cars, isLoading }) {
-  const [openCarId, setOpenCarId] = useState(null);
-
   if (isLoading) {
     return (
       <div className="grid md:grid-cols-2 gap-4">

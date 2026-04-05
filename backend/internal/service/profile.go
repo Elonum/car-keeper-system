@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/carkeeper/backend/internal/apperr"
+	"github.com/carkeeper/backend/internal/authz"
 	"github.com/carkeeper/backend/internal/model"
 	"github.com/carkeeper/backend/internal/repository"
 	"github.com/google/uuid"
@@ -43,7 +45,14 @@ func (s *ProfileService) CreateUserCar(ctx context.Context, userID uuid.UUID, cr
 	return userCarWithDetails, nil
 }
 
-func (s *ProfileService) GetUserCar(ctx context.Context, userCarID uuid.UUID) (*model.UserCarWithDetails, error) {
-	return s.repo.UserCar.GetByID(ctx, userCarID)
+func (s *ProfileService) GetUserCar(ctx context.Context, userCarID uuid.UUID, requester uuid.UUID, role string) (*model.UserCarWithDetails, error) {
+	car, err := s.repo.UserCar.GetByID(ctx, userCarID)
+	if err != nil {
+		return nil, err
+	}
+	if !authz.IsOwnerOrStaff(car.UserID, requester, role) {
+		return nil, fmt.Errorf("%w", apperr.ErrNotFound)
+	}
+	return car, nil
 }
 

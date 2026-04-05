@@ -1,6 +1,5 @@
 import React from 'react';
 import { cn } from "@/lib/utils";
-import { Card } from "@/components/ui/card";
 import { Check, Car, Gauge } from 'lucide-react';
 
 export default function CarSelector({ cars, selectedCarId, onSelect }) {

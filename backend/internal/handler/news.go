@@ -3,8 +3,9 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
-	"strconv"
+	"strings"
 
+	"github.com/carkeeper/backend/internal/authz"
 	"github.com/carkeeper/backend/internal/middleware"
 	"github.com/carkeeper/backend/internal/model"
 	"github.com/go-chi/chi/v5"
@@ -12,14 +13,31 @@ import (
 )
 
 func (h *Handler) GetNews(w http.ResponseWriter, r *http.Request) {
-	var isPublished *bool
-	if isPublishedStr := r.URL.Query().Get("is_published"); isPublishedStr != "" {
-		if val, err := strconv.ParseBool(isPublishedStr); err == nil {
-			isPublished = &val
+	role, _ := middleware.GetUserRole(r.Context())
+	scope := r.URL.Query().Get("scope")
+
+	var filter *bool
+	if authz.IsStaff(role) {
+		switch scope {
+		case "all":
+			filter = nil
+		case "unpublished":
+			f := false
+			filter = &f
+		default:
+			t := true
+			filter = &t
 		}
+	} else {
+		if scope != "" {
+			Forbidden(w, "Invalid query parameter: scope is restricted to staff")
+			return
+		}
+		t := true
+		filter = &t
 	}
 
-	news, err := h.services.News.GetNews(r.Context(), isPublished)
+	news, err := h.services.News.GetNews(r.Context(), filter)
 	if err != nil {
 		InternalServerError(w, err.Error())
 		return
@@ -35,46 +53,41 @@ func (h *Handler) GetNewsByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	news, err := h.services.News.GetNewsByID(r.Context(), newsID)
+	item, err := h.services.News.GetNewsByID(r.Context(), newsID)
 	if err != nil {
 		NotFound(w, err.Error())
 		return
 	}
-	Success(w, news)
-}
 
-func (h *Handler) CreateNews(w http.ResponseWriter, r *http.Request) {
-	userIDVal, ok := middleware.GetUserIDUUID(r.Context())
-	if !ok {
-		Unauthorized(w, "User not authenticated")
+	role, _ := middleware.GetUserRole(r.Context())
+	if !item.IsPublished && !authz.IsStaff(role) {
+		NotFound(w, "News not found")
 		return
 	}
 
-	userID, ok := userIDVal.(uuid.UUID)
-	if !ok {
-		userIDStr, ok := userIDVal.(string)
-		if !ok {
-			Unauthorized(w, "Invalid user ID")
-			return
-		}
-		var err error
-		userID, err = uuid.Parse(userIDStr)
-		if err != nil {
-			Unauthorized(w, "Invalid user ID format")
-			return
-		}
+	Success(w, item)
+}
 
-		// Check if user is admin or manager
-		role, _ := middleware.GetUserRole(r.Context())
-		if role != "admin" && role != "manager" {
-			Unauthorized(w, "Only admins and managers can create news")
-			return
-		}
+func (h *Handler) CreateNews(w http.ResponseWriter, r *http.Request) {
+	userID, ok := RequireStaff(w, r)
+	if !ok {
+		return
 	}
 
 	var create model.NewsCreate
 	if err := json.NewDecoder(r.Body).Decode(&create); err != nil {
 		BadRequest(w, "Invalid request body")
+		return
+	}
+
+	create.Title = strings.TrimSpace(create.Title)
+	create.Content = strings.TrimSpace(create.Content)
+	if create.Title == "" || len(create.Title) > 255 {
+		BadRequest(w, "title is required (max 255 characters)")
+		return
+	}
+	if create.Content == "" {
+		BadRequest(w, "content is required")
 		return
 	}
 
@@ -88,6 +101,10 @@ func (h *Handler) CreateNews(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) UpdateNews(w http.ResponseWriter, r *http.Request) {
+	if _, ok := RequireStaff(w, r); !ok {
+		return
+	}
+
 	newsIDStr := chi.URLParam(r, "id")
 	newsID, err := uuid.Parse(newsIDStr)
 	if err != nil {
@@ -118,6 +135,10 @@ func (h *Handler) UpdateNews(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) PublishNews(w http.ResponseWriter, r *http.Request) {
+	if _, ok := RequireStaff(w, r); !ok {
+		return
+	}
+
 	newsIDStr := chi.URLParam(r, "id")
 	newsID, err := uuid.Parse(newsIDStr)
 	if err != nil {
@@ -139,6 +160,10 @@ func (h *Handler) PublishNews(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) UnpublishNews(w http.ResponseWriter, r *http.Request) {
+	if _, ok := RequireStaff(w, r); !ok {
+		return
+	}
+
 	newsIDStr := chi.URLParam(r, "id")
 	newsID, err := uuid.Parse(newsIDStr)
 	if err != nil {
@@ -160,6 +185,10 @@ func (h *Handler) UnpublishNews(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) DeleteNews(w http.ResponseWriter, r *http.Request) {
+	if _, ok := RequireStaff(w, r); !ok {
+		return
+	}
+
 	newsIDStr := chi.URLParam(r, "id")
 	newsID, err := uuid.Parse(newsIDStr)
 	if err != nil {
@@ -174,4 +203,3 @@ func (h *Handler) DeleteNews(w http.ResponseWriter, r *http.Request) {
 
 	Success(w, map[string]string{"message": "News deleted"})
 }
-

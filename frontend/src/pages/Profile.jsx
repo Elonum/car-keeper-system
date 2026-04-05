@@ -12,7 +12,7 @@ import ConfigurationList from '../components/profile/ConfigurationList';
 import OrdersList from '../components/profile/OrdersList';
 import UserCarsList from '../components/profile/UserCarsList';
 import ServiceAppointmentsList from '../components/profile/ServiceAppointmentsList';
-import { Car, Settings, FileText, Wrench, ShoppingCart } from 'lucide-react';
+import { Car, Settings, Wrench, ShoppingCart } from 'lucide-react';
 
 export default function Profile() {
   const [searchParams, setSearchParams] = useSearchParams();

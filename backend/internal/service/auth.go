@@ -22,7 +22,15 @@ func NewAuthService(repos *repository.Repository, cfg *config.Config) *AuthServi
 	return &AuthService{repo: repos, cfg: cfg}
 }
 
-func (s *AuthService) Register(ctx context.Context, create model.UserCreate) (*model.UserResponse, error) {
+func (s *AuthService) Register(ctx context.Context, in model.UserRegisterInput) (*model.UserResponse, error) {
+	create := model.UserCreate{
+		FirstName: in.FirstName,
+		LastName:  in.LastName,
+		Email:     in.Email,
+		Phone:     in.Phone,
+		Password:  in.Password,
+		Role:      "customer",
+	}
 	// Check if email already exists
 	exists, err := s.repo.User.EmailExists(ctx, create.Email)
 	if err != nil {

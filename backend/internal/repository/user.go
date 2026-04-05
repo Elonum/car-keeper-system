@@ -26,10 +26,8 @@ func (r *UserRepository) Create(ctx context.Context, userCreate model.UserCreate
 		return nil, fmt.Errorf("failed to hash password: %w", err)
 	}
 
+	// Public registration is always customer; privileged roles use separate admin flows.
 	role := "customer"
-	if userCreate.Role != "" {
-		role = userCreate.Role
-	}
 
 	var user model.User
 	query := `

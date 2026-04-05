@@ -4,16 +4,18 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/joho/godotenv"
 )
 
 type Config struct {
-	Database DatabaseConfig
-	Server   ServerConfig
-	JWT      JWTConfig
-	Env      string
+	Database           DatabaseConfig
+	Server             ServerConfig
+	JWT                JWTConfig
+	Env                string
+	CORSAllowedOrigins []string
 }
 
 type DatabaseConfig struct {
@@ -55,7 +57,8 @@ func Load() (*Config, error) {
 			Secret:      getEnv("JWT_SECRET", "change-me-in-production"),
 			ExpiryHours: getEnvAsInt("JWT_EXPIRY_HOURS", 24),
 		},
-		Env: getEnv("ENV", "development"),
+		Env:                getEnv("ENV", "development"),
+		CORSAllowedOrigins: parseCSVOrigins(getEnv("CORS_ALLOWED_ORIGINS", "")),
 	}
 
 	if err := cfg.validate(); err != nil {
@@ -101,6 +104,30 @@ func getEnv(key, defaultValue string) string {
 		return value
 	}
 	return defaultValue
+}
+
+func parseCSVOrigins(s string) []string {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return nil
+	}
+	parts := strings.Split(s, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+// CORSOrigins returns configured origins or localhost defaults for development.
+func (c *Config) CORSOrigins() []string {
+	if len(c.CORSAllowedOrigins) > 0 {
+		return c.CORSAllowedOrigins
+	}
+	return []string{"http://localhost:3000", "http://localhost:5173"}
 }
 
 func getEnvAsInt(key string, defaultValue int) int {

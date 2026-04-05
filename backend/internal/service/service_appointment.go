@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/carkeeper/backend/internal/apperr"
+	"github.com/carkeeper/backend/internal/authz"
 	"github.com/carkeeper/backend/internal/model"
 	"github.com/carkeeper/backend/internal/repository"
 	"github.com/google/uuid"
@@ -82,15 +84,35 @@ func (s *ServiceService) CreateAppointment(ctx context.Context, userID uuid.UUID
 	return appointmentWithDetails, nil
 }
 
-func (s *ServiceService) GetAppointment(ctx context.Context, appointmentID uuid.UUID) (*model.ServiceAppointmentWithDetails, error) {
-	return s.repo.ServiceAppointment.GetByID(ctx, appointmentID)
+func (s *ServiceService) GetAppointment(ctx context.Context, appointmentID uuid.UUID, requester uuid.UUID, role string) (*model.ServiceAppointmentWithDetails, error) {
+	a, err := s.repo.ServiceAppointment.GetByID(ctx, appointmentID)
+	if err != nil {
+		return nil, err
+	}
+	if !authz.IsOwnerOrStaff(a.OwnerUserID, requester, role) {
+		return nil, fmt.Errorf("%w", apperr.ErrNotFound)
+	}
+	return a, nil
 }
 
 func (s *ServiceService) GetUserAppointments(ctx context.Context, userID uuid.UUID) ([]model.ServiceAppointmentWithDetails, error) {
 	return s.repo.ServiceAppointment.GetByUserID(ctx, userID)
 }
 
-func (s *ServiceService) CancelAppointment(ctx context.Context, appointmentID uuid.UUID) error {
+func (s *ServiceService) CancelAppointment(ctx context.Context, appointmentID uuid.UUID, requester uuid.UUID, role string) error {
+	a, err := s.repo.ServiceAppointment.GetByID(ctx, appointmentID)
+	if err != nil {
+		return err
+	}
+	if !authz.IsOwnerOrStaff(a.OwnerUserID, requester, role) {
+		return fmt.Errorf("%w", apperr.ErrForbidden)
+	}
+	switch a.Status {
+	case "cancelled":
+		return fmt.Errorf("appointment already cancelled")
+	case "completed":
+		return fmt.Errorf("cannot cancel completed appointment")
+	}
 	return s.repo.ServiceAppointment.UpdateStatus(ctx, appointmentID, "cancelled")
 }
 

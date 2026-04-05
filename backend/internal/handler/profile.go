@@ -2,35 +2,20 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"time"
 
-	"github.com/carkeeper/backend/internal/middleware"
+	"github.com/carkeeper/backend/internal/apperr"
 	"github.com/carkeeper/backend/internal/model"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 )
 
 func (h *Handler) CreateUserCar(w http.ResponseWriter, r *http.Request) {
-	userIDVal, ok := middleware.GetUserIDUUID(r.Context())
+	userID, _, ok := RequesterAndRole(w, r)
 	if !ok {
-		Unauthorized(w, "User not authenticated")
 		return
-	}
-
-	userID, ok := userIDVal.(uuid.UUID)
-	if !ok {
-		userIDStr, ok := userIDVal.(string)
-		if !ok {
-			Unauthorized(w, "Invalid user ID")
-			return
-		}
-		var err error
-		userID, err = uuid.Parse(userIDStr)
-		if err != nil {
-			Unauthorized(w, "Invalid user ID format")
-			return
-		}
 	}
 
 	var createRequest struct {
@@ -86,6 +71,11 @@ func (h *Handler) CreateUserCar(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) GetUserCar(w http.ResponseWriter, r *http.Request) {
+	requester, role, ok := RequesterAndRole(w, r)
+	if !ok {
+		return
+	}
+
 	userCarIDStr := chi.URLParam(r, "id")
 	userCarID, err := uuid.Parse(userCarIDStr)
 	if err != nil {
@@ -93,8 +83,12 @@ func (h *Handler) GetUserCar(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userCar, err := h.services.Profile.GetUserCar(r.Context(), userCarID)
+	userCar, err := h.services.Profile.GetUserCar(r.Context(), userCarID, requester, role)
 	if err != nil {
+		if errors.Is(err, apperr.ErrNotFound) {
+			NotFound(w, "User car not found")
+			return
+		}
 		NotFound(w, err.Error())
 		return
 	}
@@ -102,25 +96,9 @@ func (h *Handler) GetUserCar(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) GetUserConfigurations(w http.ResponseWriter, r *http.Request) {
-	userIDVal, ok := middleware.GetUserIDUUID(r.Context())
+	userID, _, ok := RequesterAndRole(w, r)
 	if !ok {
-		Unauthorized(w, "User not authenticated")
 		return
-	}
-
-	userID, ok := userIDVal.(uuid.UUID)
-	if !ok {
-		userIDStr, ok := userIDVal.(string)
-		if !ok {
-			Unauthorized(w, "Invalid user ID")
-			return
-		}
-		var err error
-		userID, err = uuid.Parse(userIDStr)
-		if err != nil {
-			Unauthorized(w, "Invalid user ID format")
-			return
-		}
 	}
 
 	configurations, err := h.services.Configurator.GetUserConfigurations(r.Context(), userID)

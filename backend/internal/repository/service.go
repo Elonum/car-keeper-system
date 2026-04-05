@@ -166,6 +166,7 @@ func (r *ServiceAppointmentRepository) GetByID(ctx context.Context, appointmentI
 		SELECT 
 			sa.service_appointment_id, sa.user_car_id, sa.branch_id, sa.manager_id,
 			sa.appointment_date, sa.status, sa.description, sa.created_at, sa.updated_at,
+			uc.user_id,
 			uc.vin as user_car_vin, b.name as branch_name, b.address as branch_address,
 			u.first_name || ' ' || u.last_name as manager_name
 		FROM service_appointments sa
@@ -179,6 +180,7 @@ func (r *ServiceAppointmentRepository) GetByID(ctx context.Context, appointmentI
 		&appointment.ServiceAppointmentID, &appointment.UserCarID, &appointment.BranchID,
 		&appointment.ManagerID, &appointment.AppointmentDate, &appointment.Status,
 		&appointment.Description, &appointment.CreatedAt, &appointment.UpdatedAt,
+		&appointment.OwnerUserID,
 		&appointment.UserCarVIN, &appointment.BranchName, &appointment.BranchAddress,
 		&appointment.ManagerName,
 	)
@@ -246,6 +248,7 @@ func (r *ServiceAppointmentRepository) GetByUserID(ctx context.Context, userID u
 		); err != nil {
 			return nil, fmt.Errorf("failed to scan appointment: %w", err)
 		}
+		appointment.OwnerUserID = userID
 
 		// Get service types for each appointment
 		query = `

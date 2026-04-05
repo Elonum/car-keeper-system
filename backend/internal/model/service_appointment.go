@@ -28,10 +28,11 @@ type ServiceAppointmentCreate struct {
 
 type ServiceAppointmentWithDetails struct {
 	ServiceAppointment
-	UserCarVIN     string    `db:"user_car_vin" json:"user_car_vin"`
-	BranchName     string    `db:"branch_name" json:"branch_name"`
-	BranchAddress  string    `db:"branch_address" json:"branch_address"`
-	ManagerName    *string   `db:"manager_name" json:"manager_name,omitempty"`
-	ServiceTypes   []ServiceType `json:"service_types"`
+	OwnerUserID   uuid.UUID `json:"-"`
+	UserCarVIN    string    `db:"user_car_vin" json:"user_car_vin"`
+	BranchName    string    `db:"branch_name" json:"branch_name"`
+	BranchAddress string    `db:"branch_address" json:"branch_address"`
+	ManagerName   *string   `db:"manager_name" json:"manager_name,omitempty"`
+	ServiceTypes  []ServiceType `json:"service_types"`
 }
 

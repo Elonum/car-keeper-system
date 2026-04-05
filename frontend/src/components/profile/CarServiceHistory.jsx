@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import PageLoader from '../common/PageLoader';
 import PriceDisplay from '../common/PriceDisplay';
-import { Calendar, MapPin, Wrench, FileText, CheckCircle } from 'lucide-react';
+import { MapPin, Wrench, FileText, CheckCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 

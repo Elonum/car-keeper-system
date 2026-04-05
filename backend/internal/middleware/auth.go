@@ -3,7 +3,6 @@ package middleware
 import (
 	"context"
 	"net/http"
-	"strings"
 
 	"github.com/carkeeper/backend/internal/service"
 )
@@ -17,18 +16,11 @@ func AuthMiddleware(authService *service.AuthService) func(http.Handler) http.Ha
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			authHeader := r.Header.Get("Authorization")
-			if authHeader == "" {
+			token := bearerToken(authHeader)
+			if token == "" {
 				http.Error(w, "Unauthorized", http.StatusUnauthorized)
 				return
 			}
-
-			parts := strings.Split(authHeader, " ")
-			if len(parts) != 2 || parts[0] != "Bearer" {
-				http.Error(w, "Invalid authorization header", http.StatusUnauthorized)
-				return
-			}
-
-			token := parts[1]
 			claims, err := authService.ValidateToken(token)
 			if err != nil {
 				http.Error(w, "Invalid token", http.StatusUnauthorized)

@@ -30,7 +30,7 @@ const timeSlots = [
 export default function ServiceAppointment() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { user, isAuthenticated, navigateToLogin } = useAuth();
+  const { isAuthenticated, navigateToLogin } = useAuth();
   
   const [step, setStep] = useState(0);
   const [selectedCarId, setSelectedCarId] = useState(null);

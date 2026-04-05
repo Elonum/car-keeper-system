@@ -17,6 +17,15 @@ type User struct {
 	UpdatedAt time.Time `db:"updated_at" json:"updated_at"`
 }
 
+// UserRegisterInput is the public registration payload (role cannot be set by clients).
+type UserRegisterInput struct {
+	FirstName string  `json:"first_name"`
+	LastName  string  `json:"last_name"`
+	Email     string  `json:"email"`
+	Phone     *string `json:"phone,omitempty"`
+	Password  string  `json:"password"`
+}
+
 type UserCreate struct {
 	FirstName string  `json:"first_name" validate:"required,min=1,max=100"`
 	LastName  string  `json:"last_name" validate:"required,min=1,max=100"`

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { catalogService } from '@/services/catalogService';
 import CatalogCard from '../components/catalog/CatalogCard';

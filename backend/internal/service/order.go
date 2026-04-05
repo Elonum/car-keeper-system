@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/carkeeper/backend/internal/apperr"
+	"github.com/carkeeper/backend/internal/authz"
 	"github.com/carkeeper/backend/internal/model"
 	"github.com/carkeeper/backend/internal/repository"
 	"github.com/google/uuid"
@@ -54,20 +56,35 @@ func (s *OrderService) CreateOrder(ctx context.Context, userID uuid.UUID, create
 	return orderWithDetails, nil
 }
 
-func (s *OrderService) GetOrder(ctx context.Context, orderID uuid.UUID) (*model.OrderWithDetails, error) {
-	return s.repo.Order.GetByID(ctx, orderID)
+func (s *OrderService) GetOrder(ctx context.Context, orderID uuid.UUID, requester uuid.UUID, role string) (*model.OrderWithDetails, error) {
+	order, err := s.repo.Order.GetByID(ctx, orderID)
+	if err != nil {
+		return nil, err
+	}
+	if !authz.CanViewOrder(order.UserID, requester, role) {
+		return nil, fmt.Errorf("%w", apperr.ErrNotFound)
+	}
+	return order, nil
 }
 
 func (s *OrderService) GetUserOrders(ctx context.Context, userID uuid.UUID) ([]model.OrderWithDetails, error) {
 	return s.repo.Order.GetByUserID(ctx, userID)
 }
 
-func (s *OrderService) UpdateOrderStatus(ctx context.Context, orderID uuid.UUID, status string) error {
+func (s *OrderService) UpdateOrderStatus(ctx context.Context, orderID uuid.UUID, status string, requester uuid.UUID, role string) error {
 	validStatuses := map[string]bool{
 		"pending": true, "approved": true, "paid": true, "completed": true, "cancelled": true,
 	}
 	if !validStatuses[status] {
 		return fmt.Errorf("invalid status: %s", status)
+	}
+
+	order, err := s.repo.Order.GetByID(ctx, orderID)
+	if err != nil {
+		return err
+	}
+	if !authz.CanUpdateOrderStatus(order.UserID, requester, role, order.Status, status) {
+		return fmt.Errorf("%w", apperr.ErrForbidden)
 	}
 
 	return s.repo.Order.UpdateStatus(ctx, orderID, status)

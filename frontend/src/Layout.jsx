@@ -4,7 +4,7 @@ import { createPageUrl } from './utils';
 import { useAuth } from '@/lib/AuthContext';
 import { 
   Car, Menu, X, User, LogOut, ChevronDown,
-  Newspaper, Wrench, Settings, FileText, ShoppingCart
+  Newspaper, Wrench, ShoppingCart
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import {

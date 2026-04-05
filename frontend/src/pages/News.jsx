@@ -6,7 +6,6 @@ import { createPageUrl } from '../utils';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import PageLoader from '../components/common/PageLoader';
 import EmptyState from '../components/common/EmptyState';
 import SectionHeader from '../components/common/SectionHeader';
@@ -15,7 +14,7 @@ import { Newspaper, Calendar, User, ArrowRight } from 'lucide-react';
 export default function News() {
   const { data: news, isLoading } = useQuery({
     queryKey: ['news'],
-    queryFn: () => newsService.getNews({ is_published: true }),
+    queryFn: () => newsService.getNews(),
   });
 
   if (isLoading) return <PageLoader />;

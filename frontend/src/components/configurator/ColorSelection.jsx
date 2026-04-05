@@ -1,5 +1,4 @@
 import React from 'react';
-import { Card } from "@/components/ui/card";
 import { Check } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import PriceDisplay from '../common/PriceDisplay';

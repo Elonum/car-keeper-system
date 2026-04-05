@@ -37,7 +37,7 @@ func main() {
 	repos := repository.New(db)
 	services := service.New(repos, cfg)
 	handlers := handler.New(services, cfg)
-	router := setupRouter(handlers, cfg)
+	router := setupRouter(handlers, cfg, db)
 
 	server := &http.Server{
 		Addr:         cfg.Server.Address(),
@@ -70,7 +70,7 @@ func main() {
 	log.Println("Server exited")
 }
 
-func setupRouter(handlers *handler.Handler, cfg *config.Config) *chi.Mux {
+func setupRouter(handlers *handler.Handler, cfg *config.Config, db *database.DB) *chi.Mux {
 	r := chi.NewRouter()
 
 	r.Use(middleware.RequestID)
@@ -80,7 +80,7 @@ func setupRouter(handlers *handler.Handler, cfg *config.Config) *chi.Mux {
 	r.Use(middleware.Timeout(60 * time.Second))
 
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:3000", "http://localhost:5173"},
+		AllowedOrigins:   cfg.CORSOrigins(),
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
 		ExposedHeaders:   []string{"Link"},
@@ -88,10 +88,7 @@ func setupRouter(handlers *handler.Handler, cfg *config.Config) *chi.Mux {
 		MaxAge:           300,
 	}))
 
-	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("OK"))
-	})
+	r.Get("/health", handler.Health(db))
 
 	r.Route("/api", func(r chi.Router) {
 		r.Route("/auth", func(r chi.Router) {
@@ -150,6 +147,7 @@ func setupRouter(handlers *handler.Handler, cfg *config.Config) *chi.Mux {
 		})
 
 		r.Route("/news", func(r chi.Router) {
+			r.Use(authMiddleware.OptionalAuthMiddleware(handlers.Services().Auth))
 			r.Get("/", handlers.GetNews)
 			r.Get("/{id}", handlers.GetNewsByID)
 			r.Group(func(r chi.Router) {

@@ -2,11 +2,12 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
 	"time"
 
-	"github.com/carkeeper/backend/internal/middleware"
+	"github.com/carkeeper/backend/internal/apperr"
 	"github.com/carkeeper/backend/internal/model"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -51,25 +52,9 @@ func (h *Handler) GetBranches(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) GetUserCars(w http.ResponseWriter, r *http.Request) {
-	userIDVal, ok := middleware.GetUserIDUUID(r.Context())
+	userID, _, ok := RequesterAndRole(w, r)
 	if !ok {
-		Unauthorized(w, "User not authenticated")
 		return
-	}
-
-	userID, ok := userIDVal.(uuid.UUID)
-	if !ok {
-		userIDStr, ok := userIDVal.(string)
-		if !ok {
-			Unauthorized(w, "Invalid user ID")
-			return
-		}
-		var err error
-		userID, err = uuid.Parse(userIDStr)
-		if err != nil {
-			Unauthorized(w, "Invalid user ID format")
-			return
-		}
 	}
 
 	userCars, err := h.services.Profile.GetUserCars(r.Context(), userID)
@@ -81,25 +66,9 @@ func (h *Handler) GetUserCars(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) CreateAppointment(w http.ResponseWriter, r *http.Request) {
-	userIDVal, ok := middleware.GetUserIDUUID(r.Context())
+	userID, _, ok := RequesterAndRole(w, r)
 	if !ok {
-		Unauthorized(w, "User not authenticated")
 		return
-	}
-
-	userID, ok := userIDVal.(uuid.UUID)
-	if !ok {
-		userIDStr, ok := userIDVal.(string)
-		if !ok {
-			Unauthorized(w, "Invalid user ID")
-			return
-		}
-		var err error
-		userID, err = uuid.Parse(userIDStr)
-		if err != nil {
-			Unauthorized(w, "Invalid user ID format")
-			return
-		}
 	}
 
 	var create model.ServiceAppointmentCreate
@@ -127,25 +96,9 @@ func (h *Handler) CreateAppointment(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) GetUserAppointments(w http.ResponseWriter, r *http.Request) {
-	userIDVal, ok := middleware.GetUserIDUUID(r.Context())
+	userID, _, ok := RequesterAndRole(w, r)
 	if !ok {
-		Unauthorized(w, "User not authenticated")
 		return
-	}
-
-	userID, ok := userIDVal.(uuid.UUID)
-	if !ok {
-		userIDStr, ok := userIDVal.(string)
-		if !ok {
-			Unauthorized(w, "Invalid user ID")
-			return
-		}
-		var err error
-		userID, err = uuid.Parse(userIDStr)
-		if err != nil {
-			Unauthorized(w, "Invalid user ID format")
-			return
-		}
 	}
 
 	appointments, err := h.services.Service.GetUserAppointments(r.Context(), userID)
@@ -157,6 +110,11 @@ func (h *Handler) GetUserAppointments(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) GetAppointment(w http.ResponseWriter, r *http.Request) {
+	requester, role, ok := RequesterAndRole(w, r)
+	if !ok {
+		return
+	}
+
 	appointmentIDStr := chi.URLParam(r, "id")
 	appointmentID, err := uuid.Parse(appointmentIDStr)
 	if err != nil {
@@ -164,8 +122,12 @@ func (h *Handler) GetAppointment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	appointment, err := h.services.Service.GetAppointment(r.Context(), appointmentID)
+	appointment, err := h.services.Service.GetAppointment(r.Context(), appointmentID, requester, role)
 	if err != nil {
+		if errors.Is(err, apperr.ErrNotFound) {
+			NotFound(w, "Appointment not found")
+			return
+		}
 		NotFound(w, err.Error())
 		return
 	}
@@ -173,6 +135,11 @@ func (h *Handler) GetAppointment(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) CancelAppointment(w http.ResponseWriter, r *http.Request) {
+	requester, role, ok := RequesterAndRole(w, r)
+	if !ok {
+		return
+	}
+
 	appointmentIDStr := chi.URLParam(r, "id")
 	appointmentID, err := uuid.Parse(appointmentIDStr)
 	if err != nil {
@@ -180,13 +147,22 @@ func (h *Handler) CancelAppointment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.services.Service.CancelAppointment(r.Context(), appointmentID); err != nil {
-		BadRequest(w, err.Error())
+	if err := h.services.Service.CancelAppointment(r.Context(), appointmentID, requester, role); err != nil {
+		switch {
+		case errors.Is(err, apperr.ErrForbidden):
+			Forbidden(w, "Not allowed to cancel this appointment")
+		default:
+			BadRequest(w, err.Error())
+		}
 		return
 	}
 
-	appointment, err := h.services.Service.GetAppointment(r.Context(), appointmentID)
+	appointment, err := h.services.Service.GetAppointment(r.Context(), appointmentID, requester, role)
 	if err != nil {
+		if errors.Is(err, apperr.ErrNotFound) {
+			NotFound(w, "Appointment not found")
+			return
+		}
 		InternalServerError(w, err.Error())
 		return
 	}
