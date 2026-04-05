@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/carkeeper/backend/database"
 	"github.com/carkeeper/backend/internal/model"
@@ -56,6 +57,31 @@ func (r *ServiceTypeRepository) GetAll(ctx context.Context, category *string, is
 	return serviceTypes, nil
 }
 
+func (r *ServiceTypeRepository) GetByIDs(ctx context.Context, ids []uuid.UUID) ([]model.ServiceType, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	query := `
+		SELECT service_type_id, name, category, description, price, duration_minutes, is_available, created_at
+		FROM service_types WHERE service_type_id = ANY($1) AND is_available = true
+	`
+	rows, err := r.db.Pool.Query(ctx, query, ids)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get service types by ids: %w", err)
+	}
+	defer rows.Close()
+
+	var out []model.ServiceType
+	for rows.Next() {
+		var st model.ServiceType
+		if err := rows.Scan(&st.ServiceTypeID, &st.Name, &st.Category, &st.Description, &st.Price, &st.DurationMinutes, &st.IsAvailable, &st.CreatedAt); err != nil {
+			return nil, fmt.Errorf("failed to scan service type: %w", err)
+		}
+		out = append(out, st)
+	}
+	return out, nil
+}
+
 type BranchRepository struct {
 	db *database.DB
 }
@@ -65,7 +91,7 @@ func NewBranchRepository(db *database.DB) *BranchRepository {
 }
 
 func (r *BranchRepository) GetAll(ctx context.Context, isActive *bool) ([]model.Branch, error) {
-	query := `SELECT branch_id, name, address, phone, email, is_active, created_at, updated_at FROM branches`
+	query := `SELECT branch_id, name, address, phone, email, is_active, timezone, workday_start_minutes, workday_end_minutes, slot_step_minutes, concurrent_bays, created_at, updated_at FROM branches`
 	var args []interface{}
 
 	if isActive != nil {
@@ -83,7 +109,9 @@ func (r *BranchRepository) GetAll(ctx context.Context, isActive *bool) ([]model.
 	var branches []model.Branch
 	for rows.Next() {
 		var branch model.Branch
-		if err := rows.Scan(&branch.BranchID, &branch.Name, &branch.Address, &branch.Phone, &branch.Email, &branch.IsActive, &branch.CreatedAt, &branch.UpdatedAt); err != nil {
+		if err := rows.Scan(&branch.BranchID, &branch.Name, &branch.Address, &branch.Phone, &branch.Email, &branch.IsActive,
+			&branch.Timezone, &branch.WorkdayStartMinutes, &branch.WorkdayEndMinutes, &branch.SlotStepMinutes, &branch.ConcurrentBays,
+			&branch.CreatedAt, &branch.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("failed to scan branch: %w", err)
 		}
 		branches = append(branches, branch)
@@ -94,11 +122,12 @@ func (r *BranchRepository) GetAll(ctx context.Context, isActive *bool) ([]model.
 
 func (r *BranchRepository) GetByID(ctx context.Context, branchID uuid.UUID) (*model.Branch, error) {
 	var branch model.Branch
-	query := `SELECT branch_id, name, address, phone, email, is_active, created_at, updated_at FROM branches WHERE branch_id = $1`
+	query := `SELECT branch_id, name, address, phone, email, is_active, timezone, workday_start_minutes, workday_end_minutes, slot_step_minutes, concurrent_bays, created_at, updated_at FROM branches WHERE branch_id = $1`
 
 	err := r.db.Pool.QueryRow(ctx, query, branchID).Scan(
 		&branch.BranchID, &branch.Name, &branch.Address, &branch.Phone, &branch.Email,
-		&branch.IsActive, &branch.CreatedAt, &branch.UpdatedAt,
+		&branch.IsActive, &branch.Timezone, &branch.WorkdayStartMinutes, &branch.WorkdayEndMinutes, &branch.SlotStepMinutes, &branch.ConcurrentBays,
+		&branch.CreatedAt, &branch.UpdatedAt,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -118,30 +147,67 @@ func NewServiceAppointmentRepository(db *database.DB) *ServiceAppointmentReposit
 	return &ServiceAppointmentRepository{db: db}
 }
 
-func (r *ServiceAppointmentRepository) Create(ctx context.Context, create model.ServiceAppointmentCreate) (*model.ServiceAppointment, error) {
+func (r *ServiceAppointmentRepository) CountOverlappingScheduled(ctx context.Context, branchID uuid.UUID, windowStart, windowEnd time.Time) (int, error) {
+	var n int
+	err := r.db.Pool.QueryRow(ctx, `
+		SELECT COUNT(*)::int FROM service_appointments
+		WHERE branch_id = $1
+		  AND status = 'scheduled'
+		  AND appointment_date < $3
+		  AND (appointment_date + (duration_minutes || ' minutes')::interval) > $2
+	`, branchID, windowStart, windowEnd).Scan(&n)
+	if err != nil {
+		return 0, fmt.Errorf("failed to count overlapping appointments: %w", err)
+	}
+	return n, nil
+}
+
+func (r *ServiceAppointmentRepository) Create(ctx context.Context, create model.ServiceAppointmentCreate, concurrentBays int) (*model.ServiceAppointment, error) {
+	if create.DurationMinutes <= 0 {
+		return nil, fmt.Errorf("invalid duration")
+	}
 	tx, err := r.db.Pool.Begin(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	defer tx.Rollback(ctx)
 
+	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtext($1::text))`, create.BranchID.String()); err != nil {
+		return nil, fmt.Errorf("lock branch: %w", err)
+	}
+
+	winEnd := create.AppointmentDate.Add(time.Duration(create.DurationMinutes) * time.Minute)
+	var overlap int
+	err = tx.QueryRow(ctx, `
+		SELECT COUNT(*)::int FROM service_appointments
+		WHERE branch_id = $1
+		  AND status = 'scheduled'
+		  AND appointment_date < $3
+		  AND (appointment_date + (duration_minutes || ' minutes')::interval) > $2
+	`, create.BranchID, create.AppointmentDate, winEnd).Scan(&overlap)
+	if err != nil {
+		return nil, fmt.Errorf("overlap check: %w", err)
+	}
+	if overlap >= concurrentBays {
+		return nil, fmt.Errorf("this time slot is no longer available")
+	}
+
 	var appointment model.ServiceAppointment
 	query := `
-		INSERT INTO service_appointments (user_car_id, branch_id, appointment_date, status, description)
-		VALUES ($1, $2, $3, 'scheduled', $4)
-		RETURNING service_appointment_id, user_car_id, branch_id, manager_id, appointment_date, status, description, created_at, updated_at
+		INSERT INTO service_appointments (user_car_id, branch_id, appointment_date, duration_minutes, status, description)
+		VALUES ($1, $2, $3, $4, 'scheduled', $5)
+		RETURNING service_appointment_id, user_car_id, branch_id, manager_id, appointment_date, duration_minutes, status, description, created_at, updated_at
 	`
 
-	err = tx.QueryRow(ctx, query, create.UserCarID, create.BranchID, create.AppointmentDate, create.Description).Scan(
+	err = tx.QueryRow(ctx, query, create.UserCarID, create.BranchID, create.AppointmentDate, create.DurationMinutes, create.Description).Scan(
 		&appointment.ServiceAppointmentID, &appointment.UserCarID, &appointment.BranchID,
-		&appointment.ManagerID, &appointment.AppointmentDate, &appointment.Status,
+		&appointment.ManagerID, &appointment.AppointmentDate, &appointment.DurationMinutes, &appointment.Status,
 		&appointment.Description, &appointment.CreatedAt, &appointment.UpdatedAt,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create appointment: %w", err)
 	}
 
-	// Insert service appointment types
 	if len(create.ServiceTypeIDs) > 0 {
 		query = `
 			INSERT INTO service_appointment_types (service_appointment_id, service_type_id)
@@ -165,7 +231,7 @@ func (r *ServiceAppointmentRepository) GetByID(ctx context.Context, appointmentI
 	query := `
 		SELECT 
 			sa.service_appointment_id, sa.user_car_id, sa.branch_id, sa.manager_id,
-			sa.appointment_date, sa.status, sa.description, sa.created_at, sa.updated_at,
+			sa.appointment_date, sa.duration_minutes, sa.status, sa.description, sa.created_at, sa.updated_at,
 			uc.user_id,
 			uc.vin as user_car_vin, b.name as branch_name, b.address as branch_address,
 			u.first_name || ' ' || u.last_name as manager_name
@@ -178,7 +244,7 @@ func (r *ServiceAppointmentRepository) GetByID(ctx context.Context, appointmentI
 
 	err := r.db.Pool.QueryRow(ctx, query, appointmentID).Scan(
 		&appointment.ServiceAppointmentID, &appointment.UserCarID, &appointment.BranchID,
-		&appointment.ManagerID, &appointment.AppointmentDate, &appointment.Status,
+		&appointment.ManagerID, &appointment.AppointmentDate, &appointment.DurationMinutes, &appointment.Status,
 		&appointment.Description, &appointment.CreatedAt, &appointment.UpdatedAt,
 		&appointment.OwnerUserID,
 		&appointment.UserCarVIN, &appointment.BranchName, &appointment.BranchAddress,
@@ -219,7 +285,7 @@ func (r *ServiceAppointmentRepository) GetByUserID(ctx context.Context, userID u
 	query := `
 		SELECT 
 			sa.service_appointment_id, sa.user_car_id, sa.branch_id, sa.manager_id,
-			sa.appointment_date, sa.status, sa.description, sa.created_at, sa.updated_at,
+			sa.appointment_date, sa.duration_minutes, sa.status, sa.description, sa.created_at, sa.updated_at,
 			uc.vin as user_car_vin, b.name as branch_name, b.address as branch_address,
 			u.first_name || ' ' || u.last_name as manager_name
 		FROM service_appointments sa
@@ -241,7 +307,7 @@ func (r *ServiceAppointmentRepository) GetByUserID(ctx context.Context, userID u
 		var appointment model.ServiceAppointmentWithDetails
 		if err := rows.Scan(
 			&appointment.ServiceAppointmentID, &appointment.UserCarID, &appointment.BranchID,
-			&appointment.ManagerID, &appointment.AppointmentDate, &appointment.Status,
+			&appointment.ManagerID, &appointment.AppointmentDate, &appointment.DurationMinutes, &appointment.Status,
 			&appointment.Description, &appointment.CreatedAt, &appointment.UpdatedAt,
 			&appointment.UserCarVIN, &appointment.BranchName, &appointment.BranchAddress,
 			&appointment.ManagerName,

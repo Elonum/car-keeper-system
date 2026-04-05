@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -16,40 +16,21 @@ import { UI_LIMITS } from '@/lib/authValidation';
 import { getApiErrorMessage } from '@/lib/apiErrors';
 import { toast } from "sonner";
 import { ArrowLeft, ArrowRight, Check, Wrench, Car, MapPin, Clock, Package, CalendarDays } from 'lucide-react';
-import { format, startOfDay, isBefore, isSameDay } from 'date-fns';
-import { ru } from 'date-fns/locale';
+import { format, startOfDay, isBefore } from 'date-fns';
 import { Calendar } from "@/components/ui/calendar";
 import { Label } from "@/components/ui/label";
 
 const STEPS = ["Автомобиль", "Филиал", "Услуги", "Дата", "Подтверждение"];
 
-const TIME_SLOTS = [
-  "09:00", "09:30", "10:00", "10:30", "11:00", "11:30",
-  "12:00", "12:30", "13:00", "13:30", "14:00", "14:30",
-  "15:00", "15:30", "16:00", "16:30", "17:00", "17:30",
-];
-
-/** Slots still available relative to «now» when the selected day is today (minutes buffer). */
-function getAvailableTimeSlots(selectedDate) {
-  if (!selectedDate) return TIME_SLOTS;
-  const todayStart = startOfDay(new Date());
-  const dayStart = startOfDay(selectedDate);
-  if (isBefore(dayStart, todayStart)) return [];
-  if (!isSameDay(selectedDate, new Date())) return TIME_SLOTS;
-
-  const now = new Date();
-  const bufferMin = 15;
-  const minTotal = now.getHours() * 60 + now.getMinutes() + bufferMin;
-  return TIME_SLOTS.filter((slot) => {
-    const [h, m] = slot.split(':').map(Number);
-    return h * 60 + m >= minTotal;
-  });
-}
-
 function truncateDescription(s, maxChars) {
   const arr = Array.from(String(s ?? ''));
   if (arr.length <= maxChars) return s || undefined;
   return arr.slice(0, maxChars).join('');
+}
+
+function formatInTimeZone(isoString, timeZone, opts) {
+  const tz = timeZone || 'Europe/Moscow';
+  return new Intl.DateTimeFormat('ru-RU', { timeZone: tz, ...opts }).format(new Date(isoString));
 }
 
 export default function ServiceAppointment() {
@@ -62,20 +43,46 @@ export default function ServiceAppointment() {
   const [selectedBranchId, setSelectedBranchId] = useState(null);
   const [selectedServiceIds, setSelectedServiceIds] = useState([]);
   const [selectedDate, setSelectedDate] = useState(null);
-  const [selectedTime, setSelectedTime] = useState('');
+  const [selectedSlotISO, setSelectedSlotISO] = useState(null);
   const [description, setDescription] = useState('');
 
-  const availableTimeSlots = useMemo(
-    () => getAvailableTimeSlots(selectedDate),
-    [selectedDate],
-  );
+  const dateKey = selectedDate ? format(selectedDate, 'yyyy-MM-dd') : null;
+  const serviceKey = [...selectedServiceIds].sort().join(',');
+
+  const {
+    data: availability,
+    isLoading: slotsLoading,
+    isError: slotsError,
+    error: slotsQueryError,
+  } = useQuery({
+    queryKey: ['branch-availability', selectedBranchId, dateKey, serviceKey],
+    queryFn: () =>
+      serviceService.getBranchAvailability(selectedBranchId, {
+        date: dateKey,
+        service_type_ids: selectedServiceIds,
+      }),
+    enabled:
+      Boolean(isAuthenticated) &&
+      step === 3 &&
+      !!selectedBranchId &&
+      !!dateKey &&
+      selectedServiceIds.length > 0,
+    staleTime: 30 * 1000,
+  });
+
+  const slotStarts = Array.isArray(availability?.slot_starts) ? availability.slot_starts : [];
+  const branchTimezone = availability?.timezone || 'Europe/Moscow';
+  const plannedDurationMin = availability?.duration_minutes ?? null;
 
   useEffect(() => {
-    if (!selectedTime) return;
-    if (!availableTimeSlots.includes(selectedTime)) {
-      setSelectedTime('');
-    }
-  }, [availableTimeSlots, selectedTime]);
+    setSelectedSlotISO(null);
+  }, [selectedBranchId, dateKey, serviceKey]);
+
+  useEffect(() => {
+    if (!selectedSlotISO || !slotStarts.length) return;
+    const still = slotStarts.some((s) => s === selectedSlotISO);
+    if (!still) setSelectedSlotISO(null);
+  }, [slotStarts, selectedSlotISO]);
 
   const { data: userCars, isLoading: carsLoading } = useQuery({
     queryKey: ['userCars'],
@@ -102,32 +109,26 @@ export default function ServiceAppointment() {
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      if (!selectedCarId || !selectedBranchId || !selectedDate || !selectedTime) {
+      if (!selectedCarId || !selectedBranchId || !selectedSlotISO) {
         throw new Error('Заполните все обязательные поля');
       }
-      if (!TIME_SLOTS.includes(selectedTime)) {
-        throw new Error('Выберите время из списка');
+      if (!slotStarts.includes(selectedSlotISO)) {
+        throw new Error('Выберите доступное время из списка');
       }
-      if (!availableTimeSlots.includes(selectedTime)) {
-        throw new Error('Выберите доступное время');
-      }
-
-      const appointmentDate = new Date(selectedDate);
-      const [hours, minutes] = selectedTime.split(':').map(Number);
-      appointmentDate.setHours(hours, minutes, 0, 0);
 
       const desc = truncateDescription(description.trim(), UI_LIMITS.APPOINTMENT_DESCRIPTION);
 
       return await serviceService.createAppointment({
         user_car_id: selectedCarId,
         branch_id: selectedBranchId,
-        appointment_date: appointmentDate.toISOString(),
+        appointment_date: selectedSlotISO,
         service_type_ids: selectedServiceIds,
         description: desc || undefined,
       });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['my-appointments'] });
+      queryClient.invalidateQueries({ queryKey: ['branch-availability'] });
       toast.success("Вы успешно записаны на обслуживание!");
       navigate(createPageUrl("Profile") + "?tab=service");
     },
@@ -180,7 +181,7 @@ export default function ServiceAppointment() {
       case 0: return !!selectedCarId;
       case 1: return !!selectedBranchId;
       case 2: return selectedServiceIds.length > 0;
-      case 3: return !!selectedDate && !!selectedTime && availableTimeSlots.includes(selectedTime);
+      case 3: return !!selectedDate && !!selectedSlotISO && slotStarts.includes(selectedSlotISO);
       default: return true;
     }
   };
@@ -190,12 +191,48 @@ export default function ServiceAppointment() {
     return isBefore(startOfDay(date), today) || date.getDay() === 0;
   };
 
+  const slotsEmptyMessage = () => {
+    if (plannedDurationMin != null && selectedDate) {
+      const b = branches.find((x) => (x.branch_id || x.id) === selectedBranchId);
+      const startM = b?.workday_start_minutes ?? 540;
+      const endM = b?.workday_end_minutes ?? 1080;
+      if (plannedDurationMin > endM - startM) {
+        return 'Суммарная длительность выбранных услуг не помещается в рабочий день филиала. Уберите часть услуг или выберите другой филиал.';
+      }
+    }
+    return 'На этот день нет свободных окон. Выберите другую дату.';
+  };
+
+  const goToServices = () => {
+    navigate(createPageUrl('Services'));
+  };
+
+  /** Предыдущий шаг мастера; на шаге 0 — шаг назад в истории браузера (не то же самое, что «К услугам»). */
+  const wizardBack = () => {
+    if (step > 0) {
+      setStep((s) => s - 1);
+      return;
+    }
+    navigate(-1);
+  };
+
   return (
     <div className="min-h-screen bg-slate-50">
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
-        <div className="mb-8">
-          <h1 className="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight">Запись на ТО</h1>
-          <p className="text-slate-500 mt-1">Запишите ваш автомобиль на обслуживание</p>
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 pb-32">
+        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight">Запись на ТО</h1>
+            <p className="text-slate-500 mt-1">Запишите ваш автомобиль на обслуживание</p>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            className="shrink-0 gap-2 rounded-xl self-start sm:self-center"
+            onClick={goToServices}
+          >
+            <Wrench className="h-4 w-4" />
+            К услугам
+          </Button>
         </div>
 
         <div className="mb-8">
@@ -253,7 +290,7 @@ export default function ServiceAppointment() {
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
                             <h3 className="font-semibold text-slate-900">{service.name}</h3>
-                            {service.duration_minutes && (
+                            {service.duration_minutes != null && (
                               <span className="text-xs text-slate-400 flex items-center gap-1">
                                 <Clock className="w-3 h-3" /> {service.duration_minutes} мин
                               </span>
@@ -264,7 +301,7 @@ export default function ServiceAppointment() {
                           )}
                         </div>
                         <div className="flex flex-col items-end gap-2">
-                          <PriceDisplay price={service.price} size="md" />
+                          <PriceDisplay price={service.price} size="md" className="" />
                           {isSelected && (
                             <div className="w-6 h-6 rounded-full bg-slate-900 flex items-center justify-center">
                               <Check className="w-3.5 h-3.5 text-white" />
@@ -292,7 +329,9 @@ export default function ServiceAppointment() {
         {step === 3 && (
           <div>
             <h2 className="text-xl font-bold text-slate-900 mb-1">Выберите дату</h2>
-            <p className="text-sm text-slate-500 mb-5">Укажите дату и удобное время визита (по воскресеньям не работаем)</p>
+            <p className="text-sm text-slate-500 mb-5">
+              Укажите дату и время визита. Воскресенье — выходной. Слоты рассчитываются для выбранного филиала с учётом загрузки.
+            </p>
 
             <div className="grid md:grid-cols-2 gap-6">
               <div>
@@ -308,27 +347,41 @@ export default function ServiceAppointment() {
               </div>
               <div>
                 <Label className="text-sm font-medium mb-2 block">Время</Label>
-                {availableTimeSlots.length === 0 ? (
-                  <p className="text-sm text-amber-700 bg-amber-50 border border-amber-100 rounded-xl px-4 py-3">
-                    На сегодня свободных слотов уже нет. Выберите другой день.
+                {slotsLoading && (
+                  <p className="text-sm text-slate-500 py-4">Загрузка доступных слотов…</p>
+                )}
+                {slotsError && (
+                  <p className="text-sm text-red-700 bg-red-50 border border-red-100 rounded-xl px-4 py-3">
+                    {getApiErrorMessage(slotsQueryError, 'Не удалось загрузить слоты')}
                   </p>
-                ) : (
+                )}
+                {!slotsLoading && !slotsError && selectedDate && selectedServiceIds.length > 0 && slotStarts.length === 0 && (
+                  <p className="text-sm text-amber-800 bg-amber-50 border border-amber-100 rounded-xl px-4 py-3">
+                    {slotsEmptyMessage()}
+                  </p>
+                )}
+                {!slotsLoading && !slotsError && slotStarts.length > 0 && (
                   <div className="grid grid-cols-3 gap-2">
-                    {availableTimeSlots.map(time => (
+                    {slotStarts.map((iso) => (
                       <button
-                        key={time}
+                        key={iso}
                         type="button"
-                        onClick={() => setSelectedTime(time)}
+                        onClick={() => setSelectedSlotISO(iso)}
                         className={`px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                          selectedTime === time
+                          selectedSlotISO === iso
                             ? 'bg-slate-900 text-white'
                             : 'bg-white border border-slate-200 text-slate-700 hover:border-slate-300'
                         }`}
                       >
-                        {time}
+                        {formatInTimeZone(iso, branchTimezone, { hour: '2-digit', minute: '2-digit', hour12: false })}
                       </button>
                     ))}
                   </div>
+                )}
+                {plannedDurationMin != null && !slotsLoading && (
+                  <p className="text-xs text-slate-500 mt-3">
+                    Ориентировочная длительность работ: {plannedDurationMin} мин (часовой пояс филиала: {branchTimezone})
+                  </p>
                 )}
 
                 <div className="mt-6">
@@ -391,13 +444,13 @@ export default function ServiceAppointment() {
                         {selectedServices.map(service => (
                           <div key={getServiceId(service)} className="flex items-center justify-between text-sm">
                             <span className="text-slate-700">{service.name}</span>
-                            <PriceDisplay price={service.price} size="sm" />
+                            <PriceDisplay price={service.price} size="sm" className="" />
                           </div>
                         ))}
                       </div>
                       <div className="mt-3 pt-3 border-t border-slate-200 flex items-center justify-between font-semibold">
                         <span>Итого</span>
-                        <PriceDisplay price={totalCost} size="md" />
+                        <PriceDisplay price={totalCost} size="md" className="" />
                       </div>
                     </div>
                   </div>
@@ -413,7 +466,12 @@ export default function ServiceAppointment() {
                     <div>
                       <p className="text-xs text-slate-400 uppercase tracking-wider font-medium">Дата</p>
                       <p className="font-semibold text-slate-900">
-                        {selectedDate && format(selectedDate, 'd MMMM yyyy', { locale: ru })}
+                        {selectedSlotISO &&
+                          formatInTimeZone(selectedSlotISO, branchTimezone, {
+                            day: 'numeric',
+                            month: 'long',
+                            year: 'numeric',
+                          })}
                       </p>
                     </div>
                   </div>
@@ -423,7 +481,17 @@ export default function ServiceAppointment() {
                     </div>
                     <div>
                       <p className="text-xs text-slate-400 uppercase tracking-wider font-medium">Время</p>
-                      <p className="font-semibold text-slate-900">{selectedTime}</p>
+                      <p className="font-semibold text-slate-900">
+                        {selectedSlotISO &&
+                          formatInTimeZone(selectedSlotISO, branchTimezone, {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            hour12: false,
+                          })}
+                      </p>
+                      {plannedDurationMin != null && (
+                        <p className="text-xs text-slate-500 mt-1">≈ {plannedDurationMin} мин работ</p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -439,12 +507,12 @@ export default function ServiceAppointment() {
           </div>
         )}
 
-        <div className="flex items-center justify-between mt-8 pt-6 border-t border-slate-200">
+        <div className="sticky bottom-0 z-20 -mx-4 flex items-center justify-between gap-4 border-t border-slate-200 bg-slate-50/95 px-4 py-4 backdrop-blur supports-[backdrop-filter]:bg-slate-50/90 sm:-mx-6 sm:px-6 mt-8">
           <Button
+            type="button"
             variant="outline"
-            onClick={() => setStep(s => s - 1)}
-            disabled={step === 0}
-            className="gap-2 rounded-xl"
+            onClick={wizardBack}
+            className="gap-2 rounded-xl min-w-[7.5rem]"
           >
             <ArrowLeft className="w-4 h-4" /> Назад
           </Button>

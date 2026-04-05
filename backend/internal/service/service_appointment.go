@@ -72,29 +72,24 @@ func (s *ServiceService) CreateAppointment(ctx context.Context, userID uuid.UUID
 		return nil, fmt.Errorf("branch is not active")
 	}
 
-	// Verify service types exist and are available
 	if len(create.ServiceTypeIDs) == 0 {
 		return nil, fmt.Errorf("at least one service type is required")
 	}
 
-	serviceTypes, err := s.repo.ServiceType.GetAll(ctx, nil, boolPtr(true))
+	selectedTypes, err := s.repo.ServiceType.GetByIDs(ctx, create.ServiceTypeIDs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get service types: %w", err)
 	}
-
-	serviceTypeMap := make(map[uuid.UUID]bool)
-	for _, st := range serviceTypes {
-		serviceTypeMap[st.ServiceTypeID] = true
+	if len(selectedTypes) != len(create.ServiceTypeIDs) {
+		return nil, fmt.Errorf("one or more service types are not available")
 	}
 
-	for _, stID := range create.ServiceTypeIDs {
-		if !serviceTypeMap[stID] {
-			return nil, fmt.Errorf("service type %s not found or not available", stID)
-		}
+	create.DurationMinutes = totalDurationMinutes(selectedTypes)
+	if err := validateAppointmentSlot(branch, create.AppointmentDate, create.DurationMinutes); err != nil {
+		return nil, err
 	}
 
-	// Create appointment
-	appointment, err := s.repo.ServiceAppointment.Create(ctx, create)
+	appointment, err := s.repo.ServiceAppointment.Create(ctx, create, branch.ConcurrentBays)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create appointment: %w", err)
 	}

@@ -9,6 +9,7 @@ import { Wrench, MapPin, Calendar, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { toast } from 'sonner';
+import { getApiErrorMessage } from '@/lib/apiErrors';
 
 export default function ServiceAppointmentsList({ appointments, isLoading }) {
   const queryClient = useQueryClient();
@@ -19,8 +20,8 @@ export default function ServiceAppointmentsList({ appointments, isLoading }) {
       queryClient.invalidateQueries({ queryKey: ['my-appointments'] });
       toast.success('Запись отменена');
     },
-    onError: () => {
-      toast.error('Ошибка при отмене записи');
+    onError: (err) => {
+      toast.error(getApiErrorMessage(err, 'Ошибка при отмене записи'));
     },
   });
 
@@ -59,7 +60,7 @@ export default function ServiceAppointmentsList({ appointments, isLoading }) {
                 </div>
                 <div className="flex-1">
                   <h3 className="text-lg font-bold text-slate-900 mb-1">
-                    {appt.car_display || 'Сервисная запись'}
+                    {appt.user_car_vin || appt.car_display || 'Сервисная запись'}
                   </h3>
                   {appt.appointment_date && (
                     <div className="flex items-center gap-2 text-sm text-slate-500 mb-2">
@@ -73,10 +74,13 @@ export default function ServiceAppointmentsList({ appointments, isLoading }) {
                 </div>
               </div>
 
-              {appt.branch_display && (
+              {(appt.branch_name || appt.branch_display) && (
                 <div className="flex items-start gap-2 text-sm text-slate-600 mb-2">
                   <MapPin className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                  <span>{appt.branch_display}</span>
+                  <span>
+                    {appt.branch_name || appt.branch_display}
+                    {appt.branch_address ? `, ${appt.branch_address}` : ''}
+                  </span>
                 </div>
               )}
 

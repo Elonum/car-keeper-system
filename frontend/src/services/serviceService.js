@@ -21,8 +21,13 @@ export const serviceService = {
     return await apiClient.get(`/service/appointments/${appointmentId}`);
   },
 
-  updateAppointment: async (appointmentId, appointmentData) => {
-    return await apiClient.put(`/service/appointments/${appointmentId}`, appointmentData);
+  /** @param {{ date: string, service_type_ids: string[] }} params */
+  getBranchAvailability: async (branchId, params) => {
+    const { date, service_type_ids } = params;
+    const ids = Array.isArray(service_type_ids) ? service_type_ids.join(',') : String(service_type_ids);
+    return await apiClient.get(`/service/branches/${branchId}/availability`, {
+      params: { date, service_type_ids: ids },
+    });
   },
 
   cancelAppointment: async (appointmentId) => {

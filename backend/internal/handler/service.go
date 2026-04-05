@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/carkeeper/backend/internal/apperr"
 	"github.com/carkeeper/backend/internal/model"
@@ -48,6 +49,53 @@ func (h *Handler) GetBranches(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	Success(w, branches)
+}
+
+func (h *Handler) GetBranchAvailability(w http.ResponseWriter, r *http.Request) {
+	_, _, ok := RequesterAndRole(w, r)
+	if !ok {
+		return
+	}
+	branchIDStr := chi.URLParam(r, "branchID")
+	branchID, err := uuid.Parse(branchIDStr)
+	if err != nil {
+		BadRequest(w, "invalid branch id")
+		return
+	}
+	dateStr := strings.TrimSpace(r.URL.Query().Get("date"))
+	if dateStr == "" {
+		BadRequest(w, "date is required")
+		return
+	}
+	raw := strings.TrimSpace(r.URL.Query().Get("service_type_ids"))
+	if raw == "" {
+		BadRequest(w, "service_type_ids is required")
+		return
+	}
+	parts := strings.Split(raw, ",")
+	var ids []uuid.UUID
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p == "" {
+			continue
+		}
+		id, err := uuid.Parse(p)
+		if err != nil {
+			BadRequest(w, "invalid service_type_ids")
+			return
+		}
+		ids = append(ids, id)
+	}
+	if len(ids) == 0 {
+		BadRequest(w, "service_type_ids is required")
+		return
+	}
+	avail, err := h.services.Service.BranchAvailability(r.Context(), branchID, dateStr, ids)
+	if err != nil {
+		BadRequest(w, err.Error())
+		return
+	}
+	Success(w, avail)
 }
 
 func (h *Handler) GetUserCars(w http.ResponseWriter, r *http.Request) {

@@ -9,6 +9,7 @@ import { Wrench, Calendar, MapPin, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { toast } from "sonner";
+import { getApiErrorMessage } from '@/lib/apiErrors';
 
 export default function MyServiceAppointments({ appointments, refetch }) {
   const queryClient = useQueryClient();
@@ -20,8 +21,8 @@ export default function MyServiceAppointments({ appointments, refetch }) {
       toast.success("Запись отменена");
       if (refetch) refetch();
     },
-    onError: () => {
-      toast.error('Ошибка при отмене записи');
+    onError: (err) => {
+      toast.error(getApiErrorMessage(err, 'Ошибка при отмене записи'));
     },
   });
 
@@ -42,10 +43,12 @@ export default function MyServiceAppointments({ appointments, refetch }) {
               <div className="flex items-center gap-2 mb-1">
                 <StatusBadge status={appt.status} />
               </div>
-              <p className="font-semibold text-slate-900">{appt.car_display || 'Автомобиль'}</p>
+              <p className="font-semibold text-slate-900">{appt.user_car_vin || appt.car_display || 'Автомобиль'}</p>
               <div className="flex flex-wrap gap-3 mt-2 text-sm text-slate-500">
                 <span className="flex items-center gap-1.5">
-                  <MapPin className="w-3.5 h-3.5" /> {appt.branch_display || '—'}
+                  <MapPin className="w-3.5 h-3.5" />{' '}
+                  {appt.branch_name || appt.branch_display || '—'}
+                  {appt.branch_address ? `, ${appt.branch_address}` : ''}
                 </span>
                 <span className="flex items-center gap-1.5">
                   <Calendar className="w-3.5 h-3.5" />

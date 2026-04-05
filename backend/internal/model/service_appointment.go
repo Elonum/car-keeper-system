@@ -8,14 +8,15 @@ import (
 
 type ServiceAppointment struct {
 	ServiceAppointmentID uuid.UUID  `db:"service_appointment_id" json:"service_appointment_id"`
-	UserCarID           uuid.UUID  `db:"user_car_id" json:"user_car_id"`
-	BranchID            uuid.UUID  `db:"branch_id" json:"branch_id"`
-	ManagerID           *uuid.UUID `db:"manager_id" json:"manager_id,omitempty"`
-	AppointmentDate     time.Time  `db:"appointment_date" json:"appointment_date"`
-	Status              string     `db:"status" json:"status"`
-	Description         *string    `db:"description" json:"description,omitempty"`
-	CreatedAt           time.Time  `db:"created_at" json:"created_at"`
-	UpdatedAt           time.Time  `db:"updated_at" json:"updated_at"`
+	UserCarID              uuid.UUID  `db:"user_car_id" json:"user_car_id"`
+	BranchID               uuid.UUID  `db:"branch_id" json:"branch_id"`
+	ManagerID              *uuid.UUID `db:"manager_id" json:"manager_id,omitempty"`
+	AppointmentDate        time.Time  `db:"appointment_date" json:"appointment_date"`
+	DurationMinutes        int        `db:"duration_minutes" json:"duration_minutes"`
+	Status                 string     `db:"status" json:"status"`
+	Description            *string    `db:"description" json:"description,omitempty"`
+	CreatedAt              time.Time  `db:"created_at" json:"created_at"`
+	UpdatedAt              time.Time  `db:"updated_at" json:"updated_at"`
 }
 
 type ServiceAppointmentCreate struct {
@@ -24,6 +25,15 @@ type ServiceAppointmentCreate struct {
 	ServiceTypeIDs  []uuid.UUID `json:"service_type_ids" validate:"required,min=1"`
 	AppointmentDate time.Time   `json:"appointment_date" validate:"required"`
 	Description     *string     `json:"description,omitempty"`
+	// Set by service layer from selected service types (never trust client).
+	DurationMinutes int `json:"-"`
+}
+
+// BranchAvailability is returned by GET .../branches/{id}/availability
+type BranchAvailability struct {
+	SlotStarts       []time.Time `json:"slot_starts"`
+	Timezone         string      `json:"timezone"`
+	DurationMinutes  int         `json:"duration_minutes"`
 }
 
 type ServiceAppointmentWithDetails struct {

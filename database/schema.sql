@@ -42,8 +42,14 @@ CREATE TABLE branches (
     phone       varchar(30),
     email       varchar(255),
     is_active   boolean NOT NULL DEFAULT true,
+    timezone    varchar(64) NOT NULL DEFAULT 'Europe/Moscow',
+    workday_start_minutes integer NOT NULL DEFAULT 540 CHECK (workday_start_minutes >= 0 AND workday_start_minutes < 1440),
+    workday_end_minutes   integer NOT NULL DEFAULT 1080 CHECK (workday_end_minutes > 0 AND workday_end_minutes <= 1440),
+    slot_step_minutes     integer NOT NULL DEFAULT 30 CHECK (slot_step_minutes > 0 AND slot_step_minutes <= 180),
+    concurrent_bays       integer NOT NULL DEFAULT 2 CHECK (concurrent_bays >= 1 AND concurrent_bays <= 32),
     created_at  timestamptz NOT NULL DEFAULT now(),
-    updated_at  timestamptz NOT NULL DEFAULT now()
+    updated_at  timestamptz NOT NULL DEFAULT now(),
+    CHECK (workday_start_minutes < workday_end_minutes)
 );
 
 CREATE INDEX idx_branches_is_active ON branches(is_active);
@@ -267,6 +273,7 @@ CREATE TABLE service_appointments (
     branch_id              uuid NOT NULL REFERENCES branches(branch_id) ON DELETE RESTRICT,
     manager_id             uuid REFERENCES users(user_id) ON DELETE SET NULL,
     appointment_date       timestamptz NOT NULL,
+    duration_minutes       integer NOT NULL CHECK (duration_minutes > 0),
     status                 varchar(30) NOT NULL DEFAULT 'scheduled',
     description            text,
     created_at             timestamptz NOT NULL DEFAULT now(),

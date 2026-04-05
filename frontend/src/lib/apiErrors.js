@@ -44,6 +44,13 @@ const BACKEND_TO_RU = [
   [/user car not found/i, 'Автомобиль не найден'],
   [/user car does not belong to user/i, 'Этот автомобиль недоступен для записи'],
   [/service type .* not found or not available/i, 'Одна из услуг недоступна'],
+  [/this time slot is no longer available/i, 'Это время уже занято. Выберите другой слот'],
+  [/branch is closed on this day/i, 'В этот день филиал не работает'],
+  [/appointment outside branch working hours/i, 'Время вне графика работы филиала'],
+  [/invalid appointment time slot/i, 'Некорректное время записи'],
+  [/invalid date format/i, 'Некорректная дата'],
+  [/invalid service duration/i, 'Некорректная длительность услуг'],
+  [/failed to get branch/i, 'Не удалось загрузить филиал'],
 ];
 
 /** Turns a backend `error` string into Russian when we know the English phrase. */

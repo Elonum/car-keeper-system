@@ -72,7 +72,7 @@ export default function CarServiceHistory({ carId }) {
                   )}
                 </div>
                 <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1">
-                  <MapPin className="w-3 h-3" /> {appt.branch_display || appt.branch_name || '—'}
+                  <MapPin className="w-3 h-3" /> {appt.branch_name || appt.branch_display || '—'}
                 </p>
               </div>
             </div>

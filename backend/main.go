@@ -144,6 +144,7 @@ func setupRouter(handlers *handler.Handler, cfg *config.Config, db *database.DB)
 			r.Get("/branches", handlers.GetBranches)
 			r.Group(func(r chi.Router) {
 				r.Use(authMiddleware.AuthMiddleware(handlers.Services().Auth))
+				r.Get("/branches/{branchID}/availability", handlers.GetBranchAvailability)
 				r.Get("/user-cars", handlers.GetUserCars)
 				r.Post("/appointments", handlers.CreateAppointment)
 				r.Get("/appointments", handlers.GetUserAppointments)
