@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { formatBackendErrorMessage } from '@/lib/apiErrors';
 
 const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api',
@@ -30,9 +31,10 @@ apiClient.interceptors.response.use(
     if (backendResponse.success) {
       return backendResponse.data;
     } else {
+      const raw = backendResponse.error || backendResponse.message || 'Ошибка запроса';
       return Promise.reject({
         status: response.status,
-        message: backendResponse.error || backendResponse.message || 'Request failed',
+        message: formatBackendErrorMessage(raw) || raw,
         data: backendResponse,
       });
     }
@@ -40,7 +42,7 @@ apiClient.interceptors.response.use(
   (error) => {
     if (error.response) {
       const { status, data } = error.response;
-      
+
       if (status === 401) {
         localStorage.removeItem('auth_token');
         localStorage.removeItem('user');
@@ -48,30 +50,32 @@ apiClient.interceptors.response.use(
           window.location.href = '/Login';
         }
       }
-      
-      const backendResponse = data || {};
-      // Extract error message from various possible locations
-      const errorMessage = backendResponse.error || 
-                          backendResponse.message || 
-                          (typeof backendResponse === 'string' ? backendResponse : null) ||
-                          error.message || 
-                          `Request failed with status ${status}`;
+
+      const backendResponse = data && typeof data === 'object' ? data : {};
+      const raw = String(
+        backendResponse.error ||
+          backendResponse.message ||
+          (typeof data === 'string' ? data : '') ||
+          ''
+      ).trim();
+      const message = formatBackendErrorMessage(raw) || raw || 'Ошибка запроса';
+
       return Promise.reject({
         status,
-        message: errorMessage,
+        message,
         data: backendResponse,
       });
-    } else if (error.request) {
+    }
+    if (error.request) {
       return Promise.reject({
         status: 0,
-        message: 'Network error. Please check your connection.',
-      });
-    } else {
-      return Promise.reject({
-        status: 0,
-        message: error.message || 'An unexpected error occurred',
+        message: 'Не удалось связаться с сервером. Проверьте подключение к интернету.',
       });
     }
+    return Promise.reject({
+      status: 0,
+      message: formatBackendErrorMessage(error.message) || 'Произошла ошибка. Попробуйте ещё раз.',
+    });
   }
 );
 

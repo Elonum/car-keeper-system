@@ -92,6 +92,15 @@ export const AuthProvider = ({ children }) => {
     window.location.href = '/Login';
   };
 
+  /** Reloads user from GET /auth/me (e.g. after profile PATCH). */
+  const refreshUser = async () => {
+    const currentUser = await authService.getCurrentUser();
+    if (currentUser) {
+      setUser(currentUser);
+      setIsAuthenticated(true);
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -104,6 +113,7 @@ export const AuthProvider = ({ children }) => {
         logout,
         navigateToLogin,
         checkAuth,
+        refreshUser,
       }}
     >
       {children}

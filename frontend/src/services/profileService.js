@@ -1,6 +1,14 @@
 import apiClient from '@/api/client';
 
 export const profileService = {
+  updateProfile: async (payload) => {
+    return apiClient.patch('/profile/me', payload);
+  },
+
+  changePassword: async (payload) => {
+    return apiClient.post('/profile/me/password', payload);
+  },
+
   getUserCars: async () => {
     return await apiClient.get('/profile/cars');
   },

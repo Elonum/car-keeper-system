@@ -9,6 +9,7 @@ import (
 	"github.com/carkeeper/backend/config"
 	"github.com/carkeeper/backend/internal/model"
 	"github.com/carkeeper/backend/internal/repository"
+	"github.com/carkeeper/backend/internal/validate"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 )
@@ -75,6 +76,20 @@ func (s *AuthService) GetUser(ctx context.Context, userID uuid.UUID) (*model.Use
 
 	response := user.ToResponse()
 	return &response, nil
+}
+
+// ChangePassword requires the current password and validates the new password strength.
+func (s *AuthService) ChangePassword(ctx context.Context, userID uuid.UUID, currentPassword, newPassword string) error {
+	if msg := validate.NewPassword(newPassword); msg != "" {
+		return fmt.Errorf("%s", msg)
+	}
+	if err := s.repo.User.VerifyPasswordForUserID(ctx, userID, currentPassword); err != nil {
+		return fmt.Errorf("current password is incorrect")
+	}
+	if msg := validate.NewPasswordMustDifferFromCurrent(currentPassword, newPassword); msg != "" {
+		return fmt.Errorf("%s", msg)
+	}
+	return s.repo.User.UpdatePassword(ctx, userID, newPassword)
 }
 
 func (s *AuthService) generateToken(userID uuid.UUID, role string) (string, error) {

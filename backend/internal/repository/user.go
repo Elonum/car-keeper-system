@@ -169,3 +169,68 @@ func (r *UserRepository) EmailExists(ctx context.Context, email string) (bool, e
 	return exists, nil
 }
 
+// VerifyPasswordForUserID checks the plaintext password against the stored hash for userID.
+func (r *UserRepository) VerifyPasswordForUserID(ctx context.Context, userID uuid.UUID, plain string) error {
+	var passwordHash string
+	err := r.db.Pool.QueryRow(ctx,
+		`SELECT password_hash FROM users WHERE user_id = $1`,
+		userID,
+	).Scan(&passwordHash)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return fmt.Errorf("invalid credentials")
+		}
+		return fmt.Errorf("failed to verify password: %w", err)
+	}
+	if err := bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(plain)); err != nil {
+		return fmt.Errorf("invalid credentials")
+	}
+	return nil
+}
+
+// UpdatePassword replaces the password hash for the user.
+func (r *UserRepository) UpdatePassword(ctx context.Context, userID uuid.UUID, plain string) error {
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(plain), bcrypt.DefaultCost)
+	if err != nil {
+		return fmt.Errorf("failed to hash password: %w", err)
+	}
+	ct, err := r.db.Pool.Exec(ctx,
+		`UPDATE users SET password_hash = $1, updated_at = now() WHERE user_id = $2`,
+		string(hashedPassword), userID,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to update password: %w", err)
+	}
+	if ct.RowsAffected() == 0 {
+		return fmt.Errorf("user not found")
+	}
+	return nil
+}
+
+// UpdateProfile updates editable profile fields (email is not changed here).
+func (r *UserRepository) UpdateProfile(ctx context.Context, userID uuid.UUID, firstName, lastName string, phone *string) (*model.User, error) {
+	var user model.User
+	err := r.db.Pool.QueryRow(ctx, `
+		UPDATE users
+		SET first_name = $1, last_name = $2, phone = $3, updated_at = now()
+		WHERE user_id = $4
+		RETURNING user_id, first_name, last_name, email, phone, role, created_at, updated_at
+	`, firstName, lastName, phone, userID).Scan(
+		&user.UserID,
+		&user.FirstName,
+		&user.LastName,
+		&user.Email,
+		&user.Phone,
+		&user.Role,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, fmt.Errorf("user not found")
+		}
+		return nil, fmt.Errorf("failed to update profile: %w", err)
+	}
+	return &user, nil
+}
+

@@ -8,6 +8,7 @@ import (
 
 	"github.com/carkeeper/backend/internal/apperr"
 	"github.com/carkeeper/backend/internal/model"
+	"github.com/carkeeper/backend/internal/validate"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 )
@@ -107,5 +108,68 @@ func (h *Handler) GetUserConfigurations(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	Success(w, configurations)
+}
+
+// UpdateProfile patches first name, last name, and phone. Email is read-only (change requires a verified flow).
+func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
+	userID, _, ok := RequesterAndRole(w, r)
+	if !ok {
+		return
+	}
+
+	var body struct {
+		FirstName string  `json:"first_name"`
+		LastName  string  `json:"last_name"`
+		Phone     *string `json:"phone"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		BadRequest(w, "Invalid request body")
+		return
+	}
+
+	fn, ln, msg := validate.Names(body.FirstName, body.LastName)
+	if msg != "" {
+		BadRequest(w, msg)
+		return
+	}
+	ph, msg := validate.PhonePtr(body.Phone)
+	if msg != "" {
+		BadRequest(w, msg)
+		return
+	}
+
+	user, err := h.services.Profile.UpdateProfile(r.Context(), userID, fn, ln, ph)
+	if err != nil {
+		BadRequest(w, err.Error())
+		return
+	}
+	Success(w, user)
+}
+
+// ChangePassword requires the current password (proves session holder knows credentials).
+func (h *Handler) ChangePassword(w http.ResponseWriter, r *http.Request) {
+	userID, _, ok := RequesterAndRole(w, r)
+	if !ok {
+		return
+	}
+
+	var body struct {
+		CurrentPassword string `json:"current_password"`
+		NewPassword     string `json:"new_password"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		BadRequest(w, "Invalid request body")
+		return
+	}
+	if body.CurrentPassword == "" {
+		BadRequest(w, "current_password is required")
+		return
+	}
+
+	if err := h.services.Auth.ChangePassword(r.Context(), userID, body.CurrentPassword, body.NewPassword); err != nil {
+		BadRequest(w, err.Error())
+		return
+	}
+	Success(w, map[string]string{"status": "ok"})
 }
 

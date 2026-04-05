@@ -9,28 +9,8 @@ import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
+import { getApiErrorMessage } from '@/lib/apiErrors';
 import { LogIn, Mail, Lock, Car, AlertCircle, UserPlus, Home } from 'lucide-react';
-
-function mapLoginError(message) {
-  if (!message) return 'Ошибка входа. Проверьте email и пароль.';
-  const msg = String(message).toLowerCase();
-  if (msg.includes('network') || msg.includes('connection')) {
-    return 'Ошибка соединения. Проверьте подключение к интернету.';
-  }
-  if (msg.includes('user not found') || msg.includes('not found')) {
-    return 'Пользователь с таким email не найден';
-  }
-  if (
-    msg.includes('invalid') ||
-    msg.includes('wrong') ||
-    msg.includes('unauthorized') ||
-    msg.includes('credentials') ||
-    msg.includes('password')
-  ) {
-    return 'Неверный email или пароль';
-  }
-  return 'Ошибка входа. Проверьте email и пароль.';
-}
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -77,7 +57,7 @@ export default function Login() {
       toast.success('Вход выполнен успешно');
       navigate(createPageUrl('Catalog'));
     } catch (error) {
-      const errorMessage = mapLoginError(error?.message);
+      const errorMessage = getApiErrorMessage(error, 'Ошибка входа. Проверьте email и пароль.');
       setServerError(errorMessage);
       toast.error(errorMessage);
     } finally {

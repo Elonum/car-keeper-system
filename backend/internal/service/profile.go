@@ -56,3 +56,13 @@ func (s *ProfileService) GetUserCar(ctx context.Context, userCarID uuid.UUID, re
 	return car, nil
 }
 
+// UpdateProfile updates first name, last name, and phone for the authenticated user.
+func (s *ProfileService) UpdateProfile(ctx context.Context, userID uuid.UUID, firstName, lastName string, phone *string) (*model.UserResponse, error) {
+	user, err := s.repo.User.UpdateProfile(ctx, userID, firstName, lastName, phone)
+	if err != nil {
+		return nil, err
+	}
+	resp := user.ToResponse()
+	return &resp, nil
+}
+

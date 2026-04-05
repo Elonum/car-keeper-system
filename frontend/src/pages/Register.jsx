@@ -17,6 +17,7 @@ import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
+import { getApiErrorMessage } from '@/lib/apiErrors';
 import {
   Car,
   Mail,
@@ -38,17 +39,6 @@ const initialErrors = () => ({
   password: null,
   password_confirm: null,
 });
-
-function mapRegisterServerMessage(msg) {
-  const m = String(msg || '').toLowerCase();
-  if (m.includes('email') && (m.includes('exist') || m.includes('already') || m.includes('taken'))) {
-    return 'Пользователь с таким email уже зарегистрирован';
-  }
-  if (m.includes('network') || m.includes('connection')) {
-    return 'Ошибка соединения. Проверьте интернет.';
-  }
-  return msg || 'Не удалось завершить регистрацию';
-}
 
 export default function Register() {
   const [firstName, setFirstName] = useState('');
@@ -111,7 +101,7 @@ export default function Register() {
         state: { registered: true, email: emailNorm },
       });
     } catch (error) {
-      const text = mapRegisterServerMessage(error.message);
+      const text = getApiErrorMessage(error, 'Не удалось завершить регистрацию');
       setServerError(text);
       toast.error(text);
     } finally {

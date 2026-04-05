@@ -169,6 +169,8 @@ func setupRouter(handlers *handler.Handler, cfg *config.Config, db *database.DB)
 		r.Route("/profile", func(r chi.Router) {
 			r.Group(func(r chi.Router) {
 				r.Use(authMiddleware.AuthMiddleware(handlers.Services().Auth))
+				r.Patch("/me", handlers.UpdateProfile)
+				r.Post("/me/password", handlers.ChangePassword)
 				r.Get("/cars", handlers.GetUserCars)
 				r.Post("/cars", handlers.CreateUserCar)
 				r.Get("/cars/{id}", handlers.GetUserCar)
