@@ -37,3 +37,6 @@ Thumbs.db
 # Logs
 *.log
 
+# Local document uploads (DOCUMENT_STORAGE_ROOT)
+/data/
+

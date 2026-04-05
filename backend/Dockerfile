@@ -14,5 +14,4 @@ WORKDIR /app
 COPY --from=build /out/server .
 ENV SERVER_HOST=0.0.0.0
 EXPOSE 8080
-USER nobody
 CMD ["./server"]

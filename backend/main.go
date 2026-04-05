@@ -15,6 +15,7 @@ import (
 	authMiddleware "github.com/carkeeper/backend/internal/middleware"
 	"github.com/carkeeper/backend/internal/repository"
 	"github.com/carkeeper/backend/internal/service"
+	"github.com/carkeeper/backend/internal/storage"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
@@ -34,8 +35,13 @@ func main() {
 
 	log.Println("Database connection established")
 
+	fileStore, err := storage.NewLocal(cfg.Storage.RootPath)
+	if err != nil {
+		log.Fatalf("Document storage: %v", err)
+	}
+
 	repos := repository.New(db)
-	services := service.New(repos, cfg)
+	services := service.New(repos, cfg, fileStore)
 	handlers := handler.New(services, cfg)
 	router := setupRouter(handlers, cfg, db)
 
@@ -168,6 +174,15 @@ func setupRouter(handlers *handler.Handler, cfg *config.Config, db *database.DB)
 				r.Get("/cars/{id}", handlers.GetUserCar)
 				r.Get("/configurations", handlers.GetUserConfigurations)
 			})
+		})
+
+		r.Route("/documents", func(r chi.Router) {
+			r.Use(authMiddleware.AuthMiddleware(handlers.Services().Auth))
+			r.Post("/", handlers.CreateDocument)
+			r.Get("/", handlers.ListDocuments)
+			r.Get("/{documentID}/file", handlers.DownloadDocument)
+			r.Get("/{documentID}", handlers.GetDocument)
+			r.Delete("/{documentID}", handlers.DeleteDocument)
 		})
 	})
 

@@ -14,6 +14,7 @@ type Config struct {
 	Database           DatabaseConfig
 	Server             ServerConfig
 	JWT                JWTConfig
+	Storage            StorageConfig
 	Env                string
 	CORSAllowedOrigins []string
 }
@@ -37,6 +38,12 @@ type JWTConfig struct {
 	ExpiryHours int
 }
 
+// StorageConfig controls on-disk document storage.
+type StorageConfig struct {
+	RootPath       string
+	MaxUploadBytes int64
+}
+
 func Load() (*Config, error) {
 	_ = godotenv.Load()
 
@@ -57,7 +64,11 @@ func Load() (*Config, error) {
 			Secret:      getEnv("JWT_SECRET", "change-me-in-production"),
 			ExpiryHours: getEnvAsInt("JWT_EXPIRY_HOURS", 24),
 		},
-		Env:                getEnv("ENV", "development"),
+		Storage: StorageConfig{
+			RootPath:       getEnv("DOCUMENT_STORAGE_ROOT", "./data/documents"),
+			MaxUploadBytes: getEnvAsInt64("DOCUMENT_MAX_UPLOAD_BYTES", 15<<20),
+		},
+		Env: getEnv("ENV", "development"),
 		CORSAllowedOrigins: parseCSVOrigins(getEnv("CORS_ALLOWED_ORIGINS", "")),
 	}
 
@@ -80,6 +91,9 @@ func (c *Config) validate() error {
 	}
 	if c.JWT.Secret == "change-me-in-production" && c.Env == "production" {
 		return fmt.Errorf("JWT_SECRET must be changed in production")
+	}
+	if c.Storage.MaxUploadBytes < 1<<20 {
+		c.Storage.MaxUploadBytes = 15 << 20
 	}
 	return nil
 }
@@ -128,6 +142,18 @@ func (c *Config) CORSOrigins() []string {
 		return c.CORSAllowedOrigins
 	}
 	return []string{"http://localhost:3000", "http://localhost:5173"}
+}
+
+func getEnvAsInt64(key string, defaultValue int64) int64 {
+	valueStr := os.Getenv(key)
+	if valueStr == "" {
+		return defaultValue
+	}
+	value, err := strconv.ParseInt(valueStr, 10, 64)
+	if err != nil {
+		return defaultValue
+	}
+	return value
 }
 
 func getEnvAsInt(key string, defaultValue int) int {

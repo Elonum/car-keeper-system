@@ -12,7 +12,8 @@ import ConfigurationList from '../components/profile/ConfigurationList';
 import OrdersList from '../components/profile/OrdersList';
 import UserCarsList from '../components/profile/UserCarsList';
 import ServiceAppointmentsList from '../components/profile/ServiceAppointmentsList';
-import { Car, Settings, Wrench, ShoppingCart } from 'lucide-react';
+import MyDocuments from '../components/profile/MyDocuments';
+import { Car, Settings, Wrench, ShoppingCart, FileText } from 'lucide-react';
 
 export default function Profile() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -96,6 +97,10 @@ export default function Profile() {
               <Wrench className="w-4 h-4" />
               <span className="hidden sm:inline">Записи на ТО</span>
             </TabsTrigger>
+            <TabsTrigger value="documents" className="gap-2 data-[state=active]:bg-slate-900 data-[state=active]:text-white rounded-lg px-4 py-2.5">
+              <FileText className="w-4 h-4" />
+              <span className="hidden sm:inline">Документы</span>
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="configurations" className="space-y-4">
@@ -118,6 +123,10 @@ export default function Profile() {
               appointments={appointments} 
               isLoading={appointmentsLoading} 
             />
+          </TabsContent>
+
+          <TabsContent value="documents" className="space-y-4">
+            <MyDocuments orders={orders || []} appointments={appointments || []} />
           </TabsContent>
         </Tabs>
       </div>

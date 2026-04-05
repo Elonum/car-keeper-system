@@ -18,6 +18,7 @@ type Repository struct {
 	Branch              *BranchRepository
 	News                *NewsRepository
 	Dictionary          *DictionaryRepository
+	Document            *DocumentRepository
 }
 
 func New(db *database.DB) *Repository {
@@ -37,6 +38,7 @@ func New(db *database.DB) *Repository {
 		Branch:             NewBranchRepository(db),
 		News:               NewNewsRepository(db),
 		Dictionary:         NewDictionaryRepository(db),
+		Document:           NewDocumentRepository(db),
 	}
 }
 
