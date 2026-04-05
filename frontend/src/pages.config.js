@@ -55,6 +55,7 @@ import Profile from './pages/Profile';
 import ServiceAppointment from './pages/ServiceAppointment';
 import Service from './pages/Service';
 import Login from './pages/Login';
+import Register from './pages/Register';
 import __Layout from './Layout.jsx';
 
 
@@ -67,6 +68,7 @@ export const PAGES = {
     "ServiceAppointment": ServiceAppointment,
     "Services": Service,
     "Login": Login,
+    "Register": Register,
 }
 
 export const pagesConfig = {

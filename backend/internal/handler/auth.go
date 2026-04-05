@@ -4,26 +4,48 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/carkeeper/backend/internal/middleware"
 	"github.com/carkeeper/backend/internal/model"
+)
+
+const (
+	maxNameRunes     = 100 // matches varchar(100); count runes, not UTF-8 bytes
+	maxEmailRunes    = 255
+	maxPasswordRunes = 128
+	maxPhoneRunes    = 30
 )
 
 func validateUserRegisterInput(in *model.UserRegisterInput) string {
 	in.FirstName = strings.TrimSpace(in.FirstName)
 	in.LastName = strings.TrimSpace(in.LastName)
 	in.Email = strings.TrimSpace(strings.ToLower(in.Email))
-	if in.FirstName == "" || len(in.FirstName) > 100 {
+	if in.FirstName == "" || utf8.RuneCountInString(in.FirstName) > maxNameRunes {
 		return "first_name is required (max 100 characters)"
 	}
-	if in.LastName == "" || len(in.LastName) > 100 {
+	if in.LastName == "" || utf8.RuneCountInString(in.LastName) > maxNameRunes {
 		return "last_name is required (max 100 characters)"
 	}
-	if in.Email == "" || len(in.Email) > 255 {
-		return "email is required"
+	if in.Email == "" || utf8.RuneCountInString(in.Email) > maxEmailRunes {
+		return "email is required (max 255 characters)"
 	}
-	if len(in.Password) < 6 {
+	if in.Phone != nil {
+		p := strings.TrimSpace(*in.Phone)
+		if p == "" {
+			in.Phone = nil
+		} else if utf8.RuneCountInString(p) > maxPhoneRunes {
+			return "phone is too long (max 30 characters)"
+		} else {
+			in.Phone = &p
+		}
+	}
+	pwLen := utf8.RuneCountInString(in.Password)
+	if pwLen < 6 {
 		return "password must be at least 6 characters"
+	}
+	if pwLen > maxPasswordRunes {
+		return "password is too long (max 128 characters)"
 	}
 	return ""
 }

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/carkeeper/backend/internal/authz"
 	"github.com/carkeeper/backend/internal/middleware"
@@ -82,7 +83,7 @@ func (h *Handler) CreateNews(w http.ResponseWriter, r *http.Request) {
 
 	create.Title = strings.TrimSpace(create.Title)
 	create.Content = strings.TrimSpace(create.Content)
-	if create.Title == "" || len(create.Title) > 255 {
+	if create.Title == "" || utf8.RuneCountInString(create.Title) > 255 {
 		BadRequest(w, "title is required (max 255 characters)")
 		return
 	}

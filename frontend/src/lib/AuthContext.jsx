@@ -66,13 +66,10 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  /** Creates account only; no JWT — client must call login() after redirect to Login. */
   const register = async (userData) => {
     try {
       const response = await authService.register(userData);
-      if (response && response.user) {
-        setUser(response.user);
-        setIsAuthenticated(true);
-      }
       setAuthError(null);
       return response;
     } catch (error) {

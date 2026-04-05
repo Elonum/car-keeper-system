@@ -12,6 +12,7 @@ export const authService = {
     return response;
   },
 
+  /** POST /auth/register returns user profile only; session is established via login(). */
   register: async (userData) => {
     const response = await apiClient.post('/auth/register', userData);
     if (response && response.token) {

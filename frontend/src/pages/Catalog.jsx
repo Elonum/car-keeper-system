@@ -9,6 +9,7 @@ import EmptyState from '../components/common/EmptyState';
 import SectionHeader from '../components/common/SectionHeader';
 import { Car, Search } from 'lucide-react';
 import { Input } from "@/components/ui/input";
+import { UI_LIMITS } from '@/lib/authValidation';
 
 export default function Catalog() {
   const [filters, setFilters] = useState({
@@ -139,11 +140,12 @@ export default function Catalog() {
             <div className="flex flex-col sm:flex-row gap-3 mb-6">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <Input 
+                <Input
                   placeholder="Поиск по бренду, модели..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-10 rounded-xl bg-white"
+                  maxLength={UI_LIMITS.CATALOG_SEARCH}
                 />
               </div>
               <SortSelect value={sortBy} onChange={setSortBy} />

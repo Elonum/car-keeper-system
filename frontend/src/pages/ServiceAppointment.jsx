@@ -12,6 +12,7 @@ import PriceDisplay from '../components/common/PriceDisplay';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
+import { UI_LIMITS } from '@/lib/authValidation';
 import { toast } from "sonner";
 import { ArrowLeft, ArrowRight, Check, Wrench, Car, MapPin, Clock, Package } from 'lucide-react';
 import { format } from 'date-fns';
@@ -281,6 +282,7 @@ export default function ServiceAppointment() {
                     onChange={(e) => setDescription(e.target.value)}
                     placeholder="Опишите, что вас беспокоит..."
                     className="min-h-[100px] rounded-xl"
+                    maxLength={UI_LIMITS.APPOINTMENT_DESCRIPTION}
                   />
                 </div>
               </div>
