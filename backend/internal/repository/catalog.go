@@ -166,6 +166,12 @@ func (r *TrimRepository) GetWithFilters(ctx context.Context, filters model.TrimF
 		conditions = append(conditions, fmt.Sprintf("b.brand_id IN (%s)", strings.Join(placeholders, ",")))
 	}
 
+	if filters.GenerationID != nil {
+		conditions = append(conditions, fmt.Sprintf("t.generation_id = $%d", argPos))
+		args = append(args, *filters.GenerationID)
+		argPos++
+	}
+
 	if len(filters.EngineTypeID) > 0 {
 		placeholders := make([]string, len(filters.EngineTypeID))
 		for i, id := range filters.EngineTypeID {

@@ -73,6 +73,12 @@ func (h *Handler) GetTrims(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	if genIDStr := r.URL.Query().Get("generation_id"); genIDStr != "" {
+		if id, err := uuid.Parse(strings.TrimSpace(genIDStr)); err == nil {
+			filters.GenerationID = &id
+		}
+	}
+
 	// Parse engine_type_id
 	if engineTypeIDStr := r.URL.Query().Get("engine_type_id"); engineTypeIDStr != "" {
 		for _, idStr := range strings.Split(engineTypeIDStr, ",") {

@@ -3,11 +3,13 @@ package service
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/carkeeper/backend/internal/apperr"
 	"github.com/carkeeper/backend/internal/authz"
 	"github.com/carkeeper/backend/internal/model"
 	"github.com/carkeeper/backend/internal/repository"
+	"github.com/carkeeper/backend/internal/validate"
 	"github.com/google/uuid"
 )
 
@@ -24,6 +26,18 @@ func (s *ProfileService) GetUserCars(ctx context.Context, userID uuid.UUID) ([]m
 }
 
 func (s *ProfileService) CreateUserCar(ctx context.Context, userID uuid.UUID, create model.UserCarCreate) (*model.UserCarWithDetails, error) {
+	create.VIN = validate.NormalizeVIN(create.VIN)
+	if msg := validate.VIN(create.VIN); msg != "" {
+		return nil, fmt.Errorf("%s", msg)
+	}
+	y := time.Now().UTC().Year()
+	if create.Year < 1900 || create.Year > y+1 {
+		return nil, fmt.Errorf("invalid vehicle year")
+	}
+	if create.CurrentMileage < 0 {
+		return nil, fmt.Errorf("mileage must be non-negative")
+	}
+
 	exists, err := s.repo.UserCar.VINExists(ctx, create.VIN)
 	if err != nil {
 		return nil, fmt.Errorf("failed to check VIN: %w", err)
@@ -54,6 +68,11 @@ func (s *ProfileService) GetUserCar(ctx context.Context, userCarID uuid.UUID, re
 		return nil, fmt.Errorf("%w", apperr.ErrNotFound)
 	}
 	return car, nil
+}
+
+// DeleteUserCar removes the car if owned by userID.
+func (s *ProfileService) DeleteUserCar(ctx context.Context, userID, userCarID uuid.UUID) error {
+	return s.repo.UserCar.DeleteOwned(ctx, userID, userCarID)
 }
 
 // UpdateProfile updates first name, last name, and phone for the authenticated user.

@@ -71,6 +71,25 @@ func (h *Handler) CreateUserCar(w http.ResponseWriter, r *http.Request) {
 	Success(w, userCar)
 }
 
+// DeleteUserCar removes the authenticated user's car (cascades service appointments).
+func (h *Handler) DeleteUserCar(w http.ResponseWriter, r *http.Request) {
+	userID, _, ok := RequesterAndRole(w, r)
+	if !ok {
+		return
+	}
+	idStr := chi.URLParam(r, "id")
+	userCarID, err := uuid.Parse(idStr)
+	if err != nil {
+		BadRequest(w, "Invalid user car ID")
+		return
+	}
+	if err := h.services.Profile.DeleteUserCar(r.Context(), userID, userCarID); err != nil {
+		NotFound(w, "User car not found")
+		return
+	}
+	Success(w, map[string]string{"status": "ok"})
+}
+
 func (h *Handler) GetUserCar(w http.ResponseWriter, r *http.Request) {
 	requester, role, ok := RequesterAndRole(w, r)
 	if !ok {

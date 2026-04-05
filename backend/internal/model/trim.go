@@ -30,12 +30,13 @@ type TrimWithDetails struct {
 }
 
 type TrimFilters struct {
-	BrandID       []uuid.UUID
-	EngineTypeID  []uuid.UUID
+	BrandID        []uuid.UUID
+	GenerationID   *uuid.UUID
+	EngineTypeID   []uuid.UUID
 	TransmissionID []uuid.UUID
-	DriveTypeID   []uuid.UUID
-	MinPrice      *float64
-	MaxPrice      *float64
-	IsAvailable   *bool
+	DriveTypeID    []uuid.UUID
+	MinPrice       *float64
+	MaxPrice       *float64
+	IsAvailable    *bool
 }
 

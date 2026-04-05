@@ -17,6 +17,10 @@ export const profileService = {
     return await apiClient.post('/profile/cars', carData);
   },
 
+  deleteUserCar: async (carId) => {
+    return apiClient.delete(`/profile/cars/${carId}`);
+  },
+
   getUserCar: async (carId) => {
     return await apiClient.get(`/profile/cars/${carId}`);
   },

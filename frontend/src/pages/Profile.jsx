@@ -10,7 +10,7 @@ import PageLoader from '../components/common/PageLoader';
 import SectionHeader from '../components/common/SectionHeader';
 import ConfigurationList from '../components/profile/ConfigurationList';
 import OrdersList from '../components/profile/OrdersList';
-import UserCarsList from '../components/profile/UserCarsList';
+import UserGarageSection from '../components/profile/UserGarageSection';
 import ServiceAppointmentsList from '../components/profile/ServiceAppointmentsList';
 import MyDocuments from '../components/profile/MyDocuments';
 import ProfileSettings from '../components/profile/ProfileSettings';
@@ -47,12 +47,6 @@ export default function Profile() {
   const { data: orders, isLoading: ordersLoading } = useQuery({
     queryKey: ['my-orders'],
     queryFn: () => orderService.getOrders(),
-    enabled: isAuthenticated,
-  });
-
-  const { data: userCars, isLoading: carsLoading } = useQuery({
-    queryKey: ['my-cars'],
-    queryFn: () => profileService.getUserCars(),
     enabled: isAuthenticated,
   });
 
@@ -124,7 +118,7 @@ export default function Profile() {
           </TabsContent>
 
           <TabsContent value="cars" className="space-y-4">
-            <UserCarsList userCars={userCars} isLoading={carsLoading} />
+            <UserGarageSection />
           </TabsContent>
 
           <TabsContent value="service" className="space-y-4">

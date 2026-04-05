@@ -8,7 +8,9 @@ export default function CarSelector({ cars, selectedCarId, onSelect }) {
       <div className="text-center py-12">
         <Car className="w-12 h-12 text-slate-300 mx-auto mb-3" />
         <h3 className="font-semibold text-slate-900 mb-1">У вас нет автомобилей</h3>
-        <p className="text-sm text-slate-500">Добавьте автомобиль в личном кабинете</p>
+        <p className="text-sm text-slate-500">
+          Добавьте автомобиль во вкладке «Мои автомобили» в личном кабинете
+        </p>
       </div>
     );
   }

@@ -125,3 +125,18 @@ func (r *UserCarRepository) VINExists(ctx context.Context, vin string) (bool, er
 	return exists, nil
 }
 
+// DeleteOwned removes a user car only if it belongs to userID. Related service appointments cascade.
+func (r *UserCarRepository) DeleteOwned(ctx context.Context, userID, userCarID uuid.UUID) error {
+	ct, err := r.db.Pool.Exec(ctx,
+		`DELETE FROM user_cars WHERE user_car_id = $1 AND user_id = $2`,
+		userCarID, userID,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to delete user car: %w", err)
+	}
+	if ct.RowsAffected() == 0 {
+		return fmt.Errorf("user car not found")
+	}
+	return nil
+}
+

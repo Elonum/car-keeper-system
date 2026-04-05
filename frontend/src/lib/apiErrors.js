@@ -23,6 +23,14 @@ const BACKEND_TO_RU = [
     /new password must be different from the current password/i,
     'Новый пароль должен отличаться от текущего',
   ],
+  [/vin must be exactly 17 characters/i, 'VIN — ровно 17 символов'],
+  [
+    /vin must contain only letters/i,
+    'Допустимы буквы A–Z (кроме I, O, Q) и цифры',
+  ],
+  [/vin already exists/i, 'Этот VIN уже зарегистрирован в системе'],
+  [/invalid vehicle year/i, 'Укажите корректный год выпуска'],
+  [/mileage must be non-negative/i, 'Пробег не может быть отрицательным'],
 ];
 
 /** Turns a backend `error` string into Russian when we know the English phrase. */
