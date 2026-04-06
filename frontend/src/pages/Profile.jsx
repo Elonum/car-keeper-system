@@ -14,7 +14,9 @@ import UserGarageSection from '../components/profile/UserGarageSection';
 import ServiceAppointmentsList from '../components/profile/ServiceAppointmentsList';
 import MyDocuments from '../components/profile/MyDocuments';
 import ProfileSettings from '../components/profile/ProfileSettings';
-import { Car, Settings, Wrench, ShoppingCart, FileText, UserCircle } from 'lucide-react';
+import AdminControlCenter from '../components/profile/AdminControlCenter';
+import { PERMISSIONS, hasPermission } from '@/lib/authz';
+import { Car, Settings, Wrench, ShoppingCart, FileText, UserCircle, Shield } from 'lucide-react';
 
 export default function Profile() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -57,6 +59,17 @@ export default function Profile() {
   });
 
   if (!isAuthenticated || !user) return <PageLoader />;
+  const role = user.role || '';
+  const canOpenAdminTab =
+    hasPermission(role, PERMISSIONS.ADMIN_ORDER_STATUSES) ||
+    hasPermission(role, PERMISSIONS.ADMIN_ROLES_VIEW) ||
+    hasPermission(role, PERMISSIONS.ORDERS_MANAGE_STATUS);
+  useEffect(() => {
+    if (activeTab === 'management' && !canOpenAdminTab) {
+      setActiveTab('account');
+      setSearchParams({ tab: 'account' }, { replace: true });
+    }
+  }, [activeTab, canOpenAdminTab, setSearchParams]);
 
   const getUserDisplayName = () => {
     if (user.full_name) return user.full_name;
@@ -100,6 +113,12 @@ export default function Profile() {
               <FileText className="w-4 h-4" />
               <span className="hidden sm:inline">Документы</span>
             </TabsTrigger>
+            {canOpenAdminTab && (
+              <TabsTrigger value="management" className="gap-2 data-[state=active]:bg-slate-900 data-[state=active]:text-white rounded-lg px-4 py-2.5">
+                <Shield className="w-4 h-4" />
+                <span className="hidden sm:inline">Управление</span>
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="account" className="space-y-4">
@@ -131,6 +150,12 @@ export default function Profile() {
           <TabsContent value="documents" className="space-y-4">
             <MyDocuments orders={orders || []} appointments={appointments || []} />
           </TabsContent>
+
+          {canOpenAdminTab && (
+            <TabsContent value="management" className="space-y-4">
+              <AdminControlCenter role={role} />
+            </TabsContent>
+          )}
         </Tabs>
       </div>
     </div>

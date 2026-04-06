@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from './utils';
 import { useAuth } from '@/lib/AuthContext';
+import { PERMISSIONS, hasPermission } from '@/lib/authz';
 import { 
   Car, Menu, X, User, LogOut, ChevronDown,
   Newspaper, Wrench, ShoppingCart
@@ -65,6 +66,11 @@ export default function Layout({ children, currentPageName }) {
     if (user.email) return user.email;
     return 'Пользователь';
   };
+  const role = user?.role || '';
+  const canOpenManagement =
+    hasPermission(role, PERMISSIONS.ADMIN_ORDER_STATUSES) ||
+    hasPermission(role, PERMISSIONS.ADMIN_ROLES_VIEW) ||
+    hasPermission(role, PERMISSIONS.ORDERS_MANAGE_STATUS);
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans">
@@ -135,6 +141,11 @@ export default function Layout({ children, currentPageName }) {
                     <div className="px-3 py-2.5 border-b">
                       <p className="text-sm font-semibold text-slate-900">{getUserName()}</p>
                       <p className="text-xs text-slate-500 truncate">{user.email || ''}</p>
+                      {role && (
+                        <p className="text-[11px] uppercase tracking-wide text-slate-400 mt-1">
+                          role: {role}
+                        </p>
+                      )}
                     </div>
                     <DropdownMenuItem asChild>
                       <Link to={createPageUrl("Profile")} className="flex items-center gap-2 cursor-pointer">
@@ -151,6 +162,13 @@ export default function Layout({ children, currentPageName }) {
                         <Wrench className="w-4 h-4" /> Записи на ТО
                       </Link>
                     </DropdownMenuItem>
+                    {canOpenManagement && (
+                      <DropdownMenuItem asChild>
+                        <Link to={createPageUrl("Profile") + "?tab=management"} className="flex items-center gap-2 cursor-pointer">
+                          <ShoppingCart className="w-4 h-4" /> Управление
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={handleLogout} className="text-red-600 cursor-pointer">
                       <LogOut className="w-4 h-4 mr-2" /> Выйти

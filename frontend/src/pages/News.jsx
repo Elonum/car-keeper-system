@@ -1,8 +1,15 @@
 import React from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { newsService } from '@/services/newsService';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '../utils';
+import { useAuth } from '@/lib/AuthContext';
+import { PERMISSIONS, hasPermission } from '@/lib/authz';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { toast } from 'sonner';
+import { getApiErrorMessage } from '@/lib/apiErrors';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { Card } from "@/components/ui/card";
@@ -12,12 +19,50 @@ import SectionHeader from '../components/common/SectionHeader';
 import { Newspaper, Calendar, User, ArrowRight } from 'lucide-react';
 
 export default function News() {
+  const qc = useQueryClient();
+  const { user } = useAuth();
+  const canManageNews = hasPermission(user?.role, PERMISSIONS.NEWS_MANAGE);
+  const [scope, setScope] = React.useState('published');
+  const [draftTitle, setDraftTitle] = React.useState('');
+  const [draftContent, setDraftContent] = React.useState('');
   const { data: news, isLoading } = useQuery({
-    queryKey: ['news'],
-    queryFn: () => newsService.getNews(),
+    queryKey: ['news', scope, canManageNews],
+    queryFn: () =>
+      newsService.getNews(
+        canManageNews && scope !== 'published'
+          ? { scope: scope === 'all' ? 'all' : 'unpublished' }
+          : {}
+      ),
+  });
+  const createMutation = useMutation({
+    mutationFn: () => newsService.createNews({ title: draftTitle, content: draftContent }),
+    onSuccess: () => {
+      toast.success('Черновик новости создан');
+      setDraftTitle('');
+      setDraftContent('');
+      qc.invalidateQueries({ queryKey: ['news'] });
+    },
+    onError: (e) => toast.error(getApiErrorMessage(e, 'Не удалось создать новость')),
+  });
+  const publishMutation = useMutation({
+    mutationFn: ({ id, publish } = {}) =>
+      publish ? newsService.publishNews(id) : newsService.unpublishNews(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['news'] });
+    },
+    onError: (e) => toast.error(getApiErrorMessage(e, 'Не удалось изменить публикацию')),
+  });
+  const deleteMutation = useMutation({
+    mutationFn: (id = '') => newsService.deleteNews(id),
+    onSuccess: () => {
+      toast.success('Новость удалена');
+      qc.invalidateQueries({ queryKey: ['news'] });
+    },
+    onError: (e) => toast.error(getApiErrorMessage(e, 'Не удалось удалить новость')),
   });
 
   if (isLoading) return <PageLoader />;
+  const list = Array.isArray(news) ? news : [];
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -26,8 +71,38 @@ export default function News() {
           title="Новости"
           description="Последние новости и обновления автосалона"
         />
+        {canManageNews && (
+          <Card className="p-5 mb-6 space-y-3">
+            <div className="flex flex-wrap gap-2">
+              <Button variant={scope === 'published' ? 'default' : 'outline'} size="sm" onClick={() => setScope('published')}>
+                Опубликованные
+              </Button>
+              <Button variant={scope === 'unpublished' ? 'default' : 'outline'} size="sm" onClick={() => setScope('unpublished')}>
+                Черновики
+              </Button>
+              <Button variant={scope === 'all' ? 'default' : 'outline'} size="sm" onClick={() => setScope('all')}>
+                Все
+              </Button>
+            </div>
+            <div className="grid md:grid-cols-2 gap-3">
+              <Input placeholder="Заголовок новой новости" value={draftTitle} onChange={(e) => setDraftTitle(e.target.value)} />
+              <Button
+                onClick={() => createMutation.mutate()}
+                disabled={createMutation.isPending || !draftTitle.trim() || !draftContent.trim()}
+              >
+                Создать черновик
+              </Button>
+            </div>
+            <Textarea
+              placeholder="Текст новости (markdown поддерживается)"
+              value={draftContent}
+              onChange={(e) => setDraftContent(e.target.value)}
+              rows={5}
+            />
+          </Card>
+        )}
 
-        {!news || news.length === 0 ? (
+        {list.length === 0 ? (
           <EmptyState 
             icon={Newspaper}
             title="Нет новостей"
@@ -35,7 +110,7 @@ export default function News() {
           />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {news.map(item => (
+            {list.map(item => (
               <Link key={item.news_id || item.id} to={createPageUrl("NewsDetail") + `?id=${item.news_id || item.id}`}>
                 <Card className="group overflow-hidden border-0 shadow-sm hover:shadow-xl transition-all duration-500 bg-white rounded-2xl h-full">
                   {/* Image */}
@@ -87,6 +162,33 @@ export default function News() {
                       Читать далее
                       <ArrowRight className="w-4 h-4" />
                     </div>
+                    {canManageNews && (
+                      <div className="mt-3 flex gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            publishMutation.mutate({ id: item.news_id || item.id, publish: !item.is_published });
+                          }}
+                        >
+                          {item.is_published ? 'Снять с публикации' : 'Опубликовать'}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="text-red-600"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            deleteMutation.mutate(item.news_id || item.id);
+                          }}
+                        >
+                          Удалить
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </Card>
               </Link>
