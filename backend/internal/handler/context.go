@@ -19,14 +19,27 @@ func RequesterAndRole(w http.ResponseWriter, r *http.Request) (requester uuid.UU
 	return requester, role, true
 }
 
-// RequireStaff requires an authenticated admin or manager.
+// RequireStaff requires an authenticated role marked is_staff in role_definitions.
 func RequireStaff(w http.ResponseWriter, r *http.Request) (requester uuid.UUID, ok bool) {
 	requester, role, ok := RequesterAndRole(w, r)
 	if !ok {
 		return uuid.Nil, false
 	}
 	if !authz.IsStaff(role) {
-		Forbidden(w, "Only admins and managers can perform this action")
+		Forbidden(w, "This action requires an internal staff account")
+		return uuid.Nil, false
+	}
+	return requester, true
+}
+
+// RequirePermission requires an authenticated user whose role has the given permission.
+func RequirePermission(w http.ResponseWriter, r *http.Request, permission string) (requester uuid.UUID, ok bool) {
+	requester, role, ok := RequesterAndRole(w, r)
+	if !ok {
+		return uuid.Nil, false
+	}
+	if !authz.HasPermission(role, permission) {
+		Forbidden(w, "You do not have permission for this action")
 		return uuid.Nil, false
 	}
 	return requester, true

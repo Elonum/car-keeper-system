@@ -18,10 +18,10 @@ import (
 
 // Allowed document Content-Types (keep in sync with product policy).
 var allowedDocumentMIME = map[string]struct{}{
-	"application/pdf": {},
-	"image/jpeg":      {},
-	"image/png":       {},
-	"image/webp":      {},
+	"application/pdf":    {},
+	"image/jpeg":         {},
+	"image/png":          {},
+	"image/webp":         {},
 	"application/msword": {},
 	"application/vnd.openxmlformats-officedocument.wordprocessingml.document": {},
 	"application/vnd.ms-excel": {},
@@ -86,7 +86,7 @@ func (s *DocumentService) Create(ctx context.Context, in DocumentCreateInput) (*
 		if err != nil {
 			return nil, err
 		}
-		if !authz.IsOwnerOrStaff(appt.OwnerUserID, in.Requester, in.Role) {
+		if !authz.IsOwnerOrHasPermission(appt.OwnerUserID, in.Requester, in.Role, authz.PermAppointmentsViewAny) {
 			return nil, fmt.Errorf("%w", apperr.ErrForbidden)
 		}
 		ownerUserID = appt.OwnerUserID
@@ -144,7 +144,7 @@ func (s *DocumentService) List(ctx context.Context, requester uuid.UUID, role st
 		if err != nil {
 			return nil, err
 		}
-		if !authz.IsOwnerOrStaff(appt.OwnerUserID, requester, role) {
+		if !authz.IsOwnerOrHasPermission(appt.OwnerUserID, requester, role, authz.PermAppointmentsViewAny) {
 			return nil, fmt.Errorf("%w", apperr.ErrForbidden)
 		}
 		return s.repo.Document.ListByServiceAppointmentID(ctx, *apptID)
@@ -196,7 +196,7 @@ func (s *DocumentService) Delete(ctx context.Context, documentID uuid.UUID, requ
 }
 
 func (s *DocumentService) canAccessDocument(d *model.Document, requester uuid.UUID, role string) bool {
-	if authz.IsStaff(role) {
+	if authz.HasPermission(role, authz.PermDocumentsViewAny) {
 		return true
 	}
 	if d.UserID == requester {

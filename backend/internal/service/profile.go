@@ -64,7 +64,7 @@ func (s *ProfileService) GetUserCar(ctx context.Context, userCarID uuid.UUID, re
 	if err != nil {
 		return nil, err
 	}
-	if !authz.IsOwnerOrStaff(car.UserID, requester, role) {
+	if !authz.IsOwnerOrHasPermission(car.UserID, requester, role, authz.PermGarageViewAny) {
 		return nil, fmt.Errorf("%w", apperr.ErrNotFound)
 	}
 	return car, nil
@@ -84,4 +84,3 @@ func (s *ProfileService) UpdateProfile(ctx context.Context, userID uuid.UUID, fi
 	resp := user.ToResponse()
 	return &resp, nil
 }
-

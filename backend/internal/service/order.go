@@ -84,7 +84,7 @@ func (s *OrderService) UpdateOrderStatus(ctx context.Context, orderID uuid.UUID,
 		return err
 	}
 
-	if !authz.IsStaff(role) && !target.IsActive {
+	if !authz.HasPermission(role, authz.PermOrdersManageStatus) && !target.IsActive {
 		return apperr.BadRequest("This order status is not available")
 	}
 

@@ -20,6 +20,7 @@ type Repository struct {
 	Dictionary          *DictionaryRepository
 	Document            *DocumentRepository
 	OrderStatus         *OrderStatusRepository
+	Role                *RoleRepository
 }
 
 func New(db *database.DB) *Repository {
@@ -41,6 +42,7 @@ func New(db *database.DB) *Repository {
 		Dictionary:         NewDictionaryRepository(db),
 		Document:           NewDocumentRepository(db),
 		OrderStatus:        NewOrderStatusRepository(db),
+		Role:               NewRoleRepository(db),
 	}
 }
 

@@ -1,9 +1,10 @@
 BEGIN;
 
 INSERT INTO users (user_id, first_name, last_name, email, phone, password_hash, role) VALUES
-('00000000-0000-0000-0000-000000000001', 'Иван', 'Иванов', 'admin@carkeeper.ru', '+7 (999) 111-11-11', '$2a$10$Fcvkmk0b3WKilWVpHAVX8ulFTBcpDntblEstVl7uFy16tNnzCxdwS', 'admin'),
-('00000000-0000-0000-0000-000000000002', 'Петр', 'Петров', 'manager@carkeeper.ru', '+7 (999) 222-22-22', '$2a$10$Fcvkmk0b3WKilWVpHAVX8ulFTBcpDntblEstVl7uFy16tNnzCxdwS', 'manager'),
-('00000000-0000-0000-0000-000000000003', 'Мария', 'Сидорова', 'customer@carkeeper.ru', '+7 (999) 333-33-33', '$2a$10$Fcvkmk0b3WKilWVpHAVX8ulFTBcpDntblEstVl7uFy16tNnzCxdwS', 'customer');
+('00000000-0000-0000-0000-000000000001', 'Иван', 'Иванов', 'admin@carkeeper.ru', '+7 (999) 111-11-11', '$2a$10$booBqcSzgSdYFfHds2yNYOMZhNFhQ1RfG0W..kSouz0TNyhQiRCKS', 'admin'),
+('00000000-0000-0000-0000-000000000002', 'Петр', 'Петров', 'manager@carkeeper.ru', '+7 (999) 222-22-22', '$2a$10$booBqcSzgSdYFfHds2yNYOMZhNFhQ1RfG0W..kSouz0TNyhQiRCKS', 'manager'),
+('00000000-0000-0000-0000-000000000003', 'Мария', 'Сидорова', 'service_advisor@carkeeper.ru', '+7 (999) 333-33-33', '$2a$10$booBqcSzgSdYFfHds2yNYOMZhNFhQ1RfG0W..kSouz0TNyhQiRCKS', 'service_advisor'),
+('00000000-0000-0000-0000-000000000004', 'Ольга', 'Кузнецова', 'customer@carkeeper.ru', '+7 (999) 444-44-44', '$2a$10$booBqcSzgSdYFfHds2yNYOMZhNFhQ1RfG0W..kSouz0TNyhQiRCKS', 'customer');
 
 INSERT INTO branches (branch_id, name, address, phone, email, is_active) VALUES
 ('10000000-0000-0000-0000-000000000001', 'Центральный филиал', 'г. Москва, ул. Ленинградская, д. 1', '+7 (495) 111-11-11', 'center@carkeeper.ru', true),

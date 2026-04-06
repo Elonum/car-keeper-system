@@ -17,7 +17,7 @@ func (h *Handler) GetNews(w http.ResponseWriter, r *http.Request) {
 	scope := r.URL.Query().Get("scope")
 
 	var filter *bool
-	if authz.IsStaff(role) {
+	if authz.HasPermission(role, authz.PermNewsManage) {
 		switch scope {
 		case "all":
 			filter = nil
@@ -30,7 +30,7 @@ func (h *Handler) GetNews(w http.ResponseWriter, r *http.Request) {
 		}
 	} else {
 		if scope != "" {
-			Forbidden(w, "Invalid query parameter: scope is restricted to staff")
+			Forbidden(w, "Invalid query parameter: scope is restricted to news editors")
 			return
 		}
 		t := true
@@ -60,7 +60,7 @@ func (h *Handler) GetNewsByID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	role, _ := middleware.GetUserRole(r.Context())
-	if !item.IsPublished && !authz.IsStaff(role) {
+	if !item.IsPublished && !authz.HasPermission(role, authz.PermNewsManage) {
 		NotFound(w, "News not found")
 		return
 	}
@@ -69,7 +69,7 @@ func (h *Handler) GetNewsByID(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) CreateNews(w http.ResponseWriter, r *http.Request) {
-	userID, ok := RequireStaff(w, r)
+	userID, ok := RequirePermission(w, r, authz.PermNewsManage)
 	if !ok {
 		return
 	}
@@ -100,7 +100,7 @@ func (h *Handler) CreateNews(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) UpdateNews(w http.ResponseWriter, r *http.Request) {
-	if _, ok := RequireStaff(w, r); !ok {
+	if _, ok := RequirePermission(w, r, authz.PermNewsManage); !ok {
 		return
 	}
 
@@ -133,7 +133,7 @@ func (h *Handler) UpdateNews(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) PublishNews(w http.ResponseWriter, r *http.Request) {
-	if _, ok := RequireStaff(w, r); !ok {
+	if _, ok := RequirePermission(w, r, authz.PermNewsManage); !ok {
 		return
 	}
 
@@ -158,7 +158,7 @@ func (h *Handler) PublishNews(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) UnpublishNews(w http.ResponseWriter, r *http.Request) {
-	if _, ok := RequireStaff(w, r); !ok {
+	if _, ok := RequirePermission(w, r, authz.PermNewsManage); !ok {
 		return
 	}
 
@@ -183,7 +183,7 @@ func (h *Handler) UnpublishNews(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) DeleteNews(w http.ResponseWriter, r *http.Request) {
-	if _, ok := RequireStaff(w, r); !ok {
+	if _, ok := RequirePermission(w, r, authz.PermNewsManage); !ok {
 		return
 	}
 

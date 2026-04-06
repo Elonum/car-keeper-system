@@ -12,6 +12,7 @@ type Service struct {
 	Configurator  *ConfiguratorService
 	Order         *OrderService
 	OrderStatus   *OrderStatusService
+	Role          *RoleService
 	Service       *ServiceService
 	News          *NewsService
 	Profile       *ProfileService
@@ -25,6 +26,7 @@ func New(repos *repository.Repository, cfg *config.Config, fileStore storage.Fil
 		Configurator: NewConfiguratorService(repos),
 		Order:        NewOrderService(repos),
 		OrderStatus:  NewOrderStatusService(repos),
+		Role:         NewRoleService(repos),
 		Service:      NewServiceService(repos),
 		News:         NewNewsService(repos),
 		Profile:      NewProfileService(repos),

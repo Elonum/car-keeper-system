@@ -3,6 +3,7 @@ package handler
 import (
 	"net/http"
 
+	"github.com/carkeeper/backend/internal/authz"
 	"github.com/carkeeper/backend/internal/model"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -18,7 +19,7 @@ func (h *Handler) GetOrderStatuses(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) AdminListOrderStatuses(w http.ResponseWriter, r *http.Request) {
-	if _, ok := RequireStaff(w, r); !ok {
+	if _, ok := RequirePermission(w, r, authz.PermOrdersManageStatus); !ok {
 		return
 	}
 	list, err := h.services.OrderStatus.ListAll(r.Context())
@@ -30,7 +31,7 @@ func (h *Handler) AdminListOrderStatuses(w http.ResponseWriter, r *http.Request)
 }
 
 func (h *Handler) AdminCreateOrderStatus(w http.ResponseWriter, r *http.Request) {
-	if _, ok := RequireStaff(w, r); !ok {
+	if _, ok := RequirePermission(w, r, authz.PermAdminOrderStatuses); !ok {
 		return
 	}
 	var in model.OrderStatusCreate
@@ -46,7 +47,7 @@ func (h *Handler) AdminCreateOrderStatus(w http.ResponseWriter, r *http.Request)
 }
 
 func (h *Handler) AdminUpdateOrderStatus(w http.ResponseWriter, r *http.Request) {
-	if _, ok := RequireStaff(w, r); !ok {
+	if _, ok := RequirePermission(w, r, authz.PermAdminOrderStatuses); !ok {
 		return
 	}
 	idStr := chi.URLParam(r, "id")
@@ -68,7 +69,7 @@ func (h *Handler) AdminUpdateOrderStatus(w http.ResponseWriter, r *http.Request)
 }
 
 func (h *Handler) AdminDeleteOrderStatus(w http.ResponseWriter, r *http.Request) {
-	if _, ok := RequireStaff(w, r); !ok {
+	if _, ok := RequirePermission(w, r, authz.PermAdminOrderStatuses); !ok {
 		return
 	}
 	idStr := chi.URLParam(r, "id")

@@ -1,17 +1,51 @@
 package authz
 
 import (
+	"os"
 	"testing"
 
 	"github.com/google/uuid"
 )
 
+func TestMain(m *testing.M) {
+	SetRolePermissions(DefaultRolePermissions())
+	SetStaffRoles([]string{"admin", "manager", "service_advisor"})
+	os.Exit(m.Run())
+}
+
 func TestIsStaff(t *testing.T) {
-	if !IsStaff("admin") || !IsStaff("manager") {
-		t.Fatal("expected admin and manager to be staff")
+	if !IsStaff("admin") || !IsStaff("manager") || !IsStaff("service_advisor") {
+		t.Fatal("expected admin, manager, service_advisor to be staff")
 	}
 	if IsStaff("customer") || IsStaff("") {
 		t.Fatal("expected non-staff roles")
+	}
+}
+
+func TestHasPermissionMatrix(t *testing.T) {
+	if !HasPermission("manager", PermNewsManage) {
+		t.Fatal("manager should manage news")
+	}
+	if HasPermission("service_advisor", PermNewsManage) {
+		t.Fatal("service advisor should not manage news")
+	}
+	if !HasPermission("service_advisor", PermOrdersManageStatus) {
+		t.Fatal("service advisor should manage order status")
+	}
+	if !HasPermission("admin", PermAdminOrderStatuses) {
+		t.Fatal("admin should CRUD order statuses")
+	}
+	if HasPermission("manager", PermAdminOrderStatuses) {
+		t.Fatal("manager should not CRUD order status definitions")
+	}
+}
+
+func TestIsAdmin(t *testing.T) {
+	if !IsAdmin("admin") {
+		t.Fatal("admin")
+	}
+	if IsAdmin("manager") || IsAdmin("service_advisor") || IsAdmin("customer") {
+		t.Fatal("only admin")
 	}
 }
 
@@ -42,7 +76,7 @@ func TestCanUpdateOrderStatus(t *testing.T) {
 		t.Fatal("customer should not set paid")
 	}
 	if !CanUpdateOrderStatus(owner, other, "admin", "pending", "paid") {
-		t.Fatal("staff may set any transition")
+		t.Fatal("staff with orders.manage_status may set any transition")
 	}
 }
 
@@ -59,16 +93,16 @@ func TestCanAccessConfiguration(t *testing.T) {
 	}
 }
 
-func TestIsOwnerOrStaff(t *testing.T) {
+func TestIsOwnerOrHasPermission(t *testing.T) {
 	a, b := uuid.New(), uuid.New()
-	if !IsOwnerOrStaff(a, a, "customer") {
+	if !IsOwnerOrHasPermission(a, a, "customer", PermAppointmentsViewAny) {
 		t.Fatal("owner")
 	}
-	if IsOwnerOrStaff(a, b, "customer") {
+	if IsOwnerOrHasPermission(a, b, "customer", PermAppointmentsViewAny) {
 		t.Fatal("stranger")
 	}
-	if !IsOwnerOrStaff(a, b, "admin") {
-		t.Fatal("staff")
+	if !IsOwnerOrHasPermission(a, b, "admin", PermAppointmentsViewAny) {
+		t.Fatal("staff with permission")
 	}
 }
 

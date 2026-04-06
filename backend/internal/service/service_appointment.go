@@ -96,7 +96,7 @@ func (s *ServiceService) GetAppointment(ctx context.Context, appointmentID uuid.
 	if err != nil {
 		return nil, err
 	}
-	if !authz.IsOwnerOrStaff(a.OwnerUserID, requester, role) {
+	if !authz.IsOwnerOrHasPermission(a.OwnerUserID, requester, role, authz.PermAppointmentsViewAny) {
 		return nil, fmt.Errorf("%w", apperr.ErrNotFound)
 	}
 	return a, nil
@@ -111,7 +111,7 @@ func (s *ServiceService) CancelAppointment(ctx context.Context, appointmentID uu
 	if err != nil {
 		return err
 	}
-	if !authz.IsOwnerOrStaff(a.OwnerUserID, requester, role) {
+	if !authz.IsOwnerOrHasPermission(a.OwnerUserID, requester, role, authz.PermAppointmentsViewAny) {
 		return fmt.Errorf("%w", apperr.ErrForbidden)
 	}
 	switch a.Status {
@@ -161,4 +161,3 @@ func (s *ServiceService) RescheduleAppointment(ctx context.Context, userID uuid.
 func boolPtr(b bool) *bool {
 	return &b
 }
-

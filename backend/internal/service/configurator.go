@@ -95,7 +95,7 @@ func (s *ConfiguratorService) UpdateConfigurationStatus(ctx context.Context, con
 		return err
 	}
 
-	if authz.IsStaff(role) {
+	if authz.CanManageConfigurationStatus(role) {
 		return s.repo.Configuration.UpdateStatus(ctx, configID, status)
 	}
 

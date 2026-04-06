@@ -12,6 +12,83 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Application roles (reference data; JWT and authz use stable `code`)
+CREATE TABLE role_definitions (
+    role_id     uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    code        varchar(32) NOT NULL UNIQUE,
+    name_ru     varchar(100) NOT NULL,
+    description text,
+    sort_order  integer NOT NULL DEFAULT 0,
+    is_staff    boolean NOT NULL DEFAULT false,
+    created_at  timestamptz NOT NULL DEFAULT now(),
+    updated_at  timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_role_definitions_sort ON role_definitions (sort_order, code);
+
+CREATE TRIGGER trg_role_definitions_updated_at
+BEFORE UPDATE ON role_definitions
+FOR EACH ROW
+EXECUTE FUNCTION set_updated_at();
+
+INSERT INTO role_definitions (code, name_ru, description, sort_order, is_staff) VALUES
+    ('customer', 'Клиент', 'Личный кабинет: заказы, конфигурации, сервис, документы', 10, false),
+    ('manager', 'Менеджер', 'Продажи и сопровождение: заказы клиентов, новости, записи на ТО', 20, true),
+    ('service_advisor', 'Мастер-приёмщик', 'Сервис: записи на ТО, календарь, работа с клиентами в сервисе', 30, true),
+    ('admin', 'Администратор', 'Полный доступ: справочники, пользователи, настройки', 40, true);
+
+-- Fine-grained permissions (RBAC); roles get grants via role_permissions
+CREATE TABLE permissions (
+    permission_code varchar(64) PRIMARY KEY,
+    description     text NOT NULL
+);
+
+CREATE TABLE role_permissions (
+    role_code         varchar(32) NOT NULL REFERENCES role_definitions(code) ON DELETE CASCADE ON UPDATE CASCADE,
+    permission_code   varchar(64) NOT NULL REFERENCES permissions(permission_code) ON DELETE CASCADE,
+    PRIMARY KEY (role_code, permission_code)
+);
+
+CREATE INDEX idx_role_permissions_role ON role_permissions (role_code);
+
+INSERT INTO permissions (permission_code, description) VALUES
+    ('orders.view_any', 'Просмотр заказов любых клиентов'),
+    ('orders.manage_status', 'Смена статуса заказа от имени компании'),
+    ('configurations.view_any', 'Просмотр конфигураций любых клиентов'),
+    ('configurations.manage', 'Произвольная смена статуса конфигурации (staff)'),
+    ('appointments.view_any', 'Просмотр и отмена записей на ТО других клиентов'),
+    ('garage.view_any', 'Просмотр автомобилей в гараже другого клиента'),
+    ('documents.view_any', 'Доступ к документам привязанным к чужим заказам/записям'),
+    ('news.manage', 'Создание, редактирование и публикация новостей'),
+    ('admin.order_statuses', 'CRUD справочника статусов заказа'),
+    ('admin.roles_view', 'Просмотр справочника ролей (admin API)');
+
+INSERT INTO role_permissions (role_code, permission_code) VALUES
+    ('manager', 'orders.view_any'),
+    ('manager', 'orders.manage_status'),
+    ('manager', 'configurations.view_any'),
+    ('manager', 'configurations.manage'),
+    ('manager', 'appointments.view_any'),
+    ('manager', 'garage.view_any'),
+    ('manager', 'documents.view_any'),
+    ('manager', 'news.manage'),
+    ('service_advisor', 'orders.view_any'),
+    ('service_advisor', 'orders.manage_status'),
+    ('service_advisor', 'configurations.view_any'),
+    ('service_advisor', 'appointments.view_any'),
+    ('service_advisor', 'garage.view_any'),
+    ('service_advisor', 'documents.view_any'),
+    ('admin', 'orders.view_any'),
+    ('admin', 'orders.manage_status'),
+    ('admin', 'configurations.view_any'),
+    ('admin', 'configurations.manage'),
+    ('admin', 'appointments.view_any'),
+    ('admin', 'garage.view_any'),
+    ('admin', 'documents.view_any'),
+    ('admin', 'news.manage'),
+    ('admin', 'admin.order_statuses'),
+    ('admin', 'admin.roles_view');
+
 -- Users table
 CREATE TABLE users (
     user_id      uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -20,10 +97,9 @@ CREATE TABLE users (
     email        varchar(255) NOT NULL UNIQUE,
     phone        varchar(30) UNIQUE,
     password_hash varchar(255) NOT NULL,
-    role         varchar(30) NOT NULL DEFAULT 'customer',
+    role         varchar(32) NOT NULL DEFAULT 'customer' REFERENCES role_definitions(code) ON UPDATE CASCADE ON DELETE RESTRICT,
     created_at   timestamptz NOT NULL DEFAULT now(),
-    updated_at   timestamptz NOT NULL DEFAULT now(),
-    CHECK (role IN ('customer','manager','admin'))
+    updated_at   timestamptz NOT NULL DEFAULT now()
 );
 
 CREATE INDEX idx_users_role ON users(role);

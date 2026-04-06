@@ -30,8 +30,9 @@ import {
 
 const ROLE_LABELS = {
   customer: 'Клиент',
-  admin: 'Администратор',
   manager: 'Менеджер',
+  service_advisor: 'Мастер-приёмщик',
+  admin: 'Администратор',
 };
 
 export default function ProfileSettings() {
