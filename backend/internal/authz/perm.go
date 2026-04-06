@@ -12,6 +12,8 @@ const (
 	PermNewsManage            = "news.manage"
 	PermAdminOrderStatuses    = "admin.order_statuses"
 	PermAdminRolesView        = "admin.roles_view"
+	PermCatalogManage         = "catalog.manage"
+	PermServiceManage         = "service.manage"
 )
 
 // AllPermissionCodes lists every defined permission (for admin role seed and tests).
@@ -26,6 +28,8 @@ var AllPermissionCodes = []string{
 	PermNewsManage,
 	PermAdminOrderStatuses,
 	PermAdminRolesView,
+	PermCatalogManage,
+	PermServiceManage,
 }
 
 // DefaultRolePermissions is used when the DB has no role_permissions rows (bootstrap / tests).
@@ -41,6 +45,7 @@ func DefaultRolePermissions() map[string][]string {
 		PermGarageViewAny,
 		PermDocumentsViewAny,
 		PermNewsManage,
+		PermServiceManage,
 	}
 
 	serviceAdvisor := []string{
@@ -50,6 +55,7 @@ func DefaultRolePermissions() map[string][]string {
 		PermAppointmentsViewAny,
 		PermGarageViewAny,
 		PermDocumentsViewAny,
+		PermServiceManage,
 	}
 
 	return map[string][]string{

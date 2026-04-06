@@ -32,7 +32,7 @@ function customerAllowedStatuses(currentStatus) {
   return [];
 }
 
-export default function OrdersList({ orders, isLoading }) {
+export default function OrdersList({ orders, isLoading, staffMode = false }) {
   const qc = useQueryClient();
   const { user } = useAuth();
   const canManageStatuses = hasPermission(user?.role, PERMISSIONS.ORDERS_MANAGE_STATUS);
@@ -96,7 +96,11 @@ export default function OrdersList({ orders, isLoading }) {
       <EmptyState
         icon={ShoppingCart}
         title="Нет заказов"
-        description="У вас пока нет оформленных заказов"
+        description={
+          staffMode
+            ? 'В системе пока нет заказов или нет доступа к списку.'
+            : 'У вас пока нет оформленных заказов'
+        }
       />
     );
   }
@@ -160,6 +164,12 @@ export default function OrdersList({ orders, isLoading }) {
                     </div>
                   </div>
 
+                  {order.customer_email && (
+                    <p className="text-sm text-slate-700 mb-1">
+                      <span className="font-medium text-slate-800">Клиент:</span>{' '}
+                      {order.customer_name || '—'} · {order.customer_email}
+                    </p>
+                  )}
                   {order.configuration_summary && (
                     <p className="text-sm text-slate-600 mb-1">
                       {order.configuration_summary}

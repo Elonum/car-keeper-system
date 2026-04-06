@@ -11,6 +11,7 @@ import (
 	"github.com/carkeeper/backend/internal/model"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 type BrandRepository struct {
@@ -39,6 +40,41 @@ func (r *BrandRepository) GetAll(ctx context.Context) ([]model.Brand, error) {
 	}
 
 	return brands, nil
+}
+
+// Create inserts a brand (admin catalog).
+func (r *BrandRepository) Create(ctx context.Context, name, country string) (*model.Brand, error) {
+	var b model.Brand
+	err := r.db.Pool.QueryRow(ctx, `
+		INSERT INTO brands (name, country) VALUES ($1, $2)
+		RETURNING brand_id, name, country, created_at
+	`, name, country).Scan(&b.BrandID, &b.Name, &b.Country, &b.CreatedAt)
+	if err != nil {
+		return nil, apperr.Internal(err)
+	}
+	return &b, nil
+}
+
+// Update updates brand name and country.
+func (r *BrandRepository) Update(ctx context.Context, brandID uuid.UUID, name, country string) error {
+	_, err := r.db.Pool.Exec(ctx, `UPDATE brands SET name = $1, country = $2 WHERE brand_id = $3`, name, country, brandID)
+	if err != nil {
+		return apperr.Internal(err)
+	}
+	return nil
+}
+
+// Delete removes a brand (fails if models reference it).
+func (r *BrandRepository) Delete(ctx context.Context, brandID uuid.UUID) error {
+	_, err := r.db.Pool.Exec(ctx, `DELETE FROM brands WHERE brand_id = $1`, brandID)
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23503" {
+			return apperr.BadRequest("Cannot delete brand: referenced by models")
+		}
+		return apperr.Internal(err)
+	}
+	return nil
 }
 
 type ModelRepository struct {

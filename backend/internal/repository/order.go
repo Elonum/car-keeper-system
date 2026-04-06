@@ -123,6 +123,54 @@ func (r *OrderRepository) GetByUserID(ctx context.Context, userID uuid.UUID) ([]
 	return orders, nil
 }
 
+// ListAllWithDetails returns all orders with configuration details (staff / admin).
+func (r *OrderRepository) ListAllWithDetails(ctx context.Context) ([]model.OrderWithDetails, error) {
+	query := `
+		SELECT 
+			o.order_id, o.user_id, o.configuration_id, o.manager_id, o.status,
+			COALESCE(osd.customer_label_ru, o.status) AS status_label,
+			o.final_price,
+			o.created_at, o.updated_at,
+			u.first_name || ' ' || u.last_name as manager_name,
+			cust.email::text,
+			TRIM(BOTH FROM cust.first_name || ' ' || cust.last_name)::text
+		FROM orders o
+		LEFT JOIN order_status_definitions osd ON o.status = osd.code
+		LEFT JOIN users u ON o.manager_id = u.user_id
+		JOIN users cust ON o.user_id = cust.user_id
+		ORDER BY o.created_at DESC
+	`
+
+	rows, err := r.db.Pool.Query(ctx, query)
+	if err != nil {
+		return nil, apperr.Internal(err)
+	}
+	defer rows.Close()
+
+	var orders []model.OrderWithDetails
+	for rows.Next() {
+		var order model.OrderWithDetails
+		if err := rows.Scan(
+			&order.OrderID, &order.UserID, &order.ConfigurationID, &order.ManagerID,
+			&order.Status, &order.StatusLabel, &order.FinalPrice, &order.CreatedAt, &order.UpdatedAt,
+			&order.ManagerName,
+			&order.CustomerEmail, &order.CustomerName,
+		); err != nil {
+			return nil, apperr.Internal(err)
+		}
+
+		configRepo := NewConfigurationRepository(r.db)
+		config, err := configRepo.GetByID(ctx, order.ConfigurationID)
+		if err == nil {
+			order.Configuration = *config
+		}
+
+		orders = append(orders, order)
+	}
+
+	return orders, nil
+}
+
 func (r *OrderRepository) UpdateStatus(ctx context.Context, orderID uuid.UUID, status string) error {
 	query := `UPDATE orders SET status = $1 WHERE order_id = $2`
 	_, err := r.db.Pool.Exec(ctx, query, status, orderID)

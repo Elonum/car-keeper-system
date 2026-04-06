@@ -38,11 +38,13 @@ type BranchAvailability struct {
 
 type ServiceAppointmentWithDetails struct {
 	ServiceAppointment
-	OwnerUserID   uuid.UUID `json:"-"`
+	OwnerUserID   uuid.UUID `json:"owner_user_id,omitempty"`
 	UserCarVIN    string    `db:"user_car_vin" json:"user_car_vin"`
 	BranchName    string    `db:"branch_name" json:"branch_name"`
 	BranchAddress string    `db:"branch_address" json:"branch_address"`
 	ManagerName   *string   `db:"manager_name" json:"manager_name,omitempty"`
+	OwnerEmail    string    `json:"owner_email,omitempty"`
+	OwnerName     string    `json:"owner_name,omitempty"`
 	ServiceTypes  []ServiceType `json:"service_types"`
 }
 

@@ -24,7 +24,9 @@ type OrderCreate struct {
 
 type OrderWithDetails struct {
 	Order
-	Configuration ConfigurationWithDetails `json:"configuration"`
-	ManagerName   *string                  `db:"manager_name" json:"manager_name,omitempty"`
+	Configuration   ConfigurationWithDetails `json:"configuration"`
+	ManagerName     *string                  `db:"manager_name" json:"manager_name,omitempty"`
+	CustomerEmail   string                   `json:"customer_email,omitempty"`
+	CustomerName    string                   `json:"customer_name,omitempty"`
 }
 

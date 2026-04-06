@@ -40,36 +40,46 @@ export default function Profile() {
     setSearchParams({ tab: value }, { replace: true });
   };
 
+  const role = user?.role || '';
+  const staffOrdersView = hasPermission(role, PERMISSIONS.ORDERS_VIEW_ANY);
+  const staffApptsView = hasPermission(role, PERMISSIONS.APPOINTMENTS_VIEW_ANY);
+
   const { data: configurations, isLoading: configsLoading } = useQuery({
     queryKey: ['my-configurations'],
     queryFn: () => profileService.getConfigurations(),
-    enabled: isAuthenticated,
+    enabled: isAuthenticated && !!user,
   });
 
   const { data: orders, isLoading: ordersLoading } = useQuery({
-    queryKey: ['my-orders'],
-    queryFn: () => orderService.getOrders(),
-    enabled: isAuthenticated,
+    queryKey: staffOrdersView ? ['staff-orders'] : ['my-orders'],
+    queryFn: () => (staffOrdersView ? orderService.getStaffOrders() : orderService.getOrders()),
+    enabled: isAuthenticated && !!user,
   });
 
   const { data: appointments, isLoading: appointmentsLoading } = useQuery({
-    queryKey: ['my-appointments'],
-    queryFn: () => serviceService.getAppointments(),
-    enabled: isAuthenticated,
+    queryKey: staffApptsView ? ['staff-appointments'] : ['my-appointments'],
+    queryFn: () =>
+      staffApptsView ? serviceService.getStaffAppointments() : serviceService.getAppointments(),
+    enabled: isAuthenticated && !!user,
   });
 
-  if (!isAuthenticated || !user) return <PageLoader />;
-  const role = user.role || '';
   const canOpenAdminTab =
+    hasPermission(role, PERMISSIONS.ORDERS_VIEW_ANY) ||
+    hasPermission(role, PERMISSIONS.APPOINTMENTS_VIEW_ANY) ||
+    hasPermission(role, PERMISSIONS.CATALOG_MANAGE) ||
+    hasPermission(role, PERMISSIONS.SERVICE_MANAGE) ||
     hasPermission(role, PERMISSIONS.ADMIN_ORDER_STATUSES) ||
     hasPermission(role, PERMISSIONS.ADMIN_ROLES_VIEW) ||
     hasPermission(role, PERMISSIONS.ORDERS_MANAGE_STATUS);
+
   useEffect(() => {
     if (activeTab === 'management' && !canOpenAdminTab) {
       setActiveTab('account');
       setSearchParams({ tab: 'account' }, { replace: true });
     }
   }, [activeTab, canOpenAdminTab, setSearchParams]);
+
+  if (!isAuthenticated || !user) return <PageLoader />;
 
   const getUserDisplayName = () => {
     if (user.full_name) return user.full_name;
@@ -82,9 +92,13 @@ export default function Profile() {
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <SectionHeader 
+        <SectionHeader
           title="Личный кабинет"
-          description={`Добро пожаловать, ${getUserDisplayName()}`}
+          description={
+            staffOrdersView || staffApptsView
+              ? `${getUserDisplayName()} · в разделах «Заказы» и «Записи на ТО» показаны данные всех клиентов (режим сотрудника).`
+              : `Добро пожаловать, ${getUserDisplayName()}`
+          }
         />
 
         <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
@@ -133,7 +147,7 @@ export default function Profile() {
           </TabsContent>
 
           <TabsContent value="orders" className="space-y-4">
-            <OrdersList orders={orders} isLoading={ordersLoading} />
+            <OrdersList orders={orders} isLoading={ordersLoading} staffMode={staffOrdersView} />
           </TabsContent>
 
           <TabsContent value="cars" className="space-y-4">
@@ -141,9 +155,10 @@ export default function Profile() {
           </TabsContent>
 
           <TabsContent value="service" className="space-y-4">
-            <ServiceAppointmentsList 
-              appointments={appointments} 
-              isLoading={appointmentsLoading} 
+            <ServiceAppointmentsList
+              appointments={appointments}
+              isLoading={appointmentsLoading}
+              staffMode={staffApptsView}
             />
           </TabsContent>
 

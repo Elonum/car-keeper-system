@@ -70,6 +70,11 @@ func (s *OrderService) GetUserOrders(ctx context.Context, userID uuid.UUID) ([]m
 	return s.repo.Order.GetByUserID(ctx, userID)
 }
 
+// ListAllOrdersForStaff returns all orders with details (caller must enforce permission).
+func (s *OrderService) ListAllOrdersForStaff(ctx context.Context) ([]model.OrderWithDetails, error) {
+	return s.repo.Order.ListAllWithDetails(ctx)
+}
+
 func (s *OrderService) UpdateOrderStatus(ctx context.Context, orderID uuid.UUID, status string, requester uuid.UUID, role string) error {
 	status = strings.TrimSpace(status)
 	if status == "" {

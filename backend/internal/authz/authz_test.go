@@ -38,6 +38,15 @@ func TestHasPermissionMatrix(t *testing.T) {
 	if HasPermission("manager", PermAdminOrderStatuses) {
 		t.Fatal("manager should not CRUD order status definitions")
 	}
+	if !HasPermission("admin", PermCatalogManage) || !HasPermission("admin", PermServiceManage) {
+		t.Fatal("admin should have catalog and service manage")
+	}
+	if HasPermission("manager", PermCatalogManage) {
+		t.Fatal("manager should not manage full catalog")
+	}
+	if !HasPermission("manager", PermServiceManage) {
+		t.Fatal("manager should manage service catalog")
+	}
 }
 
 func TestIsAdmin(t *testing.T) {

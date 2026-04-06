@@ -8,8 +8,9 @@ import { Switch } from '@/components/ui/switch';
 import { orderService } from '@/services/orderService';
 import { roleService } from '@/services/roleService';
 import { getApiErrorMessage } from '@/lib/apiErrors';
-import { PERMISSIONS, hasPermission } from '@/lib/authz';
+import { PERMISSIONS, PERMISSION_LABEL_RU, ROLE_TITLE_RU, hasPermission } from '@/lib/authz';
 import { toast } from 'sonner';
+import CatalogManagement from './CatalogManagement';
 
 export default function AdminControlCenter({ role }) {
   const qc = useQueryClient();
@@ -82,21 +83,32 @@ export default function AdminControlCenter({ role }) {
   return (
     <div className="space-y-6">
       <Card className="p-6">
-        <h3 className="text-lg font-semibold text-slate-900">Права текущей роли</h3>
-        <p className="text-sm text-slate-600 mt-1">Роль: {role || 'unknown'}</p>
-        <div className="mt-3 flex flex-wrap gap-2 text-xs">
-          {Object.values(PERMISSIONS).map((p) => (
-            <span
-              key={p}
-              className={`rounded-full px-2.5 py-1 ${
-                hasPermission(role, p) ? 'bg-green-100 text-green-800' : 'bg-slate-100 text-slate-500'
-              }`}
-            >
-              {p}
-            </span>
-          ))}
-        </div>
+        <h3 className="text-lg font-semibold text-slate-900">Ваша роль и возможности</h3>
+        <p className="text-sm text-slate-600 mt-1">
+          <span className="font-medium text-slate-800">{ROLE_TITLE_RU[role] || role || '—'}</span>
+          {' · '}
+          ниже перечислено, что доступно в интерфейсе и API при этой роли.
+        </p>
+        <ul className="mt-4 space-y-2 text-sm">
+          {Object.values(PERMISSIONS).map((code) => {
+            const on = hasPermission(role, code);
+            const label = PERMISSION_LABEL_RU[code] || code;
+            return (
+              <li key={code} className="flex gap-2 items-start">
+                <span className={on ? 'text-green-600 font-medium' : 'text-slate-400'} aria-hidden>
+                  {on ? '✓' : '·'}
+                </span>
+                <span className={on ? 'text-slate-800' : 'text-slate-500'}>
+                  {label}
+                  {!on && <span className="text-slate-400"> (недоступно)</span>}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
       </Card>
+
+      <CatalogManagement role={role} />
 
       {(canManageDict || hasPermission(role, PERMISSIONS.ORDERS_MANAGE_STATUS)) && (
         <Card className="p-6 space-y-4">
@@ -199,10 +211,10 @@ export default function AdminControlCenter({ role }) {
           <h3 className="text-lg font-semibold text-slate-900 mb-3">Справочник ролей</h3>
           <div className="space-y-2">
             {roles.length === 0 && <p className="text-sm text-slate-500">Список ролей пуст.</p>}
-            {roles.map((r) => (
-              <div key={r.role_id} className="rounded border px-3 py-2">
-                <p className="font-medium">{r.code}</p>
-                <p className="text-sm text-slate-600">{r.name_ru}</p>
+            {roles.map((row) => (
+              <div key={row.role_id} className="rounded border px-3 py-2">
+                <p className="font-medium">{row.code}</p>
+                <p className="text-sm text-slate-600">{row.name_ru}</p>
               </div>
             ))}
           </div>

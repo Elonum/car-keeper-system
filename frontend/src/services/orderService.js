@@ -18,6 +18,11 @@ export const orderService = {
     return await apiClient.get('/orders', { params });
   },
 
+  /** Все заказы (staff с правом orders.view_any). */
+  getStaffOrders: async () => {
+    return await apiClient.get('/admin/orders');
+  },
+
   getOrder: async (orderId) => {
     return await apiClient.get(`/orders/${orderId}`);
   },

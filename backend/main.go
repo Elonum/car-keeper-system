@@ -115,6 +115,24 @@ func setupRouter(handlers *handler.Handler, cfg *config.Config, db *database.DB)
 
 		r.Route("/admin", func(r chi.Router) {
 			r.Use(authMiddleware.AuthMiddleware(handlers.Services().Auth))
+			r.Get("/roles", handlers.AdminListRoleDefinitions)
+			r.Get("/orders", handlers.AdminListAllOrders)
+			r.Get("/appointments", handlers.AdminListAllAppointments)
+			r.Patch("/branches/{id}", handlers.AdminUpdateBranch)
+			r.Route("/catalog", func(r chi.Router) {
+				r.Route("/brands", func(r chi.Router) {
+					r.Post("/", handlers.AdminCreateBrand)
+					r.Patch("/{id}", handlers.AdminUpdateBrand)
+					r.Delete("/{id}", handlers.AdminDeleteBrand)
+				})
+			})
+			r.Route("/service", func(r chi.Router) {
+				r.Route("/types", func(r chi.Router) {
+					r.Post("/", handlers.AdminCreateServiceType)
+					r.Patch("/{id}", handlers.AdminUpdateServiceType)
+					r.Delete("/{id}", handlers.AdminDeleteServiceType)
+				})
+			})
 			r.Route("/order-statuses", func(r chi.Router) {
 				r.Get("/", handlers.AdminListOrderStatuses)
 				r.Post("/", handlers.AdminCreateOrderStatus)

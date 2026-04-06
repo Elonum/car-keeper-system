@@ -61,7 +61,9 @@ INSERT INTO permissions (permission_code, description) VALUES
     ('documents.view_any', 'Доступ к документам привязанным к чужим заказам/записям'),
     ('news.manage', 'Создание, редактирование и публикация новостей'),
     ('admin.order_statuses', 'CRUD справочника статусов заказа'),
-    ('admin.roles_view', 'Просмотр справочника ролей (admin API)');
+    ('admin.roles_view', 'Просмотр справочника ролей (admin API)'),
+    ('catalog.manage', 'CRUD справочника каталога (бренды и др.)'),
+    ('service.manage', 'Управление услугами ТО и филиалами');
 
 INSERT INTO role_permissions (role_code, permission_code) VALUES
     ('manager', 'orders.view_any'),
@@ -72,12 +74,14 @@ INSERT INTO role_permissions (role_code, permission_code) VALUES
     ('manager', 'garage.view_any'),
     ('manager', 'documents.view_any'),
     ('manager', 'news.manage'),
+    ('manager', 'service.manage'),
     ('service_advisor', 'orders.view_any'),
     ('service_advisor', 'orders.manage_status'),
     ('service_advisor', 'configurations.view_any'),
     ('service_advisor', 'appointments.view_any'),
     ('service_advisor', 'garage.view_any'),
     ('service_advisor', 'documents.view_any'),
+    ('service_advisor', 'service.manage'),
     ('admin', 'orders.view_any'),
     ('admin', 'orders.manage_status'),
     ('admin', 'configurations.view_any'),
@@ -87,7 +91,9 @@ INSERT INTO role_permissions (role_code, permission_code) VALUES
     ('admin', 'documents.view_any'),
     ('admin', 'news.manage'),
     ('admin', 'admin.order_statuses'),
-    ('admin', 'admin.roles_view');
+    ('admin', 'admin.roles_view'),
+    ('admin', 'catalog.manage'),
+    ('admin', 'service.manage');
 
 -- Users table
 CREATE TABLE users (

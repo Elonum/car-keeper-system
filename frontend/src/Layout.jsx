@@ -68,6 +68,10 @@ export default function Layout({ children, currentPageName }) {
   };
   const role = user?.role || '';
   const canOpenManagement =
+    hasPermission(role, PERMISSIONS.ORDERS_VIEW_ANY) ||
+    hasPermission(role, PERMISSIONS.APPOINTMENTS_VIEW_ANY) ||
+    hasPermission(role, PERMISSIONS.CATALOG_MANAGE) ||
+    hasPermission(role, PERMISSIONS.SERVICE_MANAGE) ||
     hasPermission(role, PERMISSIONS.ADMIN_ORDER_STATUSES) ||
     hasPermission(role, PERMISSIONS.ADMIN_ROLES_VIEW) ||
     hasPermission(role, PERMISSIONS.ORDERS_MANAGE_STATUS);

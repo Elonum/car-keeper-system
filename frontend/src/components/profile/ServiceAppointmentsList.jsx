@@ -18,7 +18,7 @@ import { ru } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { getApiErrorMessage } from '@/lib/apiErrors';
 
-export default function ServiceAppointmentsList({ appointments, isLoading }) {
+export default function ServiceAppointmentsList({ appointments, isLoading, staffMode = false }) {
   const queryClient = useQueryClient();
   const [rescheduleTarget, setRescheduleTarget] = useState(null);
   const [search, setSearch] = useState('');
@@ -67,7 +67,11 @@ export default function ServiceAppointmentsList({ appointments, isLoading }) {
       <EmptyState
         icon={Wrench}
         title="Нет записей на ТО"
-        description="У вас пока нет записей на сервисное обслуживание"
+        description={
+          staffMode
+            ? 'Нет записей или нет доступа к общему списку.'
+            : 'У вас пока нет записей на сервисное обслуживание'
+        }
       />
     );
   }
@@ -103,6 +107,12 @@ export default function ServiceAppointmentsList({ appointments, isLoading }) {
                     <h3 className="text-lg font-bold text-slate-900 mb-1">
                       {appt.user_car_vin || appt.car_display || 'Сервисная запись'}
                     </h3>
+                    {appt.owner_email && (
+                      <p className="text-sm text-slate-700 mb-1">
+                        <span className="font-medium text-slate-800">Клиент:</span>{' '}
+                        {appt.owner_name || '—'} · {appt.owner_email}
+                      </p>
+                    )}
                     {appt.appointment_date && (
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-500 mb-2">
                         <span className="flex items-center gap-2">

@@ -17,6 +17,11 @@ export const serviceService = {
     return await apiClient.get('/service/appointments', { params });
   },
 
+  /** Все записи на ТО (staff с правом appointments.view_any). */
+  getStaffAppointments: async () => {
+    return await apiClient.get('/admin/appointments');
+  },
+
   getAppointment: async (appointmentId) => {
     return await apiClient.get(`/service/appointments/${appointmentId}`);
   },
