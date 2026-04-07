@@ -19,27 +19,28 @@ import {
 import StatusBadge from '../common/StatusBadge';
 import PriceDisplay from '../common/PriceDisplay';
 import EmptyState from '../common/EmptyState';
+import { ErrorNotice } from '../common/ErrorNotice';
 import { Settings, Edit, Trash2, ShoppingCart } from 'lucide-react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
-import { toast } from 'sonner';
 import { getApiErrorMessage } from '@/lib/apiErrors';
 
 export default function ConfigurationList({ configurations, isLoading }) {
   const queryClient = useQueryClient();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [configToDelete, setConfigToDelete] = useState(null);
+  const [actionError, setActionError] = useState(null);
 
   const deleteMutation = useMutation({
     mutationFn: (id) => configuratorService.deleteConfiguration(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['my-configurations'] });
-      toast.success('Конфигурация удалена');
       setDeleteDialogOpen(false);
       setConfigToDelete(null);
+      setActionError(null);
     },
     onError: (error) => {
-      toast.error(getApiErrorMessage(error, 'Не удалось удалить конфигурацию'));
+      setActionError(getApiErrorMessage(error, 'Не удалось удалить конфигурацию'));
     },
   });
 
@@ -66,10 +67,10 @@ export default function ConfigurationList({ configurations, isLoading }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['my-configurations'] });
       queryClient.invalidateQueries({ queryKey: ['my-orders'] });
-      toast.success('Заказ создан!');
+      setActionError(null);
     },
     onError: (error) => {
-      toast.error(getApiErrorMessage(error, 'Не удалось создать заказ'));
+      setActionError(getApiErrorMessage(error, 'Не удалось создать заказ'));
     },
   });
 
@@ -106,6 +107,7 @@ export default function ConfigurationList({ configurations, isLoading }) {
 
   return (
     <div className="space-y-4">
+      <ErrorNotice kind="server" message={actionError} />
       {configurations.map(config => (
         <Card key={config.configuration_id || config.id} className="p-6 hover:shadow-md transition-shadow">
           <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">

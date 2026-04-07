@@ -10,10 +10,10 @@ import ColorSelection from '../components/configurator/ColorSelection';
 import OptionsSelection from '../components/configurator/OptionsSelection';
 import ConfigurationSummary from '../components/configurator/ConfigurationSummary';
 import PageLoader from '../components/common/PageLoader';
+import { ErrorNotice } from '@/components/common/ErrorNotice';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ArrowLeft, ArrowRight, Save, ShoppingCart, Check } from 'lucide-react';
-import { toast } from 'sonner';
 import { getApiErrorMessage } from '@/lib/apiErrors';
 
 const STEPS = ['Комплектация', 'Цвет', 'Опции', 'Итог'];
@@ -30,6 +30,7 @@ export default function Configurator() {
   const [currentStep, setCurrentStep] = useState(0);
   const [selectedColorId, setSelectedColorId] = useState(null);
   const [selectedOptionIds, setSelectedOptionIds] = useState([]);
+  const [formError, setFormError] = useState(null);
 
   const { data: existingConfig, isLoading: configLoading } = useQuery({
     queryKey: ['configuration', configId],
@@ -146,36 +147,37 @@ export default function Configurator() {
     },
     onSuccess: (data) => {
       if (!data) return;
+      setFormError(null);
       
       queryClient.invalidateQueries({ queryKey: ['configurations'] });
       queryClient.invalidateQueries({ queryKey: ['orders'] });
       
       if (data.status === 'draft') {
-        toast.success(isEditMode ? 'Конфигурация обновлена' : 'Конфигурация сохранена как черновик');
         navigate(createPageUrl("Profile") + "?tab=configurations");
       } else {
-        toast.success('Заказ успешно создан!');
         navigate(createPageUrl("Profile") + "?tab=orders");
       }
     },
     onError: (error) => {
-      toast.error(getApiErrorMessage(error, 'Ошибка при сохранении конфигурации'));
+      setFormError(getApiErrorMessage(error, 'Ошибка при сохранении конфигурации'));
     },
   });
 
   const handleNext = () => {
     if (currentStep === 0 && !trimId) {
-      toast.error('Выберите комплектацию');
+      setFormError('Выберите комплектацию');
       return;
     }
     if (currentStep === 1 && !selectedColorId) {
-      toast.error('Выберите цвет');
+      setFormError('Выберите цвет');
       return;
     }
+    setFormError(null);
     setCurrentStep(prev => Math.min(prev + 1, STEPS.length - 1));
   };
 
   const handleBack = () => {
+    setFormError(null);
     setCurrentStep(prev => Math.max(prev - 1, 0));
   };
 
@@ -257,6 +259,7 @@ export default function Configurator() {
               <h2 className="text-2xl font-bold text-slate-900 mb-6">
                 {STEPS[currentStep]}
               </h2>
+              <ErrorNotice kind="form" message={formError} className="mb-6" />
 
               {currentStep === 0 && (
                 <div className="space-y-4">

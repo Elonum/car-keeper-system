@@ -10,13 +10,13 @@ import StepIndicator from '../components/configurator/StepIndicator';
 import CarSelector from '../components/service/CarSelector';
 import BranchSelector from '../components/service/BranchSelector';
 import PageLoader from '../components/common/PageLoader';
+import { ErrorNotice } from '@/components/common/ErrorNotice';
 import PriceDisplay from '../components/common/PriceDisplay';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { UI_LIMITS } from '@/lib/authValidation';
 import { getApiErrorMessage } from '@/lib/apiErrors';
-import { toast } from "sonner";
 import { ArrowLeft, ArrowRight, Check, Wrench, Car, MapPin, Clock, Package, CalendarDays } from 'lucide-react';
 import { format, startOfDay, isBefore } from 'date-fns';
 import { Calendar } from "@/components/ui/calendar";
@@ -42,6 +42,7 @@ export default function ServiceAppointment() {
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedSlotISO, setSelectedSlotISO] = useState(null);
   const [description, setDescription] = useState('');
+  const [formError, setFormError] = useState(null);
 
   const dateKey = selectedDate ? format(selectedDate, 'yyyy-MM-dd') : null;
   const serviceKey = [...selectedServiceIds].sort().join(',');
@@ -126,11 +127,11 @@ export default function ServiceAppointment() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['my-appointments'] });
       queryClient.invalidateQueries({ queryKey: ['branch-availability'] });
-      toast.success("Вы успешно записаны на обслуживание!");
+      setFormError(null);
       navigate(createPageUrl("Profile") + "?tab=service");
     },
     onError: (error) => {
-      toast.error(getApiErrorMessage(error, 'Ошибка при создании записи'));
+      setFormError(getApiErrorMessage(error, 'Ошибка при создании записи'));
     },
   });
 
@@ -239,6 +240,7 @@ export default function ServiceAppointment() {
         <div className="mb-8">
           <StepIndicator steps={STEPS} currentStep={step} />
         </div>
+        <ErrorNotice kind="server" message={formError} className="mb-6" />
 
         {step === 0 && (
           <CarSelector 
@@ -352,9 +354,10 @@ export default function ServiceAppointment() {
                   <p className="text-sm text-slate-500 py-4">Загрузка доступных слотов…</p>
                 )}
                 {slotsError && (
-                  <p className="text-sm text-red-700 bg-red-50 border border-red-100 rounded-xl px-4 py-3">
-                    {getApiErrorMessage(slotsQueryError, 'Не удалось загрузить слоты')}
-                  </p>
+                  <ErrorNotice
+                    kind="server"
+                    message={getApiErrorMessage(slotsQueryError, 'Не удалось загрузить слоты')}
+                  />
                 )}
                 {!slotsLoading && !slotsError && selectedDate && selectedServiceIds.length > 0 && slotStarts.length === 0 && (
                   <p className="text-sm text-amber-800 bg-amber-50 border border-amber-100 rounded-xl px-4 py-3">

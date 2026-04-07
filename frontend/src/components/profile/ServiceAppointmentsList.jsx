@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '@/lib/AuthContext';
 import { serviceService } from '@/services/serviceService';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,14 +16,21 @@ import {
 import { Wrench, MapPin, Calendar, X, CalendarClock } from 'lucide-react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
-import { toast } from 'sonner';
 import { getApiErrorMessage } from '@/lib/apiErrors';
+import { ErrorNotice } from '../common/ErrorNotice';
+
+function isSameUserId(a, b) {
+  if (a == null || b == null) return false;
+  return String(a) === String(b);
+}
 
 export default function ServiceAppointmentsList({ appointments, isLoading, staffMode = false }) {
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const [rescheduleTarget, setRescheduleTarget] = useState(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [actionError, setActionError] = useState(null);
 
   const statusOptions = useMemo(() => {
     const head = [{ value: 'all', label: 'Все статусы' }];
@@ -42,10 +50,11 @@ export default function ServiceAppointmentsList({ appointments, isLoading, staff
     mutationFn: (id) => serviceService.cancelAppointment(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['my-appointments'] });
-      toast.success('Запись отменена');
+      queryClient.invalidateQueries({ queryKey: ['staff-appointments'] });
+      setActionError(null);
     },
     onError: (err) => {
-      toast.error(getApiErrorMessage(err, 'Ошибка при отмене записи'));
+      setActionError(getApiErrorMessage(err, 'Ошибка при отмене записи'));
     },
   });
 
@@ -78,6 +87,7 @@ export default function ServiceAppointmentsList({ appointments, isLoading, staff
 
   return (
     <div className="space-y-4">
+      <ErrorNotice kind="server" message={actionError} />
       <CabinetListToolbar
         search={search}
         onSearchChange={setSearch}
@@ -92,7 +102,11 @@ export default function ServiceAppointmentsList({ appointments, isLoading, staff
           Нет записей по выбранным условиям. Измените поиск или статус.
         </p>
       ) : (
-        filtered.map((appt) => (
+        filtered.map((appt) => {
+          const showClientActions =
+            appt.status === 'scheduled' &&
+            (!staffMode || isSameUserId(appt.owner_user_id, user?.user_id));
+          return (
           <Card
             key={appt.service_appointment_id || appt.id}
             className="p-6 hover:shadow-md transition-shadow"
@@ -163,7 +177,7 @@ export default function ServiceAppointmentsList({ appointments, isLoading, staff
                 )}
               </div>
 
-              {appt.status === 'scheduled' && (
+              {showClientActions && (
                 <div className="flex flex-col sm:flex-row gap-2 shrink-0">
                   <Button
                     type="button"
@@ -192,7 +206,8 @@ export default function ServiceAppointmentsList({ appointments, isLoading, staff
               )}
             </div>
           </Card>
-        ))
+        );
+        })
       )}
 
       <RescheduleAppointmentDialog

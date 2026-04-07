@@ -28,7 +28,7 @@ import {
   validateMileage,
 } from '@/lib/userCarValidation';
 import { getApiErrorMessage } from '@/lib/apiErrors';
-import { toast } from 'sonner';
+import { ErrorNotice, FieldErrorText } from '../common/ErrorNotice';
 
 const GARAGE_QUERY_KEYS = [
   ['my-cars'],
@@ -55,6 +55,7 @@ export default function AddUserCarDialog({ open, onOpenChange }) {
   const [mileage, setMileage] = useState('0');
   const [purchaseDate, setPurchaseDate] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
+  const [formError, setFormError] = useState(null);
 
   const maxYear = useMemo(() => new Date().getFullYear() + 1, []);
 
@@ -70,6 +71,7 @@ export default function AddUserCarDialog({ open, onOpenChange }) {
       setMileage('0');
       setPurchaseDate('');
       setFieldErrors({});
+      setFormError(null);
     }
   }, [open]);
 
@@ -115,11 +117,11 @@ export default function AddUserCarDialog({ open, onOpenChange }) {
       GARAGE_QUERY_KEYS.forEach((key) => {
         queryClient.invalidateQueries({ queryKey: key });
       });
-      toast.success('Автомобиль добавлен в гараж');
+      setFormError(null);
       onOpenChange(false);
     },
     onError: (e) => {
-      toast.error(getApiErrorMessage(e, 'Не удалось добавить автомобиль'));
+      setFormError(getApiErrorMessage(e, 'Не удалось добавить автомобиль'));
     },
   });
 
@@ -134,15 +136,18 @@ export default function AddUserCarDialog({ open, onOpenChange }) {
     const mErr = validateMileage(mileage);
     if (mErr) next.mileage = mErr;
     setFieldErrors(next);
+    if (Object.keys(next).length > 0) {
+      setFormError('Проверьте поля формы');
+    }
     return Object.keys(next).length === 0;
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!validate()) {
-      toast.error('Проверьте поля формы');
       return;
     }
+    setFormError(null);
     const payload = {
       trim_id: trimId,
       color_id: colorId,
@@ -168,6 +173,7 @@ export default function AddUserCarDialog({ open, onOpenChange }) {
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+          <ErrorNotice kind="form" message={formError} />
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label>Марка</Label>
@@ -285,7 +291,7 @@ export default function AddUserCarDialog({ open, onOpenChange }) {
                 })}
               </SelectContent>
             </Select>
-            {fieldErrors.trim && <p className="text-sm text-red-600">{fieldErrors.trim}</p>}
+            <FieldErrorText>{fieldErrors.trim}</FieldErrorText>
           </div>
 
           <div className="space-y-2">
@@ -322,7 +328,7 @@ export default function AddUserCarDialog({ open, onOpenChange }) {
                   })}
               </SelectContent>
             </Select>
-            {fieldErrors.color && <p className="text-sm text-red-600">{fieldErrors.color}</p>}
+            <FieldErrorText>{fieldErrors.color}</FieldErrorText>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -342,7 +348,7 @@ export default function AddUserCarDialog({ open, onOpenChange }) {
                 className={`font-mono uppercase ${fieldErrors.vin ? 'border-red-500' : ''}`}
                 placeholder="17 символов"
               />
-              {fieldErrors.vin && <p className="text-sm text-red-600">{fieldErrors.vin}</p>}
+              <FieldErrorText>{fieldErrors.vin}</FieldErrorText>
             </div>
             <div className="space-y-2">
               <Label htmlFor="garage-year">Год выпуска</Label>
@@ -358,7 +364,7 @@ export default function AddUserCarDialog({ open, onOpenChange }) {
                 }}
                 className={fieldErrors.year ? 'border-red-500' : ''}
               />
-              {fieldErrors.year && <p className="text-sm text-red-600">{fieldErrors.year}</p>}
+              <FieldErrorText>{fieldErrors.year}</FieldErrorText>
             </div>
           </div>
 
@@ -377,7 +383,7 @@ export default function AddUserCarDialog({ open, onOpenChange }) {
                 }}
                 className={fieldErrors.mileage ? 'border-red-500' : ''}
               />
-              {fieldErrors.mileage && <p className="text-sm text-red-600">{fieldErrors.mileage}</p>}
+              <FieldErrorText>{fieldErrors.mileage}</FieldErrorText>
             </div>
             <div className="space-y-2">
               <Label htmlFor="garage-purchase">Дата покупки (необязательно)</Label>

@@ -12,12 +12,12 @@ import {
 } from '@/components/ui/select';
 import EmptyState from '../common/EmptyState';
 import { FileText, Upload, Trash2, Download } from 'lucide-react';
-import { toast } from 'sonner';
 import { getApiErrorMessage } from '@/lib/apiErrors';
 import {
   documentService,
   DOCUMENT_TYPE_LABELS,
 } from '@/services/documentService';
+import { ErrorNotice } from '@/components/common/ErrorNotice';
 
 const DOC_TYPES = Object.keys(DOCUMENT_TYPE_LABELS);
 
@@ -28,6 +28,7 @@ export default function MyDocuments({ orders = [], appointments = [] }) {
   const [linkKind, setLinkKind] = useState('order');
   const [orderId, setOrderId] = useState('');
   const [appointmentId, setAppointmentId] = useState('');
+  const [formError, setFormError] = useState(null);
 
   const { data: documents, isLoading } = useQuery({
     queryKey: ['my-documents'],
@@ -38,11 +39,11 @@ export default function MyDocuments({ orders = [], appointments = [] }) {
     mutationFn: (payload) => documentService.upload(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['my-documents'] });
-      toast.success('Файл загружен');
       setFile(null);
+      setFormError(null);
     },
     onError: (e) => {
-      toast.error(getApiErrorMessage(e, 'Не удалось загрузить файл'));
+      setFormError(getApiErrorMessage(e, 'Не удалось загрузить файл'));
     },
   });
 
@@ -50,33 +51,34 @@ export default function MyDocuments({ orders = [], appointments = [] }) {
     mutationFn: (id) => documentService.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['my-documents'] });
-      toast.success('Документ удалён');
+      setFormError(null);
     },
     onError: (e) => {
-      toast.error(getApiErrorMessage(e, 'Не удалось удалить документ'));
+      setFormError(getApiErrorMessage(e, 'Не удалось удалить документ'));
     },
   });
 
   const handleUpload = (e) => {
     e.preventDefault();
     if (!file) {
-      toast.error('Выберите файл');
+      setFormError('Выберите файл');
       return;
     }
     const payload = { file, documentType };
     if (linkKind === 'order') {
       if (!orderId) {
-        toast.error('Выберите заказ');
+        setFormError('Выберите заказ');
         return;
       }
       payload.orderId = orderId;
     } else {
       if (!appointmentId) {
-        toast.error('Выберите запись на ТО');
+        setFormError('Выберите запись на ТО');
         return;
       }
       payload.serviceAppointmentId = appointmentId;
     }
+    setFormError(null);
     uploadMutation.mutate(payload);
   };
 
@@ -100,17 +102,24 @@ export default function MyDocuments({ orders = [], appointments = [] }) {
           Загрузить документ
         </h3>
         <form onSubmit={handleUpload} className="space-y-4 max-w-xl">
+          <ErrorNotice kind="form" message={formError} />
           <div className="space-y-2">
             <Label>Файл</Label>
             <input
               type="file"
               className="block w-full text-sm text-slate-600"
-              onChange={(ev) => setFile(ev.target.files?.[0] || null)}
+              onChange={(ev) => {
+                setFile(ev.target.files?.[0] || null);
+                setFormError(null);
+              }}
             />
           </div>
           <div className="space-y-2">
             <Label>Тип документа</Label>
-            <Select value={documentType} onValueChange={setDocumentType}>
+            <Select value={documentType} onValueChange={(v) => {
+              setDocumentType(v);
+              setFormError(null);
+            }}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -125,7 +134,10 @@ export default function MyDocuments({ orders = [], appointments = [] }) {
           </div>
           <div className="space-y-2">
             <Label>Привязка</Label>
-            <Select value={linkKind} onValueChange={setLinkKind}>
+            <Select value={linkKind} onValueChange={(v) => {
+              setLinkKind(v);
+              setFormError(null);
+            }}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -138,7 +150,10 @@ export default function MyDocuments({ orders = [], appointments = [] }) {
           {linkKind === 'order' ? (
             <div className="space-y-2">
               <Label>Заказ</Label>
-              <Select value={orderId} onValueChange={setOrderId}>
+              <Select value={orderId} onValueChange={(v) => {
+                setOrderId(v);
+                setFormError(null);
+              }}>
                 <SelectTrigger>
                   <SelectValue placeholder="Выберите заказ" />
                 </SelectTrigger>
@@ -157,7 +172,10 @@ export default function MyDocuments({ orders = [], appointments = [] }) {
           ) : (
             <div className="space-y-2">
               <Label>Запись на ТО</Label>
-              <Select value={appointmentId} onValueChange={setAppointmentId}>
+              <Select value={appointmentId} onValueChange={(v) => {
+                setAppointmentId(v);
+                setFormError(null);
+              }}>
                 <SelectTrigger>
                   <SelectValue placeholder="Выберите запись" />
                 </SelectTrigger>
@@ -218,7 +236,7 @@ export default function MyDocuments({ orders = [], appointments = [] }) {
                       size="sm"
                       onClick={() =>
                         documentService.download(id, name).catch((err) => {
-                          toast.error(getApiErrorMessage(err, 'Не удалось скачать файл'));
+                          setFormError(getApiErrorMessage(err, 'Не удалось скачать файл'));
                         })
                       }
                     >

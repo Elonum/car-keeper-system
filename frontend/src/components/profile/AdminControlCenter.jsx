@@ -9,8 +9,8 @@ import { orderService } from '@/services/orderService';
 import { roleService } from '@/services/roleService';
 import { getApiErrorMessage } from '@/lib/apiErrors';
 import { PERMISSIONS, PERMISSION_LABEL_RU, ROLE_TITLE_RU, hasPermission } from '@/lib/authz';
-import { toast } from 'sonner';
 import CatalogManagement from './CatalogManagement';
+import { ErrorNotice } from '../common/ErrorNotice';
 
 export default function AdminControlCenter({ role }) {
   const qc = useQueryClient();
@@ -26,6 +26,7 @@ export default function AdminControlCenter({ role }) {
     is_active: true,
     is_terminal: false,
   });
+  const [manageError, setManageError] = useState(null);
 
   const { data: statuses = [] } = useQuery({
     queryKey: ['order-statuses', 'admin'],
@@ -42,7 +43,6 @@ export default function AdminControlCenter({ role }) {
   const createMutation = useMutation({
     mutationFn: () => orderService.createOrderStatus(form),
     onSuccess: () => {
-      toast.success('Статус создан');
       setForm({
         code: '',
         customer_label_ru: '',
@@ -52,36 +52,38 @@ export default function AdminControlCenter({ role }) {
         is_active: true,
         is_terminal: false,
       });
+      setManageError(null);
       qc.invalidateQueries({ queryKey: ['order-statuses', 'admin'] });
       qc.invalidateQueries({ queryKey: ['order-statuses', 'public'] });
     },
-    onError: (e) => toast.error(getApiErrorMessage(e, 'Не удалось создать статус')),
+    onError: (e) => setManageError(getApiErrorMessage(e, 'Не удалось создать статус')),
   });
 
   const patchMutation = useMutation({
     mutationFn: ({ id, payload }) => orderService.patchOrderStatus(id, payload),
     onSuccess: () => {
-      toast.success('Статус обновлён');
+      setManageError(null);
       qc.invalidateQueries({ queryKey: ['order-statuses', 'admin'] });
       qc.invalidateQueries({ queryKey: ['order-statuses', 'public'] });
     },
-    onError: (e) => toast.error(getApiErrorMessage(e, 'Не удалось обновить статус')),
+    onError: (e) => setManageError(getApiErrorMessage(e, 'Не удалось обновить статус')),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id) => orderService.deleteOrderStatus(id),
     onSuccess: () => {
-      toast.success('Статус удалён');
+      setManageError(null);
       qc.invalidateQueries({ queryKey: ['order-statuses', 'admin'] });
       qc.invalidateQueries({ queryKey: ['order-statuses', 'public'] });
     },
-    onError: (e) => toast.error(getApiErrorMessage(e, 'Не удалось удалить статус')),
+    onError: (e) => setManageError(getApiErrorMessage(e, 'Не удалось удалить статус')),
   });
   const canCreateStatus =
     form.code.trim() && form.customer_label_ru.trim() && Number.isFinite(form.sort_order);
 
   return (
     <div className="space-y-6">
+      <ErrorNotice kind="server" message={manageError} />
       <Card className="p-6">
         <h3 className="text-lg font-semibold text-slate-900">Ваша роль и возможности</h3>
         <p className="text-sm text-slate-600 mt-1">

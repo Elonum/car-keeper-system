@@ -15,8 +15,8 @@ import {
 import UserCarsList from './UserCarsList';
 import AddUserCarDialog from './AddUserCarDialog';
 import { getApiErrorMessage } from '@/lib/apiErrors';
-import { toast } from 'sonner';
 import { Plus } from 'lucide-react';
+import { ErrorNotice } from '../common/ErrorNotice';
 
 const GARAGE_QUERY_KEYS = [['my-cars'], ['userCars']];
 
@@ -25,6 +25,7 @@ export default function UserGarageSection() {
   const queryClient = useQueryClient();
   const [addOpen, setAddOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [garageError, setGarageError] = useState(null);
 
   const { data: cars = [], isLoading } = useQuery({
     queryKey: ['my-cars'],
@@ -36,11 +37,11 @@ export default function UserGarageSection() {
     mutationFn: (id) => profileService.deleteUserCar(id),
     onSuccess: () => {
       GARAGE_QUERY_KEYS.forEach((key) => queryClient.invalidateQueries({ queryKey: key }));
-      toast.success('Автомобиль удалён');
       setDeleteTarget(null);
+      setGarageError(null);
     },
     onError: (e) => {
-      toast.error(getApiErrorMessage(e, 'Не удалось удалить автомобиль'));
+      setGarageError(getApiErrorMessage(e, 'Не удалось удалить автомобиль'));
     },
   });
 
@@ -48,6 +49,7 @@ export default function UserGarageSection() {
 
   return (
     <div className="space-y-6">
+      <ErrorNotice kind="server" message={garageError} />
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h3 className="text-lg font-semibold text-slate-900">Гараж</h3>

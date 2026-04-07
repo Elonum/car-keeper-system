@@ -18,9 +18,9 @@ import { resolveOrderStatusLabel } from '@/lib/orderStatusDisplay';
 import { filterOrdersForCabinet } from '@/lib/cabinetFilters';
 import { PERMISSIONS, hasPermission } from '@/lib/authz';
 import { getApiErrorMessage } from '@/lib/apiErrors';
-import { toast } from 'sonner';
 import CabinetListToolbar from './CabinetListToolbar';
 import EmptyState from '../common/EmptyState';
+import { ErrorNotice } from '../common/ErrorNotice';
 import { ShoppingCart } from 'lucide-react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
@@ -41,6 +41,7 @@ export default function OrdersList({ orders, isLoading, staffMode = false }) {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [nextStatusByOrder, setNextStatusByOrder] = useState({});
+  const [actionError, setActionError] = useState(null);
 
   const staffStatusesQuery = useQuery({
     queryKey: ['order-statuses', 'admin'],
@@ -57,10 +58,11 @@ export default function OrdersList({ orders, isLoading, staffMode = false }) {
   const updateStatusMutation = useMutation({
     mutationFn: ({ orderId, status }) => orderService.updateOrderStatus(orderId, status),
     onSuccess: () => {
-      toast.success('Статус заказа обновлён');
       qc.invalidateQueries({ queryKey: ['my-orders'] });
+      qc.invalidateQueries({ queryKey: ['staff-orders'] });
+      setActionError(null);
     },
-    onError: (e) => toast.error(getApiErrorMessage(e, 'Не удалось обновить статус заказа')),
+    onError: (e) => setActionError(getApiErrorMessage(e, 'Не удалось обновить статус заказа')),
   });
 
   const statusOptions = useMemo(() => {
@@ -107,6 +109,7 @@ export default function OrdersList({ orders, isLoading, staffMode = false }) {
 
   return (
     <div className="space-y-4">
+      <ErrorNotice kind="server" message={actionError} />
       <CabinetListToolbar
         search={search}
         onSearchChange={setSearch}
@@ -130,6 +133,8 @@ export default function OrdersList({ orders, isLoading, staffMode = false }) {
           const actionStatuses = canManageStatuses
             ? statusRowsForActions
             : statusRowsForActions.filter((s) => customerActions.includes(s.code));
+          const showStatusControls =
+            canManageStatuses || (role === 'customer' && customerActions.length > 0);
           const canSubmit =
             canManageStatuses ||
             (role === 'customer' &&
@@ -184,14 +189,13 @@ export default function OrdersList({ orders, isLoading, staffMode = false }) {
 
                 <div className="flex flex-col items-end gap-2">
                   <PriceDisplay price={order.total_price || order.final_price} size="lg" />
-                  {(canManageStatuses || role === 'customer') && (
+                  {showStatusControls && (
                     <div className="w-56 flex flex-col gap-2">
                       <Select
                         value={selectedStatus}
                         onValueChange={(v) =>
                           setNextStatusByOrder((prev) => ({ ...prev, [orderIdStr]: v }))
                         }
-                        disabled={!canManageStatuses && customerActions.length === 0}
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Выберите статус" />
@@ -216,11 +220,6 @@ export default function OrdersList({ orders, isLoading, staffMode = false }) {
                       >
                         {role === 'customer' ? 'Отменить заказ' : 'Сменить статус'}
                       </Button>
-                      {!canManageStatuses && customerActions.length === 0 && (
-                        <p className="text-xs text-slate-500">
-                          Для этого заказа смена статуса недоступна.
-                        </p>
-                      )}
                     </div>
                   )}
                 </div>

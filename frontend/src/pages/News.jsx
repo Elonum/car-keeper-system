@@ -8,7 +8,6 @@ import { PERMISSIONS, hasPermission } from '@/lib/authz';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { toast } from 'sonner';
 import { getApiErrorMessage } from '@/lib/apiErrors';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
@@ -16,6 +15,7 @@ import { Card } from "@/components/ui/card";
 import PageLoader from '../components/common/PageLoader';
 import EmptyState from '../components/common/EmptyState';
 import SectionHeader from '../components/common/SectionHeader';
+import { ErrorNotice } from '../components/common/ErrorNotice';
 import { Newspaper, Calendar, User, ArrowRight } from 'lucide-react';
 
 export default function News() {
@@ -25,6 +25,7 @@ export default function News() {
   const [scope, setScope] = React.useState('published');
   const [draftTitle, setDraftTitle] = React.useState('');
   const [draftContent, setDraftContent] = React.useState('');
+  const [newsError, setNewsError] = React.useState(null);
   const { data: news, isLoading } = useQuery({
     queryKey: ['news', scope, canManageNews],
     queryFn: () =>
@@ -37,28 +38,29 @@ export default function News() {
   const createMutation = useMutation({
     mutationFn: () => newsService.createNews({ title: draftTitle, content: draftContent }),
     onSuccess: () => {
-      toast.success('Черновик новости создан');
       setDraftTitle('');
       setDraftContent('');
+      setNewsError(null);
       qc.invalidateQueries({ queryKey: ['news'] });
     },
-    onError: (e) => toast.error(getApiErrorMessage(e, 'Не удалось создать новость')),
+    onError: (e) => setNewsError(getApiErrorMessage(e, 'Не удалось создать новость')),
   });
   const publishMutation = useMutation({
     mutationFn: ({ id, publish } = {}) =>
       publish ? newsService.publishNews(id) : newsService.unpublishNews(id),
     onSuccess: () => {
+      setNewsError(null);
       qc.invalidateQueries({ queryKey: ['news'] });
     },
-    onError: (e) => toast.error(getApiErrorMessage(e, 'Не удалось изменить публикацию')),
+    onError: (e) => setNewsError(getApiErrorMessage(e, 'Не удалось изменить публикацию')),
   });
   const deleteMutation = useMutation({
     mutationFn: (id = '') => newsService.deleteNews(id),
     onSuccess: () => {
-      toast.success('Новость удалена');
+      setNewsError(null);
       qc.invalidateQueries({ queryKey: ['news'] });
     },
-    onError: (e) => toast.error(getApiErrorMessage(e, 'Не удалось удалить новость')),
+    onError: (e) => setNewsError(getApiErrorMessage(e, 'Не удалось удалить новость')),
   });
 
   if (isLoading) return <PageLoader />;
@@ -71,6 +73,7 @@ export default function News() {
           title="Новости"
           description="Последние новости и обновления автосалона"
         />
+        <ErrorNotice kind="server" message={newsError} className="mb-6" />
         {canManageNews && (
           <Card className="p-5 mb-6 space-y-3">
             <div className="flex flex-wrap gap-2">

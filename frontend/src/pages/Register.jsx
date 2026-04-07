@@ -15,8 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { toast } from 'sonner';
+import { ErrorNotice, FieldErrorText } from '@/components/common/ErrorNotice';
 import { getApiErrorMessage } from '@/lib/apiErrors';
 import {
   Car,
@@ -25,7 +24,6 @@ import {
   User,
   Phone,
   UserPlus,
-  AlertCircle,
   ArrowLeft,
   Eye,
   EyeOff,
@@ -77,7 +75,7 @@ export default function Register() {
     e.preventDefault();
     setServerError(null);
     if (!validateForm()) {
-      toast.error('Проверьте поля формы');
+      setServerError('Проверьте поля формы');
       return;
     }
 
@@ -103,7 +101,6 @@ export default function Register() {
     } catch (error) {
       const text = getApiErrorMessage(error, 'Не удалось завершить регистрацию');
       setServerError(text);
-      toast.error(text);
     } finally {
       setIsLoading(false);
     }
@@ -140,14 +137,7 @@ export default function Register() {
               </p>
             </div>
 
-            {serverError && (
-              <Alert variant="destructive" className="mb-6">
-                <div className="flex items-start gap-2">
-                  <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
-                  <AlertDescription className="text-sm">{serverError}</AlertDescription>
-                </div>
-              </Alert>
-            )}
+            <ErrorNotice kind="server" message={serverError} className="mb-6" />
 
             <form onSubmit={handleSubmit} className="space-y-6" noValidate>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -181,12 +171,7 @@ export default function Register() {
                       maxLength={FIELD_LIMITS.NAME}
                     />
                   </div>
-                  {errors.first_name && (
-                    <p id="err-first" className="text-sm text-red-600 flex items-center gap-1">
-                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                      {errors.first_name}
-                    </p>
-                  )}
+                  <FieldErrorText id="err-first">{errors.first_name}</FieldErrorText>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="last_name" className="text-slate-700">
@@ -217,12 +202,7 @@ export default function Register() {
                       maxLength={FIELD_LIMITS.NAME}
                     />
                   </div>
-                  {errors.last_name && (
-                    <p className="text-sm text-red-600 flex items-center gap-1">
-                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                      {errors.last_name}
-                    </p>
-                  )}
+                  <FieldErrorText>{errors.last_name}</FieldErrorText>
                 </div>
               </div>
 
@@ -255,12 +235,7 @@ export default function Register() {
                     maxLength={FIELD_LIMITS.EMAIL}
                   />
                 </div>
-                {errors.email && (
-                  <p className="text-sm text-red-600 flex items-center gap-1">
-                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                    {errors.email}
-                  </p>
-                )}
+                <FieldErrorText>{errors.email}</FieldErrorText>
               </div>
 
               <div className="space-y-2">
@@ -293,12 +268,7 @@ export default function Register() {
                     maxLength={FIELD_LIMITS.PHONE}
                   />
                 </div>
-                {errors.phone && (
-                  <p className="text-sm text-red-600 flex items-center gap-1">
-                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                    {errors.phone}
-                  </p>
-                )}
+                <FieldErrorText>{errors.phone}</FieldErrorText>
               </div>
 
               <div className="space-y-2">
@@ -343,12 +313,7 @@ export default function Register() {
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
-                {errors.password && (
-                  <p className="text-sm text-red-600 flex items-center gap-1">
-                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                    {errors.password}
-                  </p>
-                )}
+                <FieldErrorText>{errors.password}</FieldErrorText>
                 <p className="text-xs text-slate-500">
                   Не менее 6 символов. Рекомендуется комбинация букв и цифр.
                 </p>
@@ -398,12 +363,7 @@ export default function Register() {
                     )}
                   </button>
                 </div>
-                {errors.password_confirm && (
-                  <p className="text-sm text-red-600 flex items-center gap-1">
-                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                    {errors.password_confirm}
-                  </p>
-                )}
+                <FieldErrorText>{errors.password_confirm}</FieldErrorText>
               </div>
 
               <p className="text-xs text-slate-500 leading-relaxed">

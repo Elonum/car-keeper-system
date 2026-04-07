@@ -14,7 +14,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Calendar } from '@/components/ui/calendar';
-import { toast } from 'sonner';
+import { ErrorNotice } from '../common/ErrorNotice';
 import { format, startOfDay, isBefore } from 'date-fns';
 import { ru } from 'date-fns/locale';
 
@@ -27,6 +27,7 @@ export default function RescheduleAppointmentDialog({ open, onOpenChange, appoin
   const queryClient = useQueryClient();
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedSlotISO, setSelectedSlotISO] = useState(null);
+  const [formError, setFormError] = useState(null);
 
   const branchId = appointment?.branch_id;
   const ids = appointment ? appointmentServiceTypeIds(appointment) : [];
@@ -37,6 +38,7 @@ export default function RescheduleAppointmentDialog({ open, onOpenChange, appoin
     if (!open) return;
     setSelectedDate(null);
     setSelectedSlotISO(null);
+    setFormError(null);
   }, [open, appointment?.service_appointment_id]);
 
   const {
@@ -68,12 +70,13 @@ export default function RescheduleAppointmentDialog({ open, onOpenChange, appoin
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['my-appointments'] });
+      queryClient.invalidateQueries({ queryKey: ['staff-appointments'] });
       queryClient.invalidateQueries({ queryKey: ['branch-availability'] });
-      toast.success('Запись перенесена');
+      setFormError(null);
       onOpenChange(false);
     },
     onError: (err) => {
-      toast.error(getApiErrorMessage(err, 'Не удалось перенести запись'));
+      setFormError(getApiErrorMessage(err, 'Не удалось перенести запись'));
     },
   });
 
@@ -95,6 +98,7 @@ export default function RescheduleAppointmentDialog({ open, onOpenChange, appoin
             )}
           </DialogDescription>
         </DialogHeader>
+        <ErrorNotice kind="server" message={formError} />
 
         {noServices ? (
           <p className="text-sm text-amber-800 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
@@ -115,9 +119,10 @@ export default function RescheduleAppointmentDialog({ open, onOpenChange, appoin
               <Label className="mb-2 block text-sm font-medium">Время</Label>
               {slotsLoading && <p className="text-sm text-slate-500 py-2">Загрузка слотов…</p>}
               {slotsError && (
-                <p className="text-sm text-red-700 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
-                  {getApiErrorMessage(slotsQueryError, 'Не удалось загрузить слоты')}
-                </p>
+                <ErrorNotice
+                  kind="server"
+                  message={getApiErrorMessage(slotsQueryError, 'Не удалось загрузить слоты')}
+                />
               )}
               {!slotsLoading && !slotsError && selectedDate && slotStarts.length === 0 && (
                 <p className="text-sm text-amber-800 bg-amber-50 border rounded-lg px-3 py-2">

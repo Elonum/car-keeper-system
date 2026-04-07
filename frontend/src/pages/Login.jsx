@@ -7,10 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { toast } from 'sonner';
+import { ErrorNotice, FieldErrorText } from '@/components/common/ErrorNotice';
 import { getApiErrorMessage } from '@/lib/apiErrors';
-import { LogIn, Mail, Lock, Car, AlertCircle, UserPlus, Home } from 'lucide-react';
+import { LogIn, Mail, Lock, Car, UserPlus, Home } from 'lucide-react';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -28,9 +27,6 @@ export default function Login() {
     if (typeof st.email === 'string' && st.email) {
       setEmail(st.email);
     }
-    toast.success('Аккаунт создан. Войдите, используя email и пароль.', {
-      id: 'login-after-register',
-    });
     navigate(location.pathname, { replace: true, state: {} });
   }, [location.state, location.pathname, navigate]);
 
@@ -54,12 +50,10 @@ export default function Login() {
     setIsLoading(true);
     try {
       await login(email.trim(), password);
-      toast.success('Вход выполнен успешно');
       navigate(createPageUrl('Catalog'));
     } catch (error) {
       const errorMessage = getApiErrorMessage(error, 'Ошибка входа. Проверьте email и пароль.');
       setServerError(errorMessage);
-      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -78,14 +72,7 @@ export default function Login() {
             <p className="text-slate-500 text-sm">Войдите в свой аккаунт</p>
           </div>
 
-          {serverError && (
-            <Alert variant="destructive" className="mb-6">
-              <div className="flex items-start gap-2">
-                <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
-                <AlertDescription className="text-sm">{serverError}</AlertDescription>
-              </div>
-            </Alert>
-          )}
+          <ErrorNotice kind="server" message={serverError} className="mb-6" />
 
           <form onSubmit={handleSubmit} className="space-y-5" noValidate>
             <div className="space-y-2">
@@ -119,12 +106,7 @@ export default function Login() {
                   aria-describedby={errors.email ? 'login-email-err' : undefined}
                 />
               </div>
-              {errors.email && (
-                <p id="login-email-err" className="text-sm text-red-500 flex items-center gap-1">
-                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                  {errors.email}
-                </p>
-              )}
+              <FieldErrorText id="login-email-err">{errors.email}</FieldErrorText>
             </div>
 
             <div className="space-y-2">
@@ -157,12 +139,7 @@ export default function Login() {
                   aria-describedby={errors.password ? 'login-password-err' : undefined}
                 />
               </div>
-              {errors.password && (
-                <p id="login-password-err" className="text-sm text-red-500 flex items-center gap-1">
-                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                  {errors.password}
-                </p>
-              )}
+              <FieldErrorText id="login-password-err">{errors.password}</FieldErrorText>
             </div>
 
             <Button

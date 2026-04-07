@@ -4,7 +4,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { ErrorNotice, FieldErrorText } from '@/components/common/ErrorNotice';
 import { useAuth } from '@/lib/AuthContext';
 import { profileService } from '@/services/profileService';
 import {
@@ -14,7 +14,6 @@ import {
   validatePasswordConfirm,
   FIELD_LIMITS,
 } from '@/lib/authValidation';
-import { toast } from 'sonner';
 import { getApiErrorMessage } from '@/lib/apiErrors';
 import {
   User,
@@ -25,7 +24,6 @@ import {
   KeyRound,
   Eye,
   EyeOff,
-  AlertCircle,
 } from 'lucide-react';
 
 const ROLE_LABELS = {
@@ -47,7 +45,7 @@ export default function ProfileSettings() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [pwdErrors, setPwdErrors] = useState({});
-  /** Server-side error (API), shown in-card + toast */
+  /** Server-side error (API), shown inline in-card */
   const [profileFormError, setProfileFormError] = useState(null);
   const [passwordFormError, setPasswordFormError] = useState(null);
   const [showCurrent, setShowCurrent] = useState(false);
@@ -73,20 +71,17 @@ export default function ProfileSettings() {
     onSuccess: async () => {
       try {
         await refreshUser();
-        toast.success('Данные профиля сохранены');
         setProfileErrors({});
         setProfileFormError(null);
       } catch {
         const msg =
           'Данные на сервере обновлены. Обновите страницу, если изменения не отобразились.';
         setProfileFormError(msg);
-        toast.error(msg);
       }
     },
     onError: (e) => {
       const msg = getApiErrorMessage(e, 'Не удалось сохранить данные профиля');
       setProfileFormError(msg);
-      toast.error(msg);
     },
   });
 
@@ -101,12 +96,10 @@ export default function ProfileSettings() {
       setConfirmPassword('');
       setPwdErrors({});
       setPasswordFormError(null);
-      toast.success('Пароль обновлён');
     },
     onError: (e) => {
       const msg = getApiErrorMessage(e, 'Не удалось сменить пароль');
       setPasswordFormError(msg);
-      toast.error(msg);
     },
   });
 
@@ -125,7 +118,7 @@ export default function ProfileSettings() {
   const handleProfileSubmit = (e) => {
     e.preventDefault();
     if (!validateProfileForm()) {
-      toast.error('Проверьте поля');
+      setProfileFormError('Проверьте поля');
       return;
     }
     const payload = {
@@ -153,7 +146,7 @@ export default function ProfileSettings() {
   const handlePasswordSubmit = (e) => {
     e.preventDefault();
     if (!validatePasswordForm()) {
-      toast.error('Проверьте поля');
+      setPasswordFormError('Проверьте поля');
       return;
     }
     passwordMutation.mutate({
@@ -180,14 +173,7 @@ export default function ProfileSettings() {
         </div>
 
         <form onSubmit={handleProfileSubmit} className="space-y-5" noValidate>
-          {profileFormError && (
-            <Alert variant="destructive" className="border-red-200 bg-red-50/90">
-              <div className="flex gap-2">
-                <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-                <AlertDescription className="text-sm text-red-900">{profileFormError}</AlertDescription>
-              </div>
-            </Alert>
-          )}
+          <ErrorNotice kind="server" message={profileFormError} />
           <div className="grid sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="prof-fn">Имя</Label>
@@ -206,9 +192,7 @@ export default function ProfileSettings() {
                 disabled={profileMutation.isPending}
                 className={profileErrors.first_name ? 'border-red-500' : ''}
               />
-              {profileErrors.first_name && (
-                <p className="text-sm text-red-600">{profileErrors.first_name}</p>
-              )}
+              <FieldErrorText>{profileErrors.first_name}</FieldErrorText>
             </div>
             <div className="space-y-2">
               <Label htmlFor="prof-ln">Фамилия</Label>
@@ -227,9 +211,7 @@ export default function ProfileSettings() {
                 disabled={profileMutation.isPending}
                 className={profileErrors.last_name ? 'border-red-500' : ''}
               />
-              {profileErrors.last_name && (
-                <p className="text-sm text-red-600">{profileErrors.last_name}</p>
-              )}
+              <FieldErrorText>{profileErrors.last_name}</FieldErrorText>
             </div>
           </div>
 
@@ -274,9 +256,7 @@ export default function ProfileSettings() {
               placeholder="+7 (999) 123-45-67"
               className={profileErrors.phone ? 'border-red-500' : ''}
             />
-            {profileErrors.phone && (
-              <p className="text-sm text-red-600">{profileErrors.phone}</p>
-            )}
+            <FieldErrorText>{profileErrors.phone}</FieldErrorText>
           </div>
 
           <div className="flex flex-wrap items-center gap-3 pt-2">
@@ -328,14 +308,7 @@ export default function ProfileSettings() {
         </div>
 
         <form onSubmit={handlePasswordSubmit} className="space-y-5 mt-6" noValidate>
-          {passwordFormError && (
-            <Alert variant="destructive" className="border-red-200 bg-red-50/90">
-              <div className="flex gap-2">
-                <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-                <AlertDescription className="text-sm text-red-900">{passwordFormError}</AlertDescription>
-              </div>
-            </Alert>
-          )}
+          <ErrorNotice kind="server" message={passwordFormError} />
           <div className="space-y-2">
             <Label htmlFor="pwd-current">Текущий пароль</Label>
             <div className="relative">
@@ -365,9 +338,7 @@ export default function ProfileSettings() {
                 {showCurrent ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
-            {pwdErrors.current && (
-              <p className="text-sm text-red-600">{pwdErrors.current}</p>
-            )}
+            <FieldErrorText>{pwdErrors.current}</FieldErrorText>
           </div>
 
           <div className="space-y-2">
@@ -397,7 +368,7 @@ export default function ProfileSettings() {
                 {showNew ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
-            {pwdErrors.new && <p className="text-sm text-red-600">{pwdErrors.new}</p>}
+            <FieldErrorText>{pwdErrors.new}</FieldErrorText>
             <p className="text-xs text-slate-500">Не менее 6 символов, до 128 символов</p>
           </div>
 
@@ -430,9 +401,7 @@ export default function ProfileSettings() {
                 {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
-            {pwdErrors.confirm && (
-              <p className="text-sm text-red-600">{pwdErrors.confirm}</p>
-            )}
+            <FieldErrorText>{pwdErrors.confirm}</FieldErrorText>
           </div>
 
           <Button

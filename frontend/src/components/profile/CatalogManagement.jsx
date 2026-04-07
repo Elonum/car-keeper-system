@@ -17,7 +17,7 @@ import { serviceService } from '@/services/serviceService';
 import { adminCatalogService } from '@/services/adminCatalogService';
 import { PERMISSIONS, hasPermission } from '@/lib/authz';
 import { getApiErrorMessage } from '@/lib/apiErrors';
-import { toast } from 'sonner';
+import { ErrorNotice } from '@/components/common/ErrorNotice';
 
 const SERVICE_CATEGORIES = ['maintenance', 'repair', 'diagnostics', 'detailing', 'tires'];
 
@@ -52,24 +52,25 @@ export default function CatalogManagement({ role }) {
     duration_minutes: '',
     is_available: true,
   });
+  const [manageError, setManageError] = useState(null);
 
   const createBrand = useMutation({
     mutationFn: () => adminCatalogService.createBrand({ name: brandForm.name.trim(), country: brandForm.country.trim() }),
     onSuccess: () => {
-      toast.success('Бренд добавлен');
       setBrandForm({ name: '', country: '' });
+      setManageError(null);
       qc.invalidateQueries({ queryKey: ['catalog', 'brands'] });
     },
-    onError: (e) => toast.error(getApiErrorMessage(e, 'Не удалось создать бренд')),
+    onError: (e) => setManageError(getApiErrorMessage(e, 'Не удалось создать бренд')),
   });
 
   const deleteBrand = useMutation({
     mutationFn: (id) => adminCatalogService.deleteBrand(id),
     onSuccess: () => {
-      toast.success('Бренд удалён');
+      setManageError(null);
       qc.invalidateQueries({ queryKey: ['catalog', 'brands'] });
     },
-    onError: (e) => toast.error(getApiErrorMessage(e, 'Не удалось удалить')),
+    onError: (e) => setManageError(getApiErrorMessage(e, 'Не удалось удалить')),
   });
 
   const createSt = useMutation({
@@ -82,7 +83,6 @@ export default function CatalogManagement({ role }) {
         is_available: stForm.is_available,
       }),
     onSuccess: () => {
-      toast.success('Услуга добавлена');
       setStForm({
         name: '',
         category: 'maintenance',
@@ -90,36 +90,44 @@ export default function CatalogManagement({ role }) {
         duration_minutes: '',
         is_available: true,
       });
+      setManageError(null);
       qc.invalidateQueries({ queryKey: ['service', 'types', 'admin'] });
     },
-    onError: (e) => toast.error(getApiErrorMessage(e, 'Не удалось создать услугу')),
+    onError: (e) => setManageError(getApiErrorMessage(e, 'Не удалось создать услугу')),
   });
 
   const patchSt = useMutation({
     mutationFn: ({ id, payload }) => adminCatalogService.updateServiceType(id, payload),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['service', 'types', 'admin'] }),
-    onError: (e) => toast.error(getApiErrorMessage(e, 'Не удалось обновить')),
+    onSuccess: () => {
+      setManageError(null);
+      qc.invalidateQueries({ queryKey: ['service', 'types', 'admin'] });
+    },
+    onError: (e) => setManageError(getApiErrorMessage(e, 'Не удалось обновить')),
   });
 
   const patchBranch = useMutation({
     mutationFn: ({ id, payload }) => adminCatalogService.updateBranch(id, payload),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['service', 'branches'] }),
-    onError: (e) => toast.error(getApiErrorMessage(e, 'Не удалось обновить филиал')),
+    onSuccess: () => {
+      setManageError(null);
+      qc.invalidateQueries({ queryKey: ['service', 'branches'] });
+    },
+    onError: (e) => setManageError(getApiErrorMessage(e, 'Не удалось обновить филиал')),
   });
 
   const deleteSt = useMutation({
     mutationFn: (id) => adminCatalogService.deleteServiceType(id),
     onSuccess: () => {
-      toast.success('Услуга удалена');
+      setManageError(null);
       qc.invalidateQueries({ queryKey: ['service', 'types', 'admin'] });
     },
-    onError: (e) => toast.error(getApiErrorMessage(e, 'Не удалось удалить')),
+    onError: (e) => setManageError(getApiErrorMessage(e, 'Не удалось удалить')),
   });
 
   if (!canCatalog && !canService) return null;
 
   return (
     <div className="space-y-6">
+      <ErrorNotice kind="server" message={manageError} />
       {canCatalog && (
         <Card className="p-6 space-y-4">
           <div>
@@ -154,11 +162,17 @@ export default function CatalogManagement({ role }) {
           <div className="grid sm:grid-cols-2 gap-3 max-w-lg">
             <div>
               <Label>Название</Label>
-              <Input value={brandForm.name} onChange={(e) => setBrandForm((f) => ({ ...f, name: e.target.value }))} />
+              <Input value={brandForm.name} onChange={(e) => {
+                setBrandForm((f) => ({ ...f, name: e.target.value }));
+                setManageError(null);
+              }} />
             </div>
             <div>
               <Label>Страна</Label>
-              <Input value={brandForm.country} onChange={(e) => setBrandForm((f) => ({ ...f, country: e.target.value }))} />
+              <Input value={brandForm.country} onChange={(e) => {
+                setBrandForm((f) => ({ ...f, country: e.target.value }));
+                setManageError(null);
+              }} />
             </div>
           </div>
           <Button
@@ -223,11 +237,17 @@ export default function CatalogManagement({ role }) {
           <div className="grid sm:grid-cols-2 gap-3 max-w-2xl border-t pt-4">
             <div>
               <Label>Название</Label>
-              <Input value={stForm.name} onChange={(e) => setStForm((f) => ({ ...f, name: e.target.value }))} />
+              <Input value={stForm.name} onChange={(e) => {
+                setStForm((f) => ({ ...f, name: e.target.value }));
+                setManageError(null);
+              }} />
             </div>
             <div>
               <Label>Категория</Label>
-              <Select value={stForm.category} onValueChange={(v) => setStForm((f) => ({ ...f, category: v }))}>
+              <Select value={stForm.category} onValueChange={(v) => {
+                setStForm((f) => ({ ...f, category: v }));
+                setManageError(null);
+              }}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -247,7 +267,10 @@ export default function CatalogManagement({ role }) {
                 min="0"
                 step="0.01"
                 value={stForm.price}
-                onChange={(e) => setStForm((f) => ({ ...f, price: e.target.value }))}
+                onChange={(e) => {
+                  setStForm((f) => ({ ...f, price: e.target.value }));
+                  setManageError(null);
+                }}
               />
             </div>
             <div>
@@ -256,7 +279,10 @@ export default function CatalogManagement({ role }) {
                 type="number"
                 min="1"
                 value={stForm.duration_minutes}
-                onChange={(e) => setStForm((f) => ({ ...f, duration_minutes: e.target.value }))}
+                onChange={(e) => {
+                  setStForm((f) => ({ ...f, duration_minutes: e.target.value }));
+                  setManageError(null);
+                }}
               />
             </div>
             <div className="flex items-center justify-between sm:col-span-2 rounded border px-3 py-2">
