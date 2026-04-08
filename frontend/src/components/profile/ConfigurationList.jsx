@@ -108,8 +108,16 @@ export default function ConfigurationList({ configurations, isLoading }) {
   return (
     <div className="space-y-4">
       <ErrorNotice kind="server" message={actionError} />
+      <Card className="rounded-2xl border-slate-200 p-4 shadow-sm">
+        <p className="text-sm text-slate-600">
+          Управляйте сохранёнными конфигурациями: редактируйте черновики, оформляйте заказ и удаляйте неактуальные варианты.
+        </p>
+      </Card>
       {configurations.map(config => (
-        <Card key={config.configuration_id || config.id} className="p-6 hover:shadow-md transition-shadow">
+        <Card
+          key={config.configuration_id || config.id}
+          className="rounded-2xl border-slate-200 p-6 shadow-sm hover:shadow-md transition-shadow"
+        >
           <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
             <div className="flex-1">
               <div className="flex items-start gap-3 mb-3">

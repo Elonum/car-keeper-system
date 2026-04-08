@@ -110,6 +110,11 @@ export default function OrdersList({ orders, isLoading, staffMode = false }) {
   return (
     <div className="space-y-4">
       <ErrorNotice kind="server" message={actionError} />
+      <Card className="rounded-2xl border-slate-200 p-4 shadow-sm">
+        <p className="text-sm text-slate-600">
+          Список заказов с быстрым поиском и фильтрацией по статусу. Доступные действия зависят от вашей роли.
+        </p>
+      </Card>
       <CabinetListToolbar
         search={search}
         onSearchChange={setSearch}
@@ -143,7 +148,7 @@ export default function OrdersList({ orders, isLoading, staffMode = false }) {
           return (
             <Card
               key={orderIdStr}
-              className="p-6 hover:shadow-md transition-shadow"
+              className="rounded-2xl border-slate-200 p-6 shadow-sm hover:shadow-md transition-shadow"
             >
               <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
                 <div className="flex-1">
