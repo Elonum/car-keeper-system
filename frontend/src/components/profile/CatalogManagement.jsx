@@ -30,6 +30,7 @@ import { ErrorNotice, FieldErrorText } from '@/components/common/ErrorNotice';
 
 const SERVICE_CATEGORIES = ['maintenance', 'repair', 'diagnostics', 'detailing', 'tires'];
 const BRAND_DEFAULT_FORM = { name: '', country: '' };
+const MODEL_DEFAULT_FORM = { brand_id: '', name: '', segment: '', description: '' };
 const SERVICE_DEFAULT_FORM = {
   name: '',
   category: 'maintenance',
@@ -60,6 +61,15 @@ function normalizeServiceForm(form) {
   };
 }
 
+function normalizeModelForm(form) {
+  return {
+    brand_id: String(form.brand_id || '').trim(),
+    name: String(form.name || '').trim(),
+    segment: String(form.segment || '').trim(),
+    description: String(form.description || '').trim(),
+  };
+}
+
 export default function CatalogManagement({ role }) {
   const qc = useQueryClient();
   const canCatalog = hasPermission(role, PERMISSIONS.CATALOG_MANAGE);
@@ -82,12 +92,21 @@ export default function CatalogManagement({ role }) {
     queryFn: () => serviceService.getBranches(),
     enabled: canService,
   });
+  const { data: models = [] } = useQuery({
+    queryKey: ['catalog', 'models', 'admin'],
+    queryFn: () => adminCatalogService.listModels(),
+    enabled: canCatalog,
+  });
 
   const [brandForm, setBrandForm] = useState(BRAND_DEFAULT_FORM);
+  const [modelForm, setModelForm] = useState(MODEL_DEFAULT_FORM);
+  const [modelImageFile, setModelImageFile] = useState(null);
   const [stForm, setStForm] = useState(SERVICE_DEFAULT_FORM);
   const [brandDialogOpen, setBrandDialogOpen] = useState(false);
+  const [modelDialogOpen, setModelDialogOpen] = useState(false);
   const [serviceDialogOpen, setServiceDialogOpen] = useState(false);
   const [editingBrandId, setEditingBrandId] = useState(null);
+  const [editingModelId, setEditingModelId] = useState(null);
   const [editingServiceTypeId, setEditingServiceTypeId] = useState(null);
   const [brandInitialSnapshot, setBrandInitialSnapshot] = useState(
     JSON.stringify(normalizeBrandForm(BRAND_DEFAULT_FORM))
@@ -95,7 +114,11 @@ export default function CatalogManagement({ role }) {
   const [serviceInitialSnapshot, setServiceInitialSnapshot] = useState(
     JSON.stringify(normalizeServiceForm(SERVICE_DEFAULT_FORM))
   );
+  const [modelInitialSnapshot, setModelInitialSnapshot] = useState(
+    JSON.stringify(normalizeModelForm(MODEL_DEFAULT_FORM))
+  );
   const [brandErrors, setBrandErrors] = useState({});
+  const [modelErrors, setModelErrors] = useState({});
   const [serviceErrors, setServiceErrors] = useState({});
   const [manageError, setManageError] = useState(null);
   const updateBrand = useMutation({
@@ -125,6 +148,39 @@ export default function CatalogManagement({ role }) {
       qc.invalidateQueries({ queryKey: ['catalog', 'brands'] });
     },
     onError: (e) => setManageError(getApiErrorMessage(e, 'Не удалось удалить')),
+  });
+  const createModel = useMutation({
+    mutationFn: (payload) => adminCatalogService.createModel(payload),
+    onSuccess: () => {
+      setManageError(null);
+      qc.invalidateQueries({ queryKey: ['catalog', 'models', 'admin'] });
+    },
+    onError: (e) => setManageError(getApiErrorMessage(e, 'Не удалось создать автомобиль')),
+  });
+  const updateModel = useMutation({
+    mutationFn: ({ id, payload }) => adminCatalogService.updateModel(id, payload),
+    onSuccess: () => {
+      setManageError(null);
+      qc.invalidateQueries({ queryKey: ['catalog', 'models', 'admin'] });
+    },
+    onError: (e) => setManageError(getApiErrorMessage(e, 'Не удалось обновить автомобиль')),
+  });
+  const deleteModel = useMutation({
+    mutationFn: (id) => adminCatalogService.deleteModel(id),
+    onSuccess: () => {
+      setManageError(null);
+      qc.invalidateQueries({ queryKey: ['catalog', 'models', 'admin'] });
+    },
+    onError: (e) => setManageError(getApiErrorMessage(e, 'Не удалось удалить автомобиль')),
+  });
+  const uploadModelImage = useMutation({
+    mutationFn: ({ id, file }) => adminCatalogService.uploadModelImage(id, file),
+    onSuccess: () => {
+      setManageError(null);
+      qc.invalidateQueries({ queryKey: ['catalog', 'models', 'admin'] });
+      qc.invalidateQueries({ queryKey: ['trims'] });
+    },
+    onError: (e) => setManageError(getApiErrorMessage(e, 'Не удалось загрузить изображение')),
   });
 
   const createSt = useMutation({
@@ -166,6 +222,8 @@ export default function CatalogManagement({ role }) {
 
   if (!canCatalog && !canService) return null;
   const brandPending = createBrand.isPending || updateBrand.isPending;
+  const modelPending =
+    createModel.isPending || updateModel.isPending || deleteModel.isPending || uploadModelImage.isPending;
   const servicePending = createSt.isPending || patchSt.isPending;
   const brandCurrentSnapshot = useMemo(
     () => JSON.stringify(normalizeBrandForm(brandForm)),
@@ -175,7 +233,12 @@ export default function CatalogManagement({ role }) {
     () => JSON.stringify(normalizeServiceForm(stForm)),
     [stForm]
   );
+  const modelCurrentSnapshot = useMemo(
+    () => JSON.stringify(normalizeModelForm(modelForm)),
+    [modelForm]
+  );
   const isBrandDirty = brandCurrentSnapshot !== brandInitialSnapshot;
+  const isModelDirty = modelCurrentSnapshot !== modelInitialSnapshot || Boolean(modelImageFile);
   const isServiceDirty = serviceCurrentSnapshot !== serviceInitialSnapshot;
 
   const resetBrandForm = () => {
@@ -190,6 +253,13 @@ export default function CatalogManagement({ role }) {
     setServiceErrors({});
     setEditingServiceTypeId(null);
     setServiceInitialSnapshot(JSON.stringify(normalizeServiceForm(SERVICE_DEFAULT_FORM)));
+  };
+  const resetModelForm = () => {
+    setModelForm(MODEL_DEFAULT_FORM);
+    setModelImageFile(null);
+    setModelErrors({});
+    setEditingModelId(null);
+    setModelInitialSnapshot(JSON.stringify(normalizeModelForm(MODEL_DEFAULT_FORM)));
   };
 
   const openCreateBrandDialog = () => {
@@ -221,6 +291,26 @@ export default function CatalogManagement({ role }) {
     resetServiceForm();
     setManageError(null);
     setServiceDialogOpen(true);
+  };
+  const openCreateModelDialog = () => {
+    resetModelForm();
+    setManageError(null);
+    setModelDialogOpen(true);
+  };
+  const openEditModelDialog = (item) => {
+    const next = {
+      brand_id: String(item.brand_id || ''),
+      name: String(item.name || ''),
+      segment: String(item.segment || ''),
+      description: String(item.description || ''),
+    };
+    setModelForm(next);
+    setModelImageFile(null);
+    setModelErrors({});
+    setEditingModelId(item.model_id);
+    setModelInitialSnapshot(JSON.stringify(normalizeModelForm(next)));
+    setManageError(null);
+    setModelDialogOpen(true);
   };
 
   const openEditServiceDialog = (st) => {
@@ -277,6 +367,22 @@ export default function CatalogManagement({ role }) {
     setServiceErrors(next);
     return Object.keys(next).length === 0;
   };
+  const validateModelForm = () => {
+    const next = {};
+    const normalized = normalizeModelForm(modelForm);
+    if (!normalized.brand_id) next.brand_id = 'Выберите бренд.';
+    if (!normalized.name) next.name = 'Укажите название модели.';
+    if (normalized.name.length > 150) next.name = 'Название: не более 150 символов.';
+    if (normalized.segment.length > 100) next.segment = 'Сегмент: не более 100 символов.';
+    if (normalized.description.length > 2000) next.description = 'Описание: не более 2000 символов.';
+    if (modelImageFile) {
+      const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+      if (!allowed.includes(modelImageFile.type)) next.image = 'Допустимы JPG, PNG или WEBP.';
+      if (modelImageFile.size > 5 * 1024 * 1024) next.image = 'Размер файла не более 5 МБ.';
+    }
+    setModelErrors(next);
+    return Object.keys(next).length === 0;
+  };
 
   const submitBrandDialog = () => {
     if (!validateBrandForm()) return;
@@ -331,6 +437,46 @@ export default function CatalogManagement({ role }) {
       },
     });
   };
+  const submitModelDialog = () => {
+    if (!validateModelForm()) return;
+    const normalized = normalizeModelForm(modelForm);
+    const payload = {
+      brand_id: normalized.brand_id,
+      name: normalized.name,
+      segment: normalized.segment || null,
+      description: normalized.description || null,
+    };
+
+    const onSuccessWithImage = (id) => {
+      if (!modelImageFile) {
+        setModelDialogOpen(false);
+        resetModelForm();
+        return;
+      }
+      uploadModelImage.mutate(
+        { id, file: modelImageFile },
+        {
+          onSuccess: () => {
+            setModelDialogOpen(false);
+            resetModelForm();
+          },
+        }
+      );
+    };
+
+    if (editingModelId) {
+      updateModel.mutate(
+        { id: editingModelId, payload },
+        {
+          onSuccess: () => onSuccessWithImage(editingModelId),
+        }
+      );
+      return;
+    }
+    createModel.mutate(payload, {
+      onSuccess: (created) => onSuccessWithImage(created.model_id),
+    });
+  };
 
   const requestCloseBrandDialog = () => {
     if (brandPending) return;
@@ -348,6 +494,14 @@ export default function CatalogManagement({ role }) {
     }
     setServiceDialogOpen(false);
     resetServiceForm();
+  };
+  const requestCloseModelDialog = () => {
+    if (modelPending) return;
+    if (isModelDirty && !window.confirm('Есть несохранённые изменения. Закрыть без сохранения?')) {
+      return;
+    }
+    setModelDialogOpen(false);
+    resetModelForm();
   };
 
   return (
@@ -396,6 +550,60 @@ export default function CatalogManagement({ role }) {
                 </Button>
               </div>
             ))}
+          </div>
+        </Card>
+      )}
+      {canCatalog && (
+        <Card className="rounded-2xl border-slate-200 p-6 shadow-sm space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h3 className="text-lg font-semibold text-slate-900">Каталог: автомобили</h3>
+              <p className="text-sm text-slate-600 mt-1">
+                Управление моделями автомобилей: создание, редактирование, удаление и загрузка изображения.
+              </p>
+            </div>
+            <Button type="button" onClick={openCreateModelDialog}>
+              Добавить автомобиль
+            </Button>
+          </div>
+          <div className="space-y-2 max-h-72 overflow-y-auto">
+            {models.length === 0 && (
+              <p className="text-sm text-slate-500 rounded-lg border border-dashed border-slate-300 p-3">
+                Автомобили пока не добавлены.
+              </p>
+            )}
+            {models.map((m) => {
+              const brandLabel = brands.find((b) => b.brand_id === m.brand_id)?.name || 'Без бренда';
+              return (
+                <div
+                  key={m.model_id}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white p-2 text-sm"
+                >
+                  <div className="min-w-0">
+                    <span className="font-medium">{brandLabel} {m.name}</span>
+                    {m.segment ? <span className="text-slate-500 ml-2">· {m.segment}</span> : null}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button type="button" variant="ghost" size="sm" onClick={() => openEditModelDialog(m)}>
+                      Изм.
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-red-600"
+                      onClick={() => {
+                        if (window.confirm(`Удалить автомобиль «${m.name}»?`)) {
+                          deleteModel.mutate(m.model_id);
+                        }
+                      }}
+                    >
+                      Удалить
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </Card>
       )}
@@ -692,6 +900,121 @@ export default function CatalogManagement({ role }) {
                   }
                 >
                   {editingServiceTypeId ? 'Сохранить' : 'Создать'}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      )}
+      {canCatalog && (
+        <Dialog
+          open={modelDialogOpen}
+          onOpenChange={(open) => {
+            if (!open) {
+              requestCloseModelDialog();
+              return;
+            }
+            setModelDialogOpen(true);
+          }}
+        >
+          <DialogContent className="sm:max-w-xl">
+            <DialogHeader>
+              <DialogTitle>{editingModelId ? 'Редактировать автомобиль' : 'Добавить автомобиль'}</DialogTitle>
+              <DialogDescription>
+                Заполните поля модели и при необходимости загрузите изображение.
+              </DialogDescription>
+            </DialogHeader>
+            <form
+              className="space-y-3"
+              onSubmit={(e) => {
+                e.preventDefault();
+                submitModelDialog();
+              }}
+            >
+              <div>
+                <Label>Бренд *</Label>
+                <Select
+                  value={modelForm.brand_id}
+                  onValueChange={(v) => {
+                    setModelForm((f) => ({ ...f, brand_id: v }));
+                    setModelErrors((prev) => ({ ...prev, brand_id: undefined }));
+                    setManageError(null);
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Выберите бренд" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {brands.map((b) => (
+                      <SelectItem key={b.brand_id} value={b.brand_id}>
+                        {b.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FieldErrorText>{modelErrors.brand_id}</FieldErrorText>
+              </div>
+              <div>
+                <Label>Название модели *</Label>
+                <Input
+                  value={modelForm.name}
+                  onChange={(e) => {
+                    setModelForm((f) => ({ ...f, name: e.target.value }));
+                    setModelErrors((prev) => ({ ...prev, name: undefined }));
+                    setManageError(null);
+                  }}
+                />
+                <FieldErrorText>{modelErrors.name}</FieldErrorText>
+              </div>
+              <div>
+                <Label>Сегмент</Label>
+                <Input
+                  value={modelForm.segment}
+                  onChange={(e) => {
+                    setModelForm((f) => ({ ...f, segment: e.target.value }));
+                    setModelErrors((prev) => ({ ...prev, segment: undefined }));
+                    setManageError(null);
+                  }}
+                />
+                <FieldErrorText>{modelErrors.segment}</FieldErrorText>
+              </div>
+              <div>
+                <Label>Описание</Label>
+                <Textarea
+                  value={modelForm.description}
+                  maxLength={2000}
+                  onChange={(e) => {
+                    setModelForm((f) => ({ ...f, description: e.target.value }));
+                    setModelErrors((prev) => ({ ...prev, description: undefined }));
+                    setManageError(null);
+                  }}
+                />
+                <FieldErrorText>{modelErrors.description}</FieldErrorText>
+              </div>
+              <div>
+                <Label>Изображение (JPG, PNG, WEBP)</Label>
+                <Input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={(e) => {
+                    setModelImageFile(e.target.files?.[0] || null);
+                    setModelErrors((prev) => ({ ...prev, image: undefined }));
+                    setManageError(null);
+                  }}
+                />
+                <FieldErrorText>{modelErrors.image}</FieldErrorText>
+              </div>
+              {isModelDirty && (
+                <p className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded px-2 py-1">
+                  Есть несохранённые изменения.
+                </p>
+              )}
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={requestCloseModelDialog}>
+                  Отмена
+                </Button>
+                <Button type="submit" disabled={modelPending || (Boolean(editingModelId) && !isModelDirty)}>
+                  {editingModelId ? 'Сохранить' : 'Создать'}
                 </Button>
               </DialogFooter>
             </form>

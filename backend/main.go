@@ -125,6 +125,13 @@ func setupRouter(handlers *handler.Handler, cfg *config.Config, db *database.DB)
 					r.Patch("/{id}", handlers.AdminUpdateBrand)
 					r.Delete("/{id}", handlers.AdminDeleteBrand)
 				})
+				r.Route("/models", func(r chi.Router) {
+					r.Get("/", handlers.AdminListModels)
+					r.Post("/", handlers.AdminCreateModel)
+					r.Patch("/{id}", handlers.AdminUpdateModel)
+					r.Delete("/{id}", handlers.AdminDeleteModel)
+					r.Post("/{id}/image", handlers.AdminUploadModelImage)
+				})
 			})
 			r.Route("/service", func(r chi.Router) {
 				r.Route("/types", func(r chi.Router) {
@@ -153,6 +160,7 @@ func setupRouter(handlers *handler.Handler, cfg *config.Config, db *database.DB)
 		r.Route("/catalog", func(r chi.Router) {
 			r.Get("/brands", handlers.GetBrands)
 			r.Get("/models", handlers.GetModels)
+			r.Get("/models/{id}/image", handlers.GetModelImage)
 			r.Get("/generations", handlers.GetGenerations)
 			r.Get("/trims", handlers.GetTrims)
 			r.Get("/trims/{id}", handlers.GetTrim)

@@ -2,6 +2,7 @@ package authz
 
 import (
 	"os"
+	"slices"
 	"testing"
 
 	"github.com/google/uuid"
@@ -124,5 +125,106 @@ func TestCustomerMayChangeConfigurationStatus(t *testing.T) {
 	}
 	if !CustomerMayChangeConfigurationStatus("confirmed", "cancelled") {
 		t.Fatal("confirmed -> cancelled")
+	}
+}
+
+func TestAllPermissionsCoveredByAdminDefaults(t *testing.T) {
+	def := DefaultRolePermissions()
+	adminPerms := def["admin"]
+	if len(adminPerms) != len(AllPermissionCodes) {
+		t.Fatalf("admin permissions count mismatch: got %d want %d", len(adminPerms), len(AllPermissionCodes))
+	}
+	for _, code := range AllPermissionCodes {
+		if !slices.Contains(adminPerms, code) {
+			t.Fatalf("admin default permissions should include %s", code)
+		}
+	}
+}
+
+func TestRolePermissionRegressionMatrix(t *testing.T) {
+	cases := []struct {
+		name       string
+		role       string
+		permission string
+		want       bool
+	}{
+		{"customer cannot view any orders", "customer", PermOrdersViewAny, false},
+		{"customer cannot manage order statuses", "customer", PermOrdersManageStatus, false},
+		{"manager can view any orders", "manager", PermOrdersViewAny, true},
+		{"manager can manage order statuses", "manager", PermOrdersManageStatus, true},
+		{"manager can view any appointments", "manager", PermAppointmentsViewAny, true},
+		{"manager can manage configurations", "manager", PermConfigurationsManage, true},
+		{"manager can manage service catalog", "manager", PermServiceManage, true},
+		{"manager cannot manage catalog brands", "manager", PermCatalogManage, false},
+		{"service advisor can view any appointments", "service_advisor", PermAppointmentsViewAny, true},
+		{"service advisor can manage service catalog", "service_advisor", PermServiceManage, true},
+		{"service advisor cannot manage brands", "service_advisor", PermCatalogManage, false},
+		{"service advisor cannot manage news", "service_advisor", PermNewsManage, false},
+		{"admin can view role definitions", "admin", PermAdminRolesView, true},
+		{"admin can manage catalog", "admin", PermCatalogManage, true},
+		{"admin can manage service", "admin", PermServiceManage, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := HasPermission(tc.role, tc.permission)
+			if got != tc.want {
+				t.Fatalf("HasPermission(%q, %q) = %v, want %v", tc.role, tc.permission, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestSetRolePermissionsOverrideAndReset(t *testing.T) {
+	SetRolePermissions(map[string][]string{
+		"manager": {PermOrdersViewAny},
+	})
+	t.Cleanup(func() {
+		SetRolePermissions(DefaultRolePermissions())
+	})
+
+	if !HasPermission("manager", PermOrdersViewAny) {
+		t.Fatal("manager should keep overridden permission")
+	}
+	if HasPermission("manager", PermOrdersManageStatus) {
+		t.Fatal("manager should lose permissions not present in override")
+	}
+	if HasPermission("admin", PermOrdersViewAny) {
+		t.Fatal("admin should have no permissions when omitted from override map")
+	}
+
+	SetRolePermissions(nil) // fall back to defaults
+	if !HasPermission("admin", PermOrdersViewAny) {
+		t.Fatal("reset to defaults should restore admin permissions")
+	}
+}
+
+func TestSetStaffRolesOverrideAndReset(t *testing.T) {
+	SetStaffRoles([]string{"admin"})
+	t.Cleanup(func() {
+		SetStaffRoles([]string{"admin", "manager", "service_advisor"})
+	})
+
+	if !IsStaff("admin") {
+		t.Fatal("admin should remain staff in override")
+	}
+	if IsStaff("manager") {
+		t.Fatal("manager should not be staff in override")
+	}
+
+	SetStaffRoles(nil) // fall back to defaults
+	if !IsStaff("manager") {
+		t.Fatal("reset should restore default manager staff status")
+	}
+}
+
+func TestCanManageConfigurationStatusByRole(t *testing.T) {
+	if !CanManageConfigurationStatus("manager") {
+		t.Fatal("manager should manage configuration status")
+	}
+	if !CanManageConfigurationStatus("admin") {
+		t.Fatal("admin should manage configuration status")
+	}
+	if CanManageConfigurationStatus("customer") {
+		t.Fatal("customer must not manage configuration status")
 	}
 }

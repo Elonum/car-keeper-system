@@ -158,6 +158,8 @@ CREATE TABLE models (
     name        varchar(150) NOT NULL,
     segment     varchar(100),
     description text,
+    image_key   varchar(128),
+    image_mime  varchar(100),
     created_at  timestamptz NOT NULL DEFAULT now(),
     UNIQUE (brand_id, name)
 );
