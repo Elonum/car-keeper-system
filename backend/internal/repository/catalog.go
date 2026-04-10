@@ -14,6 +14,21 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
+func hasModelImageColumns(ctx context.Context, db *database.DB) (bool, error) {
+	var count int
+	err := db.Pool.QueryRow(ctx, `
+		SELECT COUNT(*)
+		FROM information_schema.columns
+		WHERE table_schema = 'public'
+			AND table_name = 'models'
+			AND column_name IN ('image_key', 'image_mime')
+	`).Scan(&count)
+	if err != nil {
+		return false, fmt.Errorf("check models image columns: %w", err)
+	}
+	return count == 2, nil
+}
+
 type BrandRepository struct {
 	db *database.DB
 }
@@ -86,15 +101,22 @@ func NewModelRepository(db *database.DB) *ModelRepository {
 }
 
 func (r *ModelRepository) GetByBrandID(ctx context.Context, brandID uuid.UUID) ([]model.Model, error) {
-	query := `
+	hasImageCols, err := hasModelImageColumns(ctx, r.db)
+	if err != nil {
+		return nil, apperr.Internal(err)
+	}
+	imageCols := "NULL::text as image_key, NULL::text as image_mime, NULL::text as image_url"
+	if hasImageCols {
+		imageCols = "image_key, image_mime, CASE WHEN image_key IS NOT NULL THEN '/api/catalog/models/' || model_id::text || '/image' ELSE NULL END as image_url"
+	}
+	query := fmt.Sprintf(`
 		SELECT 
-			model_id, brand_id, name, segment, description, image_key, image_mime,
-			CASE WHEN image_key IS NOT NULL THEN '/api/catalog/models/' || model_id::text || '/image' ELSE NULL END as image_url,
+			model_id, brand_id, name, segment, description, %s,
 			created_at
 		FROM models
 		WHERE brand_id = $1
 		ORDER BY name
-	`
+	`, imageCols)
 	rows, err := r.db.Pool.Query(ctx, query, brandID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get models: %w", err)
@@ -114,14 +136,21 @@ func (r *ModelRepository) GetByBrandID(ctx context.Context, brandID uuid.UUID) (
 }
 
 func (r *ModelRepository) GetAll(ctx context.Context) ([]model.Model, error) {
-	query := `
+	hasImageCols, err := hasModelImageColumns(ctx, r.db)
+	if err != nil {
+		return nil, apperr.Internal(err)
+	}
+	imageCols := "NULL::text as image_key, NULL::text as image_mime, NULL::text as image_url"
+	if hasImageCols {
+		imageCols = "image_key, image_mime, CASE WHEN image_key IS NOT NULL THEN '/api/catalog/models/' || model_id::text || '/image' ELSE NULL END as image_url"
+	}
+	query := fmt.Sprintf(`
 		SELECT 
-			model_id, brand_id, name, segment, description, image_key, image_mime,
-			CASE WHEN image_key IS NOT NULL THEN '/api/catalog/models/' || model_id::text || '/image' ELSE NULL END as image_url,
+			model_id, brand_id, name, segment, description, %s,
 			created_at
 		FROM models
 		ORDER BY created_at DESC
-	`
+	`, imageCols)
 	rows, err := r.db.Pool.Query(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get models: %w", err)
@@ -141,13 +170,25 @@ func (r *ModelRepository) GetAll(ctx context.Context) ([]model.Model, error) {
 
 func (r *ModelRepository) Create(ctx context.Context, brandID uuid.UUID, name string, segment, description *string) (*model.Model, error) {
 	var m model.Model
-	err := r.db.Pool.QueryRow(ctx, `
+	hasImageCols, err := hasModelImageColumns(ctx, r.db)
+	if err != nil {
+		return nil, apperr.Internal(err)
+	}
+	query := `
 		INSERT INTO models (brand_id, name, segment, description)
 		VALUES ($1, $2, $3, $4)
-		RETURNING model_id, brand_id, name, segment, description, image_key, image_mime,
-			CASE WHEN image_key IS NOT NULL THEN '/api/catalog/models/' || model_id::text || '/image' ELSE NULL END as image_url,
-			created_at
-	`, brandID, name, segment, description).Scan(&m.ModelID, &m.BrandID, &m.Name, &m.Segment, &m.Description, &m.ImageKey, &m.ImageMime, &m.ImageURL, &m.CreatedAt)
+		RETURNING model_id, brand_id, name, segment, description, NULL::text as image_key, NULL::text as image_mime, NULL::text as image_url, created_at
+	`
+	if hasImageCols {
+		query = `
+			INSERT INTO models (brand_id, name, segment, description)
+			VALUES ($1, $2, $3, $4)
+			RETURNING model_id, brand_id, name, segment, description, image_key, image_mime,
+				CASE WHEN image_key IS NOT NULL THEN '/api/catalog/models/' || model_id::text || '/image' ELSE NULL END as image_url,
+				created_at
+		`
+	}
+	err = r.db.Pool.QueryRow(ctx, query, brandID, name, segment, description).Scan(&m.ModelID, &m.BrandID, &m.Name, &m.Segment, &m.Description, &m.ImageKey, &m.ImageMime, &m.ImageURL, &m.CreatedAt)
 	if err != nil {
 		return nil, apperr.Internal(err)
 	}
@@ -182,6 +223,13 @@ func (r *ModelRepository) Delete(ctx context.Context, modelID uuid.UUID) error {
 }
 
 func (r *ModelRepository) GetImageMeta(ctx context.Context, modelID uuid.UUID) (key string, mimeType string, err error) {
+	hasImageCols, colErr := hasModelImageColumns(ctx, r.db)
+	if colErr != nil {
+		return "", "", apperr.Internal(colErr)
+	}
+	if !hasImageCols {
+		return "", "", apperr.BadRequest("Database schema is outdated. Add models.image_key and models.image_mime")
+	}
 	err = r.db.Pool.QueryRow(ctx, `
 		SELECT image_key, COALESCE(image_mime, 'application/octet-stream')
 		FROM models
@@ -200,6 +248,13 @@ func (r *ModelRepository) GetImageMeta(ctx context.Context, modelID uuid.UUID) (
 }
 
 func (r *ModelRepository) SetImageMeta(ctx context.Context, modelID uuid.UUID, key, mimeType string) error {
+	hasImageCols, colErr := hasModelImageColumns(ctx, r.db)
+	if colErr != nil {
+		return apperr.Internal(colErr)
+	}
+	if !hasImageCols {
+		return apperr.BadRequest("Database schema is outdated. Add models.image_key and models.image_mime")
+	}
 	cmd, err := r.db.Pool.Exec(ctx, `
 		UPDATE models
 		SET image_key = $1, image_mime = $2
@@ -256,14 +311,22 @@ func NewTrimRepository(db *database.DB) *TrimRepository {
 }
 
 func (r *TrimRepository) GetByID(ctx context.Context, trimID uuid.UUID) (*model.TrimWithDetails, error) {
-	query := `
+	hasImageCols, err := hasModelImageColumns(ctx, r.db)
+	if err != nil {
+		return nil, apperr.Internal(err)
+	}
+	imageURLSelect := "NULL::text as image_url"
+	if hasImageCols {
+		imageURLSelect = "CASE WHEN m.image_key IS NOT NULL THEN '/api/catalog/models/' || m.model_id::text || '/image' ELSE NULL END as image_url"
+	}
+	query := fmt.Sprintf(`
 		SELECT 
 			t.trim_id, t.generation_id, t.name, t.base_price,
 			t.engine_type_id, t.transmission_id, t.drive_type_id,
 			t.is_available, t.created_at, t.updated_at,
 			b.name as brand_name, m.name as model_name, g.name as generation_name,
 			m.segment as segment,
-			NULL::text as image_url,
+			%s,
 			et.name as engine_type, tr.name as transmission, dt.name as drive_type
 		FROM trims t
 		JOIN generations g ON t.generation_id = g.generation_id
@@ -273,10 +336,10 @@ func (r *TrimRepository) GetByID(ctx context.Context, trimID uuid.UUID) (*model.
 		JOIN transmissions tr ON t.transmission_id = tr.transmission_id
 		JOIN drive_types dt ON t.drive_type_id = dt.drive_type_id
 		WHERE t.trim_id = $1
-	`
+	`, imageURLSelect)
 
 	var trim model.TrimWithDetails
-	err := r.db.Pool.QueryRow(ctx, query, trimID).Scan(
+	err = r.db.Pool.QueryRow(ctx, query, trimID).Scan(
 		&trim.TrimID, &trim.GenerationID, &trim.Name, &trim.BasePrice,
 		&trim.EngineTypeID, &trim.TransmissionID, &trim.DriveTypeID,
 		&trim.IsAvailable, &trim.CreatedAt, &trim.UpdatedAt,
@@ -369,6 +432,14 @@ func (r *TrimRepository) GetWithFilters(ctx context.Context, filters model.TrimF
 		whereClause = "WHERE " + strings.Join(conditions, " AND ")
 	}
 
+	hasImageCols, err := hasModelImageColumns(ctx, r.db)
+	if err != nil {
+		return nil, apperr.Internal(err)
+	}
+	imageURLSelect := "NULL::text as image_url"
+	if hasImageCols {
+		imageURLSelect = "CASE WHEN m.image_key IS NOT NULL THEN '/api/catalog/models/' || m.model_id::text || '/image' ELSE NULL END as image_url"
+	}
 	query := fmt.Sprintf(`
 		SELECT 
 			t.trim_id, t.generation_id, t.name, t.base_price,
@@ -376,7 +447,7 @@ func (r *TrimRepository) GetWithFilters(ctx context.Context, filters model.TrimF
 			t.is_available, t.created_at, t.updated_at,
 			b.name as brand_name, m.name as model_name, g.name as generation_name,
 			m.segment as segment,
-			NULL::text as image_url,
+			%s,
 			et.name as engine_type, tr.name as transmission, dt.name as drive_type
 		FROM trims t
 		JOIN generations g ON t.generation_id = g.generation_id
@@ -387,7 +458,7 @@ func (r *TrimRepository) GetWithFilters(ctx context.Context, filters model.TrimF
 		JOIN drive_types dt ON t.drive_type_id = dt.drive_type_id
 		%s
 		ORDER BY t.created_at DESC
-	`, whereClause)
+	`, imageURLSelect, whereClause)
 
 	rows, err := r.db.Pool.Query(ctx, query, args...)
 	if err != nil {

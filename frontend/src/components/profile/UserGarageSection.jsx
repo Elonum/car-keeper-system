@@ -53,10 +53,6 @@ export default function UserGarageSection() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h3 className="text-lg font-semibold text-slate-900">Гараж</h3>
-          <p className="mt-1 text-sm text-slate-600 max-w-xl">
-            Автомобили привязаны к вашему аккаунту: по ним можно записаться на ТО. VIN уникален в системе.
-            Удаление машины также удалит связанные с ней записи на обслуживание.
-          </p>
         </div>
         <Button
           type="button"

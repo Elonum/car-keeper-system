@@ -101,9 +101,6 @@ export default function MyDocuments({ orders = [], appointments = [] }) {
           <Upload className="w-5 h-5" />
           Загрузить документ
         </h3>
-        <p className="text-sm text-slate-600 mb-4">
-          Прикрепите документ к заказу или записи на ТО. Файл будет доступен в вашем личном кабинете.
-        </p>
         <form onSubmit={handleUpload} className="space-y-4 max-w-xl">
           <ErrorNotice kind="form" message={formError} />
           <div className="space-y-2">

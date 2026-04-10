@@ -88,11 +88,6 @@ export default function ServiceAppointmentsList({ appointments, isLoading, staff
   return (
     <div className="space-y-4">
       <ErrorNotice kind="server" message={actionError} />
-      <Card className="rounded-2xl border-slate-200 p-4 shadow-sm">
-        <p className="text-sm text-slate-600">
-          Контролируйте сервисные записи: ищите по VIN/филиалу и быстро управляйте актуальными записями.
-        </p>
-      </Card>
       <CabinetListToolbar
         search={search}
         onSearchChange={setSearch}

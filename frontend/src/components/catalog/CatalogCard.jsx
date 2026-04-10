@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '../../utils';
+import { resolveApiAssetUrl } from '@/lib/assetUrls';
 import PriceDisplay from '../common/PriceDisplay';
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -10,9 +11,10 @@ import { Fuel, Cog, CircleDot, ArrowRight } from 'lucide-react';
 const engineLabels = { petrol: "Бензин", diesel: "Дизель", hybrid: "Гибрид", electric: "Электро" };
 const transLabels = { manual: "МКПП", automatic: "АКПП", robot: "Робот", cvt: "Вариатор" };
 const driveLabels = { fwd: "Передний", rwd: "Задний", awd: "Полный" };
+const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1494976388531-d1058494cdd8?w=600&h=400&fit=crop';
 
 export default function CatalogCard({ trim }) {
-  const imageUrl = trim.image_url || `https://images.unsplash.com/photo-1494976388531-d1058494cdd8?w=600&h=400&fit=crop`;
+  const imageUrl = resolveApiAssetUrl(trim.image_url) || FALLBACK_IMAGE;
 
   return (
     <Card className="group overflow-hidden border-0 shadow-sm hover:shadow-xl transition-all duration-500 bg-white rounded-2xl">
@@ -21,6 +23,11 @@ export default function CatalogCard({ trim }) {
         <img
           src={imageUrl}
           alt={`${trim.brand_name || ''} ${trim.model_name || ''}`}
+          onError={(e) => {
+            if (e.currentTarget.src !== FALLBACK_IMAGE) {
+              e.currentTarget.src = FALLBACK_IMAGE;
+            }
+          }}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
         />
         {!trim.is_available && (

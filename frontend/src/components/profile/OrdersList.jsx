@@ -110,11 +110,6 @@ export default function OrdersList({ orders, isLoading, staffMode = false }) {
   return (
     <div className="space-y-4">
       <ErrorNotice kind="server" message={actionError} />
-      <Card className="rounded-2xl border-slate-200 p-4 shadow-sm">
-        <p className="text-sm text-slate-600">
-          Список заказов с быстрым поиском и фильтрацией по статусу. Доступные действия зависят от вашей роли.
-        </p>
-      </Card>
       <CabinetListToolbar
         search={search}
         onSearchChange={setSearch}

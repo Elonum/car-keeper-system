@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,11 +26,13 @@ import { serviceService } from '@/services/serviceService';
 import { adminCatalogService } from '@/services/adminCatalogService';
 import { PERMISSIONS, hasPermission } from '@/lib/authz';
 import { getApiErrorMessage } from '@/lib/apiErrors';
+import { resolveApiAssetUrl } from '@/lib/assetUrls';
 import { ErrorNotice, FieldErrorText } from '@/components/common/ErrorNotice';
 
 const SERVICE_CATEGORIES = ['maintenance', 'repair', 'diagnostics', 'detailing', 'tires'];
 const BRAND_DEFAULT_FORM = { name: '', country: '' };
 const MODEL_DEFAULT_FORM = { brand_id: '', name: '', segment: '', description: '' };
+const MODEL_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
 const SERVICE_DEFAULT_FORM = {
   name: '',
   category: 'maintenance',
@@ -101,6 +103,8 @@ export default function CatalogManagement({ role }) {
   const [brandForm, setBrandForm] = useState(BRAND_DEFAULT_FORM);
   const [modelForm, setModelForm] = useState(MODEL_DEFAULT_FORM);
   const [modelImageFile, setModelImageFile] = useState(null);
+  const [modelImagePreviewUrl, setModelImagePreviewUrl] = useState('');
+  const [editingModelImageUrl, setEditingModelImageUrl] = useState('');
   const [stForm, setStForm] = useState(SERVICE_DEFAULT_FORM);
   const [brandDialogOpen, setBrandDialogOpen] = useState(false);
   const [modelDialogOpen, setModelDialogOpen] = useState(false);
@@ -241,6 +245,16 @@ export default function CatalogManagement({ role }) {
   const isModelDirty = modelCurrentSnapshot !== modelInitialSnapshot || Boolean(modelImageFile);
   const isServiceDirty = serviceCurrentSnapshot !== serviceInitialSnapshot;
 
+  useEffect(() => {
+    if (!modelImageFile) {
+      setModelImagePreviewUrl('');
+      return undefined;
+    }
+    const localUrl = URL.createObjectURL(modelImageFile);
+    setModelImagePreviewUrl(localUrl);
+    return () => URL.revokeObjectURL(localUrl);
+  }, [modelImageFile]);
+
   const resetBrandForm = () => {
     setBrandForm(BRAND_DEFAULT_FORM);
     setBrandErrors({});
@@ -259,6 +273,7 @@ export default function CatalogManagement({ role }) {
     setModelImageFile(null);
     setModelErrors({});
     setEditingModelId(null);
+    setEditingModelImageUrl('');
     setModelInitialSnapshot(JSON.stringify(normalizeModelForm(MODEL_DEFAULT_FORM)));
   };
 
@@ -308,6 +323,7 @@ export default function CatalogManagement({ role }) {
     setModelImageFile(null);
     setModelErrors({});
     setEditingModelId(item.model_id);
+    setEditingModelImageUrl(resolveApiAssetUrl(item.image_url));
     setModelInitialSnapshot(JSON.stringify(normalizeModelForm(next)));
     setManageError(null);
     setModelDialogOpen(true);
@@ -378,7 +394,7 @@ export default function CatalogManagement({ role }) {
     if (modelImageFile) {
       const allowed = ['image/jpeg', 'image/png', 'image/webp'];
       if (!allowed.includes(modelImageFile.type)) next.image = 'Допустимы JPG, PNG или WEBP.';
-      if (modelImageFile.size > 5 * 1024 * 1024) next.image = 'Размер файла не более 5 МБ.';
+      if (modelImageFile.size > MODEL_IMAGE_MAX_BYTES) next.image = 'Размер файла не более 5 МБ.';
     }
     setModelErrors(next);
     return Object.keys(next).length === 0;
@@ -511,10 +527,7 @@ export default function CatalogManagement({ role }) {
         <Card className="rounded-2xl border-slate-200 p-6 shadow-sm space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-            <h3 className="text-lg font-semibold text-slate-900">Каталог: бренды</h3>
-            <p className="text-sm text-slate-600 mt-1">
-              Добавление и удаление брендов. Модели и комплектации редактируются отдельно (при необходимости — через БД или расширение API).
-            </p>
+              <h3 className="text-lg font-semibold text-slate-900">Каталог: бренды</h3>
             </div>
             <Button type="button" onClick={openCreateBrandDialog}>
               Добавить бренд
@@ -558,9 +571,6 @@ export default function CatalogManagement({ role }) {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <h3 className="text-lg font-semibold text-slate-900">Каталог: автомобили</h3>
-              <p className="text-sm text-slate-600 mt-1">
-                Управление моделями автомобилей: создание, редактирование, удаление и загрузка изображения.
-              </p>
             </div>
             <Button type="button" onClick={openCreateModelDialog}>
               Добавить автомобиль
@@ -580,7 +590,9 @@ export default function CatalogManagement({ role }) {
                   className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white p-2 text-sm"
                 >
                   <div className="min-w-0">
-                    <span className="font-medium">{brandLabel} {m.name}</span>
+                    <span className="font-medium">
+                      {brandLabel} {m.name}
+                    </span>
                     {m.segment ? <span className="text-slate-500 ml-2">· {m.segment}</span> : null}
                   </div>
                   <div className="flex items-center gap-2">
@@ -993,6 +1005,20 @@ export default function CatalogManagement({ role }) {
               </div>
               <div>
                 <Label>Изображение (JPG, PNG, WEBP)</Label>
+                {(modelImagePreviewUrl || editingModelImageUrl) && (
+                  <div className="mb-2 rounded-lg border border-slate-200 bg-slate-50 p-2">
+                    <img
+                      src={modelImagePreviewUrl || editingModelImageUrl}
+                      alt="Превью автомобиля"
+                      className="w-full h-40 object-cover rounded-md"
+                    />
+                    {modelImagePreviewUrl && (
+                      <p className="mt-1 text-xs text-slate-500">
+                        Новое изображение будет загружено после сохранения.
+                      </p>
+                    )}
+                  </div>
+                )}
                 <Input
                   type="file"
                   accept="image/jpeg,image/png,image/webp"
@@ -1002,6 +1028,17 @@ export default function CatalogManagement({ role }) {
                     setManageError(null);
                   }}
                 />
+                {modelImageFile && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="mt-1"
+                    onClick={() => setModelImageFile(null)}
+                  >
+                    Убрать выбранный файл
+                  </Button>
+                )}
                 <FieldErrorText>{modelErrors.image}</FieldErrorText>
               </div>
               {isModelDirty && (

@@ -108,11 +108,6 @@ export default function ConfigurationList({ configurations, isLoading }) {
   return (
     <div className="space-y-4">
       <ErrorNotice kind="server" message={actionError} />
-      <Card className="rounded-2xl border-slate-200 p-4 shadow-sm">
-        <p className="text-sm text-slate-600">
-          Управляйте сохранёнными конфигурациями: редактируйте черновики, оформляйте заказ и удаляйте неактуальные варианты.
-        </p>
-      </Card>
       {configurations.map(config => (
         <Card
           key={config.configuration_id || config.id}
