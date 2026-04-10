@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/carkeeper/backend/internal/apperr"
 	"github.com/carkeeper/backend/internal/model"
 	"github.com/google/uuid"
 )
@@ -26,23 +27,23 @@ func totalDurationMinutes(types []model.ServiceType) int {
 
 func validateAppointmentSlot(branch *model.Branch, start time.Time, durationMin int) error {
 	if durationMin <= 0 {
-		return fmt.Errorf("invalid service duration")
+		return apperr.BadRequest("invalid service duration")
 	}
-	loc, err := time.LoadLocation(branch.Timezone)
-	if err != nil {
-		loc = time.UTC
+	if err := validateBranchScheduleConfig(branch); err != nil {
+		return err
 	}
+	loc := loadBranchLocation(branch.Timezone)
 	local := start.In(loc)
 	if local.Weekday() == time.Sunday {
-		return fmt.Errorf("branch is closed on this day")
+		return apperr.BadRequest("branch is closed on this day")
 	}
 	dayStart := time.Date(local.Year(), local.Month(), local.Day(), 0, 0, 0, 0, loc)
 	minsFromMidnight := int(local.Sub(dayStart).Minutes())
 	if minsFromMidnight < branch.WorkdayStartMinutes || minsFromMidnight+durationMin > branch.WorkdayEndMinutes {
-		return fmt.Errorf("appointment outside branch working hours")
+		return apperr.BadRequest("appointment outside branch working hours")
 	}
 	if (minsFromMidnight-branch.WorkdayStartMinutes)%branch.SlotStepMinutes != 0 {
-		return fmt.Errorf("invalid appointment time slot")
+		return apperr.BadRequest("invalid appointment time slot")
 	}
 	return nil
 }
@@ -54,12 +55,15 @@ func (s *ServiceService) BranchAvailability(ctx context.Context, branchID uuid.U
 		return nil, fmt.Errorf("failed to get branch: %w", err)
 	}
 	if !branch.IsActive {
-		return nil, fmt.Errorf("branch is not active")
+		return nil, apperr.BadRequest("branch is not active")
+	}
+	if err := validateBranchScheduleConfig(branch); err != nil {
+		return nil, err
 	}
 
 	uniq := dedupeUUIDs(serviceTypeIDs)
 	if len(uniq) == 0 {
-		return nil, fmt.Errorf("at least one service type is required")
+		return nil, apperr.BadRequest("at least one service type is required")
 	}
 
 	types, err := s.repo.ServiceType.GetByIDs(ctx, uniq)
@@ -67,17 +71,14 @@ func (s *ServiceService) BranchAvailability(ctx context.Context, branchID uuid.U
 		return nil, err
 	}
 	if len(types) != len(uniq) {
-		return nil, fmt.Errorf("one or more service types are not available")
+		return nil, apperr.BadRequest("one or more service types are not available")
 	}
 	duration := totalDurationMinutes(types)
 
-	loc, err := time.LoadLocation(branch.Timezone)
-	if err != nil {
-		loc, _ = time.LoadLocation("Europe/Moscow")
-	}
+	loc := loadBranchLocation(branch.Timezone)
 	dayStart, err := time.ParseInLocation("2006-01-02", dateStr, loc)
 	if err != nil {
-		return nil, fmt.Errorf("invalid date format")
+		return nil, apperr.BadRequest("invalid date format")
 	}
 	if dayStart.Weekday() == time.Sunday {
 		return &model.BranchAvailability{
@@ -147,4 +148,31 @@ func dedupeUUIDs(ids []uuid.UUID) []uuid.UUID {
 		out = append(out, id)
 	}
 	return out
+}
+
+func validateBranchScheduleConfig(branch *model.Branch) error {
+	if branch.SlotStepMinutes <= 0 {
+		return apperr.BadRequest("invalid branch slot step")
+	}
+	if branch.WorkdayStartMinutes < 0 || branch.WorkdayStartMinutes >= 1440 {
+		return apperr.BadRequest("invalid branch workday start")
+	}
+	if branch.WorkdayEndMinutes <= 0 || branch.WorkdayEndMinutes > 1440 {
+		return apperr.BadRequest("invalid branch workday end")
+	}
+	if branch.WorkdayStartMinutes >= branch.WorkdayEndMinutes {
+		return apperr.BadRequest("invalid branch working hours")
+	}
+	if branch.ConcurrentBays <= 0 {
+		return apperr.BadRequest("invalid branch bays configuration")
+	}
+	return nil
+}
+
+func loadBranchLocation(timezone string) *time.Location {
+	loc, err := time.LoadLocation(timezone)
+	if err == nil {
+		return loc
+	}
+	return time.UTC
 }

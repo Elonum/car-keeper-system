@@ -76,6 +76,8 @@ export default function RescheduleAppointmentDialog({ open, onOpenChange, appoin
       onOpenChange(false);
     },
     onError: (err) => {
+      setSelectedSlotISO(null);
+      queryClient.invalidateQueries({ queryKey: ['branch-availability'] });
       setFormError(getApiErrorMessage(err, 'Не удалось перенести запись'));
     },
   });

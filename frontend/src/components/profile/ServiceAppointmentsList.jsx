@@ -51,6 +51,7 @@ export default function ServiceAppointmentsList({ appointments, isLoading, staff
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['my-appointments'] });
       queryClient.invalidateQueries({ queryKey: ['staff-appointments'] });
+      queryClient.invalidateQueries({ queryKey: ['branch-availability'] });
       setActionError(null);
     },
     onError: (err) => {

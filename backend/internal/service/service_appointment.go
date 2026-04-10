@@ -48,7 +48,7 @@ func (s *ServiceService) CreateAppointment(ctx context.Context, userID uuid.UUID
 	}
 
 	if userCar.UserID != userID {
-		return nil, fmt.Errorf("user car does not belong to user")
+		return nil, apperr.Forbidden("user car does not belong to user")
 	}
 
 	// Verify branch exists and is active
@@ -58,11 +58,11 @@ func (s *ServiceService) CreateAppointment(ctx context.Context, userID uuid.UUID
 	}
 
 	if !branch.IsActive {
-		return nil, fmt.Errorf("branch is not active")
+		return nil, apperr.BadRequest("branch is not active")
 	}
 
 	if len(create.ServiceTypeIDs) == 0 {
-		return nil, fmt.Errorf("at least one service type is required")
+		return nil, apperr.BadRequest("at least one service type is required")
 	}
 
 	selectedTypes, err := s.repo.ServiceType.GetByIDs(ctx, create.ServiceTypeIDs)
@@ -70,7 +70,7 @@ func (s *ServiceService) CreateAppointment(ctx context.Context, userID uuid.UUID
 		return nil, fmt.Errorf("failed to get service types: %w", err)
 	}
 	if len(selectedTypes) != len(create.ServiceTypeIDs) {
-		return nil, fmt.Errorf("one or more service types are not available")
+		return nil, apperr.BadRequest("one or more service types are not available")
 	}
 
 	create.DurationMinutes = totalDurationMinutes(selectedTypes)
@@ -122,11 +122,18 @@ func (s *ServiceService) CancelAppointment(ctx context.Context, appointmentID uu
 	}
 	switch a.Status {
 	case "cancelled":
-		return fmt.Errorf("appointment already cancelled")
+		return apperr.BadRequest("appointment already cancelled")
 	case "completed":
-		return fmt.Errorf("cannot cancel completed appointment")
+		return apperr.BadRequest("cannot cancel completed appointment")
 	}
-	return s.repo.ServiceAppointment.UpdateStatus(ctx, appointmentID, "cancelled")
+	ok, err := s.repo.ServiceAppointment.UpdateStatusIfCurrent(ctx, appointmentID, "scheduled", "cancelled")
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return apperr.Conflict("appointment status changed, refresh and retry")
+	}
+	return nil
 }
 
 // RescheduleAppointment updates appointment_date for the car owner; services and duration stay unchanged.
@@ -143,7 +150,7 @@ func (s *ServiceService) RescheduleAppointment(ctx context.Context, userID uuid.
 		return nil, fmt.Errorf("%w", apperr.ErrForbidden)
 	}
 	if a.Status != "scheduled" {
-		return nil, fmt.Errorf("only scheduled appointments can be rescheduled")
+		return nil, apperr.BadRequest("only scheduled appointments can be rescheduled")
 	}
 
 	branch, err := s.repo.Branch.GetByID(ctx, a.BranchID)
@@ -151,7 +158,7 @@ func (s *ServiceService) RescheduleAppointment(ctx context.Context, userID uuid.
 		return nil, fmt.Errorf("failed to get branch: %w", err)
 	}
 	if !branch.IsActive {
-		return nil, fmt.Errorf("branch is not active")
+		return nil, apperr.BadRequest("branch is not active")
 	}
 	if err := validateAppointmentSlot(branch, newDate, a.DurationMinutes); err != nil {
 		return nil, err

@@ -131,6 +131,8 @@ export default function ServiceAppointment() {
       navigate(createPageUrl("Profile") + "?tab=service");
     },
     onError: (error) => {
+      setSelectedSlotISO(null);
+      queryClient.invalidateQueries({ queryKey: ['branch-availability'] });
       setFormError(getApiErrorMessage(error, 'Ошибка при создании записи'));
     },
   });

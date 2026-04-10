@@ -501,6 +501,18 @@ func (r *ServiceAppointmentRepository) UpdateStatus(ctx context.Context, appoint
 	return nil
 }
 
+func (r *ServiceAppointmentRepository) UpdateStatusIfCurrent(ctx context.Context, appointmentID uuid.UUID, fromStatus, toStatus string) (bool, error) {
+	tag, err := r.db.Pool.Exec(ctx, `
+		UPDATE service_appointments
+		SET status = $1, updated_at = now()
+		WHERE service_appointment_id = $2 AND status = $3
+	`, toStatus, appointmentID, fromStatus)
+	if err != nil {
+		return false, fmt.Errorf("failed to update appointment status conditionally: %w", err)
+	}
+	return tag.RowsAffected() > 0, nil
+}
+
 // RescheduleOwned moves a scheduled appointment to newStart after advisory lock and overlap check (excluding this row).
 func (r *ServiceAppointmentRepository) RescheduleOwned(ctx context.Context, appointmentID, ownerUserID, branchID uuid.UUID, newStart time.Time, durationMin, concurrentBays int) error {
 	if durationMin <= 0 {
@@ -567,4 +579,3 @@ func (r *ServiceAppointmentRepository) RescheduleOwned(ctx context.Context, appo
 	}
 	return nil
 }
-
