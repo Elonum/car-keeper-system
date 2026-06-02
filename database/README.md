@@ -1,100 +1,93 @@
-# Схема БД CarKeeper
+# База данных CarKeeper
 
 ## Источник правды
 
-Файл **`schema.sql`** описывает целевую схему. При изменениях в продакшене или разработке:
+Файл **`schema.sql`** — полная целевая схема (таблицы, RBAC, статусы заказов, триггеры).
 
-1. Выполните нужные SQL-команды в своей базе (через `psql`, GUI или скрипт).
-2. Внесите те же изменения в **`schema.sql`** в репозитории, чтобы новые окружения и документация не расходились с реальностью.
+При изменениях:
 
-Первичная установка пустой БД:
+1. Выполните SQL на своей БД.
+2. Внесите те же изменения в **`schema.sql`**, чтобы новые окружения не расходились с продакшеном.
+
+Миграционного раннера нет — только ручные правки и актуальный `schema.sql`.
+
+## Первичная установка
 
 ```bash
 psql -U postgres -d carkeeper -f schema.sql
+psql -U postgres -d carkeeper -f catalog_view.sql
+psql -U postgres -d carkeeper -f seed.sql
 ```
 
-При необходимости затем: `seed.sql`, `catalog_view.sql`.
+## Очистка данных (без пересоздания схемы)
 
-Инкрементальные правки для уже существующей БД выполняйте вручную (см. примеры ниже) и **сразу отражайте итог в `schema.sql`**, чтобы репозиторий оставался источником правды.
+Сохраняются справочники из `schema.sql` (роли, права, статусы заказов). Удаляются пользователи, каталог, заказы, записи и т.д.
 
-### Документы (вложения)
+```bash
+psql -U postgres -d carkeeper -f reset_data.sql
+psql -U postgres -d carkeeper -f seed.sql
+```
 
-Таблица **`documents`** хранит метаданные; сами байты лежат на диске в каталоге **`DOCUMENT_STORAGE_ROOT`** (переменная окружения API, по умолчанию `./data/documents`). В поле `file_path` — только внутренний ключ (имя файла в этом каталоге), без абсолютного пути.
+Из корня репозитория:
 
----
+```bash
+# Linux / macOS
+./scripts/db-reseed.sh
 
-## Примеры ручных изменений
+# Windows PowerShell
+.\scripts\db-reseed.ps1
+```
 
-Все примеры иллюстративны: подставьте свои имена, типы и ограничения.
+В Docker:
 
-### Добавить nullable-колонку
+```bash
+docker compose exec postgres psql -U postgres -d carkeeper -f /scripts/reset_data.sql
+docker compose exec postgres psql -U postgres -d carkeeper -f /scripts/seed.sql
+```
+
+## Демо-данные (`seed.sql`)
+
+| Сущность | Что показано |
+|----------|----------------|
+| Пользователи | admin, manager, service_advisor, 2 клиента |
+| Филиалы | 2 активных + 1 неактивный (реконструкция) |
+| Каталог | 5 брендов, комплектации, опции, недоступный trim |
+| Конфигурации | черновик, подтверждена, в заказе |
+| Заказы | pending, approved, paid |
+| Гараж | 3 автомобиля с VIN и пробегом |
+| Записи на ТО | завершена, 2 будущие, отменённая |
+| Документы | метаданные к заказу и ТО (файлы — через UI) |
+| Новости | 3 опубликованные, 1 черновик |
+
+Пароль всех пользователей seed: **`password123`**.
+
+## Инкрементальные правки (существующая БД)
+
+### Колонки изображений моделей
 
 ```sql
-ALTER TABLE users
-  ADD COLUMN IF NOT EXISTS middle_name varchar(100);
-
-COMMENT ON COLUMN users.middle_name IS 'Отчество (опционально)';
+ALTER TABLE models ADD COLUMN IF NOT EXISTS image_key varchar(128);
+ALTER TABLE models ADD COLUMN IF NOT EXISTS image_mime varchar(100);
 ```
 
-После этого добавьте тот же `ADD COLUMN` в `schema.sql` в определение таблицы `users`.
-
-### Добавить колонку с значением по умолчанию
+### Демо-авто клиента (если seed не перезаливали целиком)
 
 ```sql
-ALTER TABLE orders
-  ADD COLUMN IF NOT EXISTS priority smallint NOT NULL DEFAULT 0;
-
-ALTER TABLE orders
-  ADD CONSTRAINT chk_orders_priority CHECK (priority BETWEEN 0 AND 3);
+INSERT INTO user_cars (user_car_id, user_id, trim_id, color_id, vin, year, current_mileage)
+VALUES (
+  'd0000000-0000-0000-0000-000000000001',
+  '00000000-0000-0000-0000-000000000004',
+  '80000000-0000-0000-0000-000000000001',
+  '90000000-0000-0000-0000-000000000001',
+  'JTDBT923503012345', 2021, 42800
+) ON CONFLICT (user_car_id) DO NOTHING;
 ```
 
-### Индекс под частый запрос
+## Документы
 
-```sql
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_orders_status_created
-  ON orders (status, created_at DESC);
-```
-
-`CONCURRENTLY` удобен на живой базе (без долгой блокировки записи); в `schema.sql` обычно указывают обычный `CREATE INDEX` для новых развёртываний.
-
-### Новая таблица со связью
-
-```sql
-CREATE TABLE promotion_codes (
-    code_id      uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    code         varchar(32) NOT NULL UNIQUE,
-    discount_pct numeric(5,2) NOT NULL CHECK (discount_pct > 0 AND discount_pct <= 100),
-    valid_until  timestamptz,
-    created_at   timestamptz NOT NULL DEFAULT now()
-);
-
-CREATE INDEX idx_promotion_codes_valid_until ON promotion_codes(valid_until);
-```
-
-Скопируйте полный блок в `schema.sql` (и при необходимости добавьте триггер `updated_at` по аналогии с другими таблицами).
-
-### Изменить тип или ограничение
-
-```sql
-ALTER TABLE news
-  ALTER COLUMN title TYPE varchar(500);
-```
-
-### Удалить колонку (осторожно: потеря данных)
-
-```sql
-ALTER TABLE users DROP COLUMN IF EXISTS legacy_field;
-```
-
-### Переименовать колонку
-
-```sql
-ALTER TABLE branches RENAME COLUMN phone TO phone_main;
-```
-
----
+Метаданные в таблице `documents`, байты — в `DOCUMENT_STORAGE_ROOT` (см. `backend/.env.example`).
 
 ## Замечания
 
-- Делайте бэкап перед нетривиальными `ALTER` на продакшене.
-- После изменения `schema.sql` проверьте, что код приложения (модели, репозитории) согласован с новыми полями и типами.
+- Перед нетривиальным `ALTER` на проде — бэкап.
+- После изменения `schema.sql` проверьте модели и репозитории в Go.

@@ -1,161 +1,55 @@
-# CarKeeper - Frontend
+# CarKeeper — Frontend
 
-Информационная система автосалона с модулем конфигурации автомобилей, оформлением заказов и сервисным обслуживанием.
+SPA для каталога, конфигуратора, личного кабинета и админ-управления.
 
-## 🚀 Технологии
+## Требования
 
-- **React 18** - UI библиотека
-- **Vite** - Сборщик и dev-сервер
-- **React Router v6** - Маршрутизация
-- **TanStack Query (React Query)** - Управление серверным состоянием
-- **Axios** - HTTP клиент
-- **Tailwind CSS** - Стилизация
-- **shadcn/ui** - UI компоненты
-- **Sonner** - Toast уведомления
-- **Lucide React** - Иконки
+- Node.js 18+
+- npm
 
-## 📋 Требования
+## Установка
 
-- Node.js 18+ 
-- npm или yarn
-
-## 🛠️ Установка
-
-1. Установите зависимости:
 ```bash
 npm install
-```
-
-2. Создайте файл `.env.local` на основе `.env.example`:
-```bash
 cp .env.example .env.local
 ```
 
-3. Настройте переменные окружения в `.env.local`:
-```env
-VITE_API_BASE_URL=http://localhost:8080/api
-```
+## Переменные окружения
 
-## 🏃 Запуск
+| Переменная | Описание |
+|------------|----------|
+| `VITE_API_BASE_URL` | Базовый URL API. Локально с Vite: `/api` (прокси). Прямой доступ: `http://localhost:8080/api` |
+| `VITE_API_ORIGIN` | Опционально: origin для картинок каталога, если API на другом хосте |
 
-### Development режим
+## Запуск
+
 ```bash
 npm run dev
 ```
 
-Приложение будет доступно по адресу: `http://localhost:3000`
+http://localhost:3000 — запросы `/api` проксируются на backend (см. `vite.config.js`).
 
-### Production сборка
+Сборка:
+
 ```bash
 npm run build
-```
-
-Собранные файлы будут в папке `dist/`
-
-### Preview production сборки
-```bash
 npm run preview
 ```
 
-## 📁 Структура проекта
+## Docker
 
-```
-frontend/
-├── src/
-│   ├── api/              # API клиент (axios)
-│   ├── components/        # React компоненты
-│   │   ├── catalog/      # Компоненты каталога
-│   │   ├── configurator/ # Компоненты конфигуратора
-│   │   ├── profile/      # Компоненты профиля
-│   │   ├── service/      # Компоненты сервиса
-│   │   ├── common/       # Общие компоненты
-│   │   └── ui/           # UI компоненты (shadcn/ui)
-│   ├── lib/              # Утилиты и контексты
-│   ├── pages/            # Страницы приложения
-│   ├── services/         # API сервисы
-│   └── utils/            # Вспомогательные функции
-├── public/               # Статические файлы
-└── package.json
-```
+Собирается образ из `Dockerfile`, в compose доступен на http://localhost:8081 с прокси `/api` → сервис `api`.
 
-## 🔌 API Integration
-
-Приложение использует REST API. Все API вызовы находятся в папке `src/services/`:
-
-- `authService.js` - Аутентификация
-- `catalogService.js` - Каталог автомобилей
-- `configuratorService.js` - Конфигуратор
-- `orderService.js` - Заказы
-- `serviceService.js` - Сервисное обслуживание
-- `newsService.js` - Новости
-- `profileService.js` - Профиль пользователя
-
-## 🔐 Аутентификация
-
-Приложение использует JWT токены для аутентификации. Токен сохраняется в `localStorage` под ключом `auth_token`.
-
-## 📝 Основные страницы
-
-- `/` или `/Catalog` - Каталог автомобилей
-- `/Configurator?trim_id=...` - Конфигуратор автомобиля
-- `/News` - Новости
-- `/NewsDetail/:id` - Детали новости
-- `/ServiceAppointment` - Запись на ТО
-- `/Profile` - Личный кабинет
-
-## 🎨 Стилизация
-
-Проект использует Tailwind CSS для стилизации. Основные цвета:
-- Primary: `slate-900`
-- Accent: `blue-600`
-- Background: `slate-50`
-
-## 🐛 Отладка
-
-Для отладки используйте React DevTools и браузерные DevTools. Все API запросы логируются в консоль браузера.
-
-## 📦 Сборка для production
-
-1. Убедитесь, что переменные окружения настроены правильно
-2. Запустите сборку:
 ```bash
-npm run build
+docker compose up --build web api postgres
 ```
-3. Файлы будут в папке `dist/`, готовые для деплоя
 
-## 🔄 Интеграция с Backend
+## Демо-вход
 
-Backend должен предоставлять следующие endpoints:
+Пароль seed-пользователей: `password123` (см. корневой README).
 
-- `POST /api/auth/login` - Вход
-- `POST /api/auth/register` - Регистрация
-- `GET /api/auth/me` - Текущий пользователь
-- `GET /api/catalog/trims` - Список комплектаций
-- `GET /api/configurator/colors` - Цвета
-- `GET /api/configurator/options` - Опции
-- `POST /api/configurator/configurations` - Создать конфигурацию
-- `POST /api/orders` - Создать заказ
-- `GET /api/service/branches` - Филиалы
-- `POST /api/service/appointments` - Создать запись на ТО
-- `GET /api/news` - Новости
-- И другие...
+## Стек
 
-Подробное описание API endpoints см. в документации backend.
+React 18, Vite, React Router, TanStack Query, Axios, Tailwind CSS, shadcn/ui, Lucide.
 
-## 📄 Лицензия
-
-Проект разработан для автосалона.
-
-## 👨‍💻 Разработка
-
-Для разработки рекомендуется использовать:
-- VS Code с расширениями для React и Tailwind CSS
-- ESLint для проверки кода
-- Prettier для форматирования (опционально)
-
-## ⚠️ Важные замечания
-
-1. Убедитесь, что backend запущен и доступен по адресу, указанному в `VITE_API_BASE_URL`
-2. Для работы аутентификации backend должен поддерживать JWT токены
-3. Все API запросы должны возвращать данные в формате JSON
-4. Ошибки API обрабатываются автоматически через interceptors в `src/api/client.js`
+Ошибки отображаются через `ErrorNotice` (без toast-уведомлений).

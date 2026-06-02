@@ -15,6 +15,8 @@ vendor/
 *.out
 
 # Backend (Go)
+backend/data/
+!backend/data/.gitkeep
 cmd/*/main
 *.exe
 *.exe~

@@ -1,8 +1,9 @@
 import apiClient from '@/api/client';
 import { formatBackendErrorMessage } from '@/lib/apiErrors';
 
-export const getDocumentsApiBaseUrl = () =>
-  import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
+import { API_BASE_URL } from '@/api/client';
+
+export const getDocumentsApiBaseUrl = () => API_BASE_URL;
 
 export const documentService = {
   list: async (params = {}) => {

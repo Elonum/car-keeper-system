@@ -9,11 +9,15 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./database/catalog_view.sql:/docker-entrypoint-initdb.d/02-catalog_view.sql:ro
+      - ./database/seed.sql:/docker-entrypoint-initdb.d/03-seed.sql:ro
+      - ./database:/scripts:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d carkeeper"]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
 
   api:
     build:
@@ -30,8 +34,9 @@ services:
       SERVER_HOST: 0.0.0.0
       SERVER_PORT: "8080"
       JWT_SECRET: dev-only-change-in-real-deployment
+      JWT_COOKIE_SECURE: "false"
       DOCUMENT_STORAGE_ROOT: /app/data/documents
-      CORS_ALLOWED_ORIGINS: http://localhost:5173,http://localhost:3000,http://localhost:80
+      CORS_ALLOWED_ORIGINS: http://localhost:5173,http://localhost:3000,http://localhost:8081,http://localhost
     ports:
       - "8080:8080"
     volumes:
@@ -45,7 +50,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        VITE_API_BASE_URL: http://localhost:8080/api
+        VITE_API_BASE_URL: /api
     ports:
       - "8081:80"
     depends_on:
