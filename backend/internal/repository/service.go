@@ -287,7 +287,7 @@ func (r *ServiceAppointmentRepository) Create(ctx context.Context, create model.
 		return nil, fmt.Errorf("overlap check: %w", err)
 	}
 	if overlap >= concurrentBays {
-		return nil, fmt.Errorf("this time slot is no longer available")
+		return nil, apperr.Conflict("This time slot is no longer available")
 	}
 
 	var appointment model.ServiceAppointment
@@ -567,7 +567,7 @@ func (r *ServiceAppointmentRepository) RescheduleOwned(ctx context.Context, appo
 		return fmt.Errorf("overlap check: %w", err)
 	}
 	if overlap >= concurrentBays {
-		return fmt.Errorf("this time slot is no longer available")
+		return apperr.Conflict("This time slot is no longer available")
 	}
 
 	tag, err := tx.Exec(ctx, `

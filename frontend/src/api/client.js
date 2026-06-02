@@ -1,12 +1,25 @@
 import axios from 'axios';
 import { formatBackendErrorMessage } from '@/lib/apiErrors';
 
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
-export const API_BASE_ORIGIN = String(API_BASE_URL).replace(/\/api\/?$/, '');
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+
+function resolveApiOrigin() {
+  const base = API_BASE_URL;
+  if (String(base).startsWith('http')) {
+    return String(base).replace(/\/api\/?$/, '');
+  }
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return window.location.origin;
+  }
+  return import.meta.env.VITE_API_ORIGIN || 'http://localhost:8080';
+}
+
+export const API_BASE_ORIGIN = resolveApiOrigin();
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
   timeout: 30000,
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -17,7 +30,7 @@ apiClient.interceptors.request.use(
     if (config.data instanceof FormData) {
       delete config.headers['Content-Type'];
     }
-    const token = localStorage.getItem('auth_token');
+    const token = sessionStorage.getItem('auth_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -47,9 +60,19 @@ apiClient.interceptors.response.use(
       const { status, data } = error.response;
 
       if (status === 401) {
-        localStorage.removeItem('auth_token');
-        localStorage.removeItem('user');
-        if (window.location.pathname !== '/Login') {
+        const skipRedirect = Boolean(error.config?.skipAuthRedirect);
+        const requestUrl = String(error.config?.url || '');
+        const isAuthMe = requestUrl.includes('/auth/me');
+        const hadBearer = Boolean(error.config?.headers?.Authorization);
+
+        sessionStorage.removeItem('auth_token');
+        sessionStorage.removeItem('user');
+
+        const onAuthPage =
+          window.location.pathname === '/Login' ||
+          window.location.pathname === '/Register';
+
+        if (!skipRedirect && !isAuthMe && hadBearer && !onAuthPage) {
           window.location.href = '/Login';
         }
       }

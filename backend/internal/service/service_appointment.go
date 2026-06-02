@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -80,6 +81,10 @@ func (s *ServiceService) CreateAppointment(ctx context.Context, userID uuid.UUID
 
 	appointment, err := s.repo.ServiceAppointment.Create(ctx, create, branch.ConcurrentBays)
 	if err != nil {
+		var apiErr *apperr.APIError
+		if errors.As(err, &apiErr) {
+			return nil, err
+		}
 		return nil, fmt.Errorf("failed to create appointment: %w", err)
 	}
 

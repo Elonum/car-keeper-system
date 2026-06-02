@@ -19,8 +19,9 @@ func TestConfig() *Config {
 			MaxJSONBodyBytes: 1 << 20,
 		},
 		JWT: JWTConfig{
-			Secret:      "carkeeper-test-jwt-secret",
-			ExpiryHours: 24,
+			Secret:       "carkeeper-test-jwt-secret",
+			ExpiryHours:  24,
+			SecureCookie: false,
 		},
 		Storage: StorageConfig{
 			RootPath:       envOr("DOCUMENT_STORAGE_ROOT", "./testdata/documents"),

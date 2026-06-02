@@ -3,6 +3,7 @@ package handler
 import (
 	"net/http"
 
+	"github.com/carkeeper/backend/internal/auth"
 	"github.com/carkeeper/backend/internal/middleware"
 	"github.com/carkeeper/backend/internal/model"
 	"github.com/carkeeper/backend/internal/validate"
@@ -61,10 +62,18 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	maxAge := int(h.cfg.JWT.ExpiryDuration().Seconds())
+	auth.SetSessionCookie(w, token, h.cfg.JWT.SecureCookie, maxAge)
+
 	Success(w, map[string]interface{}{
 		"token": token,
 		"user":  user,
 	})
+}
+
+func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
+	auth.ClearSessionCookie(w, h.cfg.JWT.SecureCookie)
+	Success(w, map[string]string{"status": "ok"})
 }
 
 func (h *Handler) GetMe(w http.ResponseWriter, r *http.Request) {

@@ -75,6 +75,7 @@ func NewRouter(handlers *handler.Handler, cfg *config.Config, db *database.DB) *
 		r.Route("/auth", func(r chi.Router) {
 			r.Post("/register", handlers.Register)
 			r.Post("/login", handlers.Login)
+			r.Post("/logout", handlers.Logout)
 			r.Group(func(r chi.Router) {
 				r.Use(authMiddleware.AuthMiddleware(handlers.Services().Auth))
 				r.Get("/me", handlers.GetMe)

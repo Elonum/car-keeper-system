@@ -35,8 +35,9 @@ type ServerConfig struct {
 }
 
 type JWTConfig struct {
-	Secret      string
-	ExpiryHours int
+	Secret       string
+	ExpiryHours  int
+	SecureCookie bool
 }
 
 // StorageConfig controls on-disk document storage.
@@ -63,8 +64,9 @@ func Load() (*Config, error) {
 			MaxJSONBodyBytes: getEnvAsInt64("MAX_JSON_BODY_BYTES", 1<<20),
 		},
 		JWT: JWTConfig{
-			Secret:      getEnv("JWT_SECRET", "change-me-in-production"),
-			ExpiryHours: getEnvAsInt("JWT_EXPIRY_HOURS", 24),
+			Secret:       getEnv("JWT_SECRET", "change-me-in-production"),
+			ExpiryHours:  getEnvAsInt("JWT_EXPIRY_HOURS", 24),
+			SecureCookie: getEnv("JWT_COOKIE_SECURE", "") == "true" || getEnv("ENV", "development") == "production",
 		},
 		Storage: StorageConfig{
 			RootPath:       getEnv("DOCUMENT_STORAGE_ROOT", "./data/documents"),

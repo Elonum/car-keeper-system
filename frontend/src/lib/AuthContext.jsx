@@ -19,20 +19,13 @@ export const AuthProvider = ({ children }) => {
       setIsLoadingAuth(true);
       setAuthError(null);
 
-      if (!authService.isAuthenticated()) {
-        setIsAuthenticated(false);
-        setUser(null);
-        setIsLoadingAuth(false);
-        return;
-      }
-
       try {
         const currentUser = await authService.getCurrentUser();
         setUser(currentUser);
         setIsAuthenticated(true);
       } catch (error) {
         if (error.status === 401) {
-          authService.logout();
+          authService.clearSession();
         }
         setIsAuthenticated(false);
         setUser(null);
@@ -82,8 +75,8 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const logout = (shouldRedirect = true) => {
-    authService.logout();
+  const logout = async () => {
+    await authService.logout();
     setUser(null);
     setIsAuthenticated(false);
     setAuthError(null);

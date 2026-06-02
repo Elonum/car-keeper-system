@@ -51,6 +51,7 @@ func TestMain(m *testing.M) {
 	}
 
 	repos := repository.New(db)
+	service.BootstrapAuthz(context.Background(), repos)
 	services := service.New(repos, cfg, store)
 	handlers := handler.New(services, cfg)
 	testHandler = app.NewRouter(handlers, cfg, db)
@@ -208,16 +209,25 @@ func loginSeedUser(t *testing.T, email string) string {
 	return testsupport.TokenFromLogin(t, resp.Data)
 }
 
-func registerFreshCustomer(t *testing.T) string {
+func registerFreshCustomerCredentials(t *testing.T) (email, pass string) {
 	t.Helper()
-	email := fmt.Sprintf("it_%d@carkeeper.test", time.Now().UnixNano())
-	pass := "TestPass123!"
+	email = fmt.Sprintf("it_%d@carkeeper.test", time.Now().UnixNano())
+	pass = "TestPass123!"
 	_, resp := testsupport.DoJSON(t, testHandler, http.MethodPost, "/api/auth/register", map[string]any{
 		"first_name": "Ит",
 		"last_name":  "Тест",
 		"email":      email,
 		"password":   pass,
 	}, "")
+	if !resp.Success {
+		t.Fatalf("register failed: %s", resp.Error)
+	}
+	return email, pass
+}
+
+func registerFreshCustomer(t *testing.T) string {
+	t.Helper()
+	email, pass := registerFreshCustomerCredentials(t)
 	rr, resp := testsupport.DoJSON(t, testHandler, http.MethodPost, "/api/auth/login", map[string]any{
 		"email": email, "password": pass,
 	}, "")

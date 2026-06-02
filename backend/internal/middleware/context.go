@@ -3,19 +3,11 @@ package middleware
 import (
 	"context"
 	"net/http"
-	"strings"
 
+	"github.com/carkeeper/backend/internal/auth"
 	"github.com/carkeeper/backend/internal/service"
 	"github.com/google/uuid"
 )
-
-func bearerToken(authHeader string) string {
-	parts := strings.Split(authHeader, " ")
-	if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
-		return ""
-	}
-	return parts[1]
-}
 
 // UserIDFromContext returns the authenticated user id set by Auth or OptionalAuth middleware.
 func UserIDFromContext(ctx context.Context) (uuid.UUID, bool) {
@@ -45,12 +37,7 @@ func UserIDFromContext(ctx context.Context) (uuid.UUID, bool) {
 func OptionalAuthMiddleware(authService *service.AuthService) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			authHeader := r.Header.Get("Authorization")
-			if authHeader == "" {
-				next.ServeHTTP(w, r)
-				return
-			}
-			token := bearerToken(authHeader)
+			token := auth.TokenFromRequest(r)
 			if token == "" {
 				next.ServeHTTP(w, r)
 				return

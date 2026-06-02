@@ -22,13 +22,13 @@ export default function Profile() {
   const [searchParams, setSearchParams] = useSearchParams();
   const tabFromUrl = searchParams.get('tab') || 'account';
   const [activeTab, setActiveTab] = useState(tabFromUrl);
-  const { user, isAuthenticated, navigateToLogin } = useAuth();
+  const { user, isAuthenticated, isLoadingAuth, navigateToLogin } = useAuth();
 
   useEffect(() => {
-    if (!isAuthenticated) {
+    if (!isLoadingAuth && !isAuthenticated) {
       navigateToLogin();
     }
-  }, [isAuthenticated, navigateToLogin]);
+  }, [isLoadingAuth, isAuthenticated, navigateToLogin]);
 
   useEffect(() => {
     const tab = searchParams.get('tab') || 'account';

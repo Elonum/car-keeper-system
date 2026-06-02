@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/carkeeper/backend/internal/auth"
 	"github.com/carkeeper/backend/internal/service"
 )
 
@@ -15,8 +16,7 @@ const UserRoleKey contextKey = "role"
 func AuthMiddleware(authService *service.AuthService) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			authHeader := r.Header.Get("Authorization")
-			token := bearerToken(authHeader)
+			token := auth.TokenFromRequest(r)
 			if token == "" {
 				http.Error(w, "Unauthorized", http.StatusUnauthorized)
 				return

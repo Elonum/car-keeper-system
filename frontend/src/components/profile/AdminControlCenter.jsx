@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Dialog,
   DialogContent,
@@ -20,6 +21,7 @@ import { getApiErrorMessage } from '@/lib/apiErrors';
 import { PERMISSIONS, PERMISSION_LABEL_RU, ROLE_TITLE_RU, hasPermission } from '@/lib/authz';
 import CatalogManagement from './CatalogManagement';
 import { ErrorNotice, FieldErrorText } from '../common/ErrorNotice';
+import { LayoutGrid, ListChecks, Shield, Tags } from 'lucide-react';
 
 const STATUS_DEFAULT_FORM = {
   code: '',
@@ -47,6 +49,12 @@ export default function AdminControlCenter({ role }) {
   const qc = useQueryClient();
   const canManageDict = hasPermission(role, PERMISSIONS.ADMIN_ORDER_STATUSES);
   const canViewRoles = hasPermission(role, PERMISSIONS.ADMIN_ROLES_VIEW);
+  const canCatalog = hasPermission(role, PERMISSIONS.CATALOG_MANAGE);
+  const canService = hasPermission(role, PERMISSIONS.SERVICE_MANAGE);
+  const canStatuses =
+    canManageDict || hasPermission(role, PERMISSIONS.ORDERS_MANAGE_STATUS);
+
+  const defaultTab = canCatalog || canService ? 'catalog' : canStatuses ? 'statuses' : 'access';
 
   const [form, setForm] = useState(STATUS_DEFAULT_FORM);
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
@@ -60,7 +68,7 @@ export default function AdminControlCenter({ role }) {
   const { data: statuses = [] } = useQuery({
     queryKey: ['order-statuses', 'admin'],
     queryFn: () => orderService.getAdminOrderStatuses(),
-    enabled: canManageDict || hasPermission(role, PERMISSIONS.ORDERS_MANAGE_STATUS),
+    enabled: canStatuses,
   });
 
   const { data: roles = [] } = useQuery({
@@ -99,6 +107,7 @@ export default function AdminControlCenter({ role }) {
     },
     onError: (e) => setManageError(getApiErrorMessage(e, 'Не удалось удалить статус')),
   });
+
   const canCreateStatus =
     form.code.trim() && form.customer_label_ru.trim() && Number.isFinite(form.sort_order);
   const statusPending = createMutation.isPending || patchMutation.isPending;
@@ -221,121 +230,170 @@ export default function AdminControlCenter({ role }) {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <ErrorNotice kind="server" message={manageError} />
-      <Card className="rounded-2xl border-slate-200 p-6 shadow-sm">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h3 className="text-lg font-semibold text-slate-900">Ваша роль и возможности</h3>
-            <p className="text-sm text-slate-600 mt-1">
-              <span className="font-medium text-slate-800">{ROLE_TITLE_RU[role] || role || '—'}</span>
-              {' · '}
-              доступно {enabledPermissionsCount} из {permissionRows.length} возможностей.
-            </p>
-          </div>
-          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
-            Роль: {ROLE_TITLE_RU[role] || role || '—'}
-          </span>
-        </div>
-        <div className="mt-4 grid gap-2 sm:grid-cols-2">
-          {permissionRows.map((row) => (
-            <div
-              key={row.code}
-              className={`rounded-lg border px-3 py-2 text-sm ${
-                row.on ? 'border-emerald-200 bg-emerald-50/70 text-emerald-900' : 'border-slate-200 bg-slate-50 text-slate-500'
-              }`}
+
+      <Tabs defaultValue={defaultTab} className="space-y-4">
+        <TabsList className="bg-white p-1.5 h-auto rounded-xl shadow-sm border border-slate-200 flex-wrap w-full justify-start">
+          <TabsTrigger
+            value="access"
+            className="gap-2 data-[state=active]:bg-slate-900 data-[state=active]:text-white rounded-lg px-3 py-2 text-sm"
+          >
+            <Shield className="w-4 h-4" />
+            Доступ
+          </TabsTrigger>
+          {(canCatalog || canService) && (
+            <TabsTrigger
+              value="catalog"
+              className="gap-2 data-[state=active]:bg-slate-900 data-[state=active]:text-white rounded-lg px-3 py-2 text-sm"
             >
-              <span className="font-medium">{row.on ? 'Доступно' : 'Недоступно'}:</span> {row.label}
+              <LayoutGrid className="w-4 h-4" />
+              Каталог и сервис
+            </TabsTrigger>
+          )}
+          {canStatuses && (
+            <TabsTrigger
+              value="statuses"
+              className="gap-2 data-[state=active]:bg-slate-900 data-[state=active]:text-white rounded-lg px-3 py-2 text-sm"
+            >
+              <ListChecks className="w-4 h-4" />
+              Статусы заказов
+            </TabsTrigger>
+          )}
+          {canViewRoles && (
+            <TabsTrigger
+              value="roles"
+              className="gap-2 data-[state=active]:bg-slate-900 data-[state=active]:text-white rounded-lg px-3 py-2 text-sm"
+            >
+              <Tags className="w-4 h-4" />
+              Роли
+            </TabsTrigger>
+          )}
+        </TabsList>
+
+        <TabsContent value="access" className="mt-0">
+          <Card className="rounded-2xl border-slate-200 p-5 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+              <div>
+                <h3 className="text-base font-semibold text-slate-900">Ваша роль</h3>
+                <p className="text-sm text-slate-600 mt-0.5">
+                  {ROLE_TITLE_RU[role] || role || '—'} · {enabledPermissionsCount} из{' '}
+                  {permissionRows.length} прав
+                </p>
+              </div>
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">
+                {ROLE_TITLE_RU[role] || role}
+              </span>
             </div>
-          ))}
-        </div>
-      </Card>
+            <ul className="grid gap-1.5 sm:grid-cols-2">
+              {permissionRows.map((row) => (
+                <li
+                  key={row.code}
+                  className={`rounded-lg border px-3 py-2 text-sm ${
+                    row.on
+                      ? 'border-emerald-200/80 bg-emerald-50/60 text-emerald-950'
+                      : 'border-slate-200 bg-slate-50 text-slate-500'
+                  }`}
+                >
+                  {row.label}
+                </li>
+              ))}
+            </ul>
+          </Card>
+        </TabsContent>
 
-      <CatalogManagement role={role} />
+        {(canCatalog || canService) && (
+          <TabsContent value="catalog" className="mt-0">
+            <CatalogManagement role={role} />
+          </TabsContent>
+        )}
 
-      {(canManageDict || hasPermission(role, PERMISSIONS.ORDERS_MANAGE_STATUS)) && (
-        <Card className="rounded-2xl border-slate-200 p-6 shadow-sm space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="text-lg font-semibold text-slate-900">Статусы заказов</h3>
-            {canManageDict && (
-              <Button type="button" onClick={openCreateStatusDialog}>
-                Добавить статус
-              </Button>
-            )}
-          </div>
-          <div className="space-y-2">
-            {statuses.length === 0 && (
-              <p className="text-sm text-slate-500 rounded-lg border border-dashed border-slate-300 p-3">
-                Статусы не найдены.
-              </p>
-            )}
-            {statuses.map((s) => (
-              <div
-                key={s.order_status_id}
-                className="rounded-xl border border-slate-200 bg-white p-3 flex flex-wrap gap-2 items-center justify-between"
-              >
-                <div className="min-w-0">
-                  <p className="font-medium text-slate-900">{s.code}</p>
-                  <p className="text-sm text-slate-600 truncate">{s.customer_label_ru}</p>
-                </div>
-                <div className="flex gap-2">
-                  {canManageDict && (
-                    <>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => openEditStatusDialog(s)}
-                      >
-                        Редактировать
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() =>
-                          patchMutation.mutate({
-                            id: s.order_status_id,
-                            payload: { is_active: !s.is_active },
-                          })
-                        }
-                      >
-                        {s.is_active ? 'Деактивировать' : 'Активировать'}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="text-red-600"
-                        onClick={() => {
-                          if (window.confirm(`Удалить статус "${s.code}"?`)) {
-                            deleteMutation.mutate(s.order_status_id);
+        {canStatuses && (
+          <TabsContent value="statuses" className="mt-0">
+            <Card className="rounded-2xl border-slate-200 p-5 shadow-sm space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="text-base font-semibold text-slate-900">Статусы заказов</h3>
+                {canManageDict && (
+                  <Button type="button" size="sm" onClick={openCreateStatusDialog}>
+                    Добавить статус
+                  </Button>
+                )}
+              </div>
+              <div className="space-y-2">
+                {statuses.length === 0 && (
+                  <p className="text-sm text-slate-500 rounded-lg border border-dashed border-slate-300 p-4 text-center">
+                    Статусы не найдены
+                  </p>
+                )}
+                {statuses.map((s) => (
+                  <div
+                    key={s.order_status_id}
+                    className="rounded-xl border border-slate-200 bg-white p-3 flex flex-wrap gap-2 items-center justify-between"
+                  >
+                    <div className="min-w-0">
+                      <p className="font-medium text-slate-900 font-mono text-sm">{s.code}</p>
+                      <p className="text-sm text-slate-600 truncate">{s.customer_label_ru}</p>
+                    </div>
+                    {canManageDict && (
+                      <div className="flex flex-wrap gap-2">
+                        <Button size="sm" variant="outline" onClick={() => openEditStatusDialog(s)}>
+                          Изменить
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() =>
+                            patchMutation.mutate({
+                              id: s.order_status_id,
+                              payload: { is_active: !s.is_active },
+                            })
                           }
-                        }}
-                      >
-                        Удалить
-                      </Button>
-                    </>
-                  )}
-                </div>
+                        >
+                          {s.is_active ? 'Выкл.' : 'Вкл.'}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-red-600 hover:text-red-700"
+                          onClick={() => {
+                            if (window.confirm(`Удалить статус «${s.code}»?`)) {
+                              deleteMutation.mutate(s.order_status_id);
+                            }
+                          }}
+                        >
+                          Удалить
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </Card>
+          </TabsContent>
+        )}
 
-        </Card>
-      )}
-
-      {canViewRoles && (
-        <Card className="rounded-2xl border-slate-200 p-6 shadow-sm">
-          <h3 className="text-lg font-semibold text-slate-900 mb-3">Справочник ролей</h3>
-          <div className="space-y-2">
-            {roles.length === 0 && <p className="text-sm text-slate-500">Список ролей пуст.</p>}
-            {roles.map((row) => (
-              <div key={row.role_id} className="rounded border px-3 py-2">
-                <p className="font-medium">{row.code}</p>
-                <p className="text-sm text-slate-600">{row.name_ru}</p>
+        {canViewRoles && (
+          <TabsContent value="roles" className="mt-0">
+            <Card className="rounded-2xl border-slate-200 p-5 shadow-sm">
+              <h3 className="text-base font-semibold text-slate-900 mb-3">Справочник ролей</h3>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {roles.length === 0 && (
+                  <p className="text-sm text-slate-500 col-span-full">Список ролей пуст</p>
+                )}
+                {roles.map((row) => (
+                  <div
+                    key={row.role_id}
+                    className="rounded-xl border border-slate-200 bg-white px-3 py-2.5"
+                  >
+                    <p className="font-medium text-slate-900 font-mono text-sm">{row.code}</p>
+                    <p className="text-sm text-slate-600">{row.name_ru}</p>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </Card>
-      )}
+            </Card>
+          </TabsContent>
+        )}
+      </Tabs>
 
       {canManageDict && (
         <Dialog
@@ -352,7 +410,7 @@ export default function AdminControlCenter({ role }) {
             <DialogHeader>
               <DialogTitle>{editingStatusId ? 'Редактирование статуса' : 'Новый статус заказа'}</DialogTitle>
               <DialogDescription>
-                Заполните поля статуса. Код используется в API и должен быть стабильным.
+                Код используется в API и должен оставаться стабильным после публикации.
               </DialogDescription>
             </DialogHeader>
 
@@ -378,7 +436,7 @@ export default function AdminControlCenter({ role }) {
                   <FieldErrorText>{formErrors.code}</FieldErrorText>
                 </div>
                 <div>
-                  <Label>Порядок сортировки *</Label>
+                  <Label>Порядок *</Label>
                   <Input
                     type="number"
                     value={form.sort_order}
@@ -429,7 +487,7 @@ export default function AdminControlCenter({ role }) {
                 <FieldErrorText>{formErrors.description}</FieldErrorText>
               </div>
               <div className="grid md:grid-cols-2 gap-3">
-                <div className="flex items-center justify-between rounded border px-3 py-2">
+                <div className="flex items-center justify-between rounded-lg border px-3 py-2">
                   <Label>Активный</Label>
                   <Switch
                     checked={form.is_active}
@@ -439,7 +497,7 @@ export default function AdminControlCenter({ role }) {
                     }}
                   />
                 </div>
-                <div className="flex items-center justify-between rounded border px-3 py-2">
+                <div className="flex items-center justify-between rounded-lg border px-3 py-2">
                   <Label>Терминальный</Label>
                   <Switch
                     checked={form.is_terminal}
@@ -450,10 +508,10 @@ export default function AdminControlCenter({ role }) {
                   />
                 </div>
               </div>
-              {!canCreateStatus && <FieldErrorText>Заполните обязательные поля.</FieldErrorText>}
+              {!canCreateStatus && <FieldErrorText>Заполните обязательные поля</FieldErrorText>}
               {isStatusDirty && (
                 <p className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded px-2 py-1">
-                  Есть несохранённые изменения.
+                  Есть несохранённые изменения
                 </p>
               )}
 
@@ -479,4 +537,3 @@ export default function AdminControlCenter({ role }) {
     </div>
   );
 }
-
