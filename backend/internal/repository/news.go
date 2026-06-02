@@ -111,36 +111,48 @@ func (r *NewsRepository) Create(ctx context.Context, authorID uuid.UUID, create 
 
 func (r *NewsRepository) Update(ctx context.Context, newsID uuid.UUID, title, content string) error {
 	query := `UPDATE news SET title = $1, content = $2 WHERE news_id = $3`
-	_, err := r.db.Pool.Exec(ctx, query, title, content, newsID)
+	cmd, err := r.db.Pool.Exec(ctx, query, title, content, newsID)
 	if err != nil {
-		return fmt.Errorf("failed to update news: %w", err)
+		return apperr.Internal(err)
+	}
+	if cmd.RowsAffected() == 0 {
+		return apperr.NotFoundErr("News not found")
 	}
 	return nil
 }
 
 func (r *NewsRepository) Publish(ctx context.Context, newsID uuid.UUID) error {
 	query := `UPDATE news SET is_published = true, published_at = now() WHERE news_id = $1`
-	_, err := r.db.Pool.Exec(ctx, query, newsID)
+	cmd, err := r.db.Pool.Exec(ctx, query, newsID)
 	if err != nil {
-		return fmt.Errorf("failed to publish news: %w", err)
+		return apperr.Internal(err)
+	}
+	if cmd.RowsAffected() == 0 {
+		return apperr.NotFoundErr("News not found")
 	}
 	return nil
 }
 
 func (r *NewsRepository) Unpublish(ctx context.Context, newsID uuid.UUID) error {
 	query := `UPDATE news SET is_published = false, published_at = NULL WHERE news_id = $1`
-	_, err := r.db.Pool.Exec(ctx, query, newsID)
+	cmd, err := r.db.Pool.Exec(ctx, query, newsID)
 	if err != nil {
-		return fmt.Errorf("failed to unpublish news: %w", err)
+		return apperr.Internal(err)
+	}
+	if cmd.RowsAffected() == 0 {
+		return apperr.NotFoundErr("News not found")
 	}
 	return nil
 }
 
 func (r *NewsRepository) Delete(ctx context.Context, newsID uuid.UUID) error {
 	query := `DELETE FROM news WHERE news_id = $1`
-	_, err := r.db.Pool.Exec(ctx, query, newsID)
+	cmd, err := r.db.Pool.Exec(ctx, query, newsID)
 	if err != nil {
-		return fmt.Errorf("failed to delete news: %w", err)
+		return apperr.Internal(err)
+	}
+	if cmd.RowsAffected() == 0 {
+		return apperr.NotFoundErr("News not found")
 	}
 	return nil
 }

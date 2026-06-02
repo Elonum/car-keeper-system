@@ -72,22 +72,28 @@ func (r *BrandRepository) Create(ctx context.Context, name, country string) (*mo
 
 // Update updates brand name and country.
 func (r *BrandRepository) Update(ctx context.Context, brandID uuid.UUID, name, country string) error {
-	_, err := r.db.Pool.Exec(ctx, `UPDATE brands SET name = $1, country = $2 WHERE brand_id = $3`, name, country, brandID)
+	cmd, err := r.db.Pool.Exec(ctx, `UPDATE brands SET name = $1, country = $2 WHERE brand_id = $3`, name, country, brandID)
 	if err != nil {
 		return apperr.Internal(err)
+	}
+	if cmd.RowsAffected() == 0 {
+		return apperr.NotFoundErr("Brand not found")
 	}
 	return nil
 }
 
 // Delete removes a brand (fails if models reference it).
 func (r *BrandRepository) Delete(ctx context.Context, brandID uuid.UUID) error {
-	_, err := r.db.Pool.Exec(ctx, `DELETE FROM brands WHERE brand_id = $1`, brandID)
+	cmd, err := r.db.Pool.Exec(ctx, `DELETE FROM brands WHERE brand_id = $1`, brandID)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23503" {
 			return apperr.BadRequest("Cannot delete brand: referenced by models")
 		}
 		return apperr.Internal(err)
+	}
+	if cmd.RowsAffected() == 0 {
+		return apperr.NotFoundErr("Brand not found")
 	}
 	return nil
 }
@@ -211,13 +217,16 @@ func (r *ModelRepository) Update(ctx context.Context, modelID, brandID uuid.UUID
 }
 
 func (r *ModelRepository) Delete(ctx context.Context, modelID uuid.UUID) error {
-	_, err := r.db.Pool.Exec(ctx, `DELETE FROM models WHERE model_id = $1`, modelID)
+	cmd, err := r.db.Pool.Exec(ctx, `DELETE FROM models WHERE model_id = $1`, modelID)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23503" {
 			return apperr.BadRequest("Cannot delete model: referenced by generations")
 		}
 		return apperr.Internal(err)
+	}
+	if cmd.RowsAffected() == 0 {
+		return apperr.NotFoundErr("Model not found")
 	}
 	return nil
 }

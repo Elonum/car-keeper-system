@@ -27,6 +27,7 @@ import { adminCatalogService } from '@/services/adminCatalogService';
 import { PERMISSIONS, hasPermission } from '@/lib/authz';
 import { getApiErrorMessage } from '@/lib/apiErrors';
 import { resolveApiAssetUrl } from '@/lib/assetUrls';
+import { queryKeys, invalidatePublicCatalog } from '@/lib/queryKeys';
 import { ErrorNotice, FieldErrorText } from '@/components/common/ErrorNotice';
 
 const SERVICE_CATEGORIES = ['maintenance', 'repair', 'diagnostics', 'detailing', 'tires'];
@@ -78,24 +79,24 @@ export default function CatalogManagement({ role }) {
   const canService = hasPermission(role, PERMISSIONS.SERVICE_MANAGE);
 
   const { data: brands = [] } = useQuery({
-    queryKey: ['catalog', 'brands'],
+    queryKey: queryKeys.catalogBrandsAdmin(),
     queryFn: () => catalogService.getBrands(),
     enabled: canCatalog,
   });
 
   const { data: serviceTypes = [] } = useQuery({
-    queryKey: ['service', 'types', 'admin'],
+    queryKey: queryKeys.serviceTypesAdmin(),
     queryFn: () => serviceService.getServiceTypes(),
     enabled: canService,
   });
 
   const { data: branches = [] } = useQuery({
-    queryKey: ['service', 'branches'],
+    queryKey: queryKeys.serviceBranchesAdmin(),
     queryFn: () => serviceService.getBranches(),
     enabled: canService,
   });
   const { data: models = [] } = useQuery({
-    queryKey: ['catalog', 'models', 'admin'],
+    queryKey: queryKeys.catalogModelsAdmin(),
     queryFn: () => adminCatalogService.listModels(),
     enabled: canCatalog,
   });
@@ -129,7 +130,8 @@ export default function CatalogManagement({ role }) {
     mutationFn: ({ id, payload }) => adminCatalogService.updateBrand(id, payload),
     onSuccess: () => {
       setManageError(null);
-      qc.invalidateQueries({ queryKey: ['catalog', 'brands'] });
+      qc.invalidateQueries({ queryKey: queryKeys.catalogBrandsAdmin() });
+      invalidatePublicCatalog(qc);
     },
     onError: (e) => setManageError(getApiErrorMessage(e, 'Не удалось обновить бренд')),
   });
@@ -140,7 +142,8 @@ export default function CatalogManagement({ role }) {
     onSuccess: () => {
       setBrandForm(BRAND_DEFAULT_FORM);
       setManageError(null);
-      qc.invalidateQueries({ queryKey: ['catalog', 'brands'] });
+      qc.invalidateQueries({ queryKey: queryKeys.catalogBrandsAdmin() });
+      invalidatePublicCatalog(qc);
     },
     onError: (e) => setManageError(getApiErrorMessage(e, 'Не удалось создать бренд')),
   });
@@ -149,7 +152,8 @@ export default function CatalogManagement({ role }) {
     mutationFn: (id) => adminCatalogService.deleteBrand(id),
     onSuccess: () => {
       setManageError(null);
-      qc.invalidateQueries({ queryKey: ['catalog', 'brands'] });
+      qc.invalidateQueries({ queryKey: queryKeys.catalogBrandsAdmin() });
+      invalidatePublicCatalog(qc);
     },
     onError: (e) => setManageError(getApiErrorMessage(e, 'Не удалось удалить')),
   });
@@ -157,7 +161,8 @@ export default function CatalogManagement({ role }) {
     mutationFn: (payload) => adminCatalogService.createModel(payload),
     onSuccess: () => {
       setManageError(null);
-      qc.invalidateQueries({ queryKey: ['catalog', 'models', 'admin'] });
+      qc.invalidateQueries({ queryKey: queryKeys.catalogModelsAdmin() });
+      invalidatePublicCatalog(qc);
     },
     onError: (e) => setManageError(getApiErrorMessage(e, 'Не удалось создать автомобиль')),
   });
@@ -165,7 +170,8 @@ export default function CatalogManagement({ role }) {
     mutationFn: ({ id, payload }) => adminCatalogService.updateModel(id, payload),
     onSuccess: () => {
       setManageError(null);
-      qc.invalidateQueries({ queryKey: ['catalog', 'models', 'admin'] });
+      qc.invalidateQueries({ queryKey: queryKeys.catalogModelsAdmin() });
+      invalidatePublicCatalog(qc);
     },
     onError: (e) => setManageError(getApiErrorMessage(e, 'Не удалось обновить автомобиль')),
   });
@@ -173,7 +179,8 @@ export default function CatalogManagement({ role }) {
     mutationFn: (id) => adminCatalogService.deleteModel(id),
     onSuccess: () => {
       setManageError(null);
-      qc.invalidateQueries({ queryKey: ['catalog', 'models', 'admin'] });
+      qc.invalidateQueries({ queryKey: queryKeys.catalogModelsAdmin() });
+      invalidatePublicCatalog(qc);
     },
     onError: (e) => setManageError(getApiErrorMessage(e, 'Не удалось удалить автомобиль')),
   });
@@ -181,8 +188,8 @@ export default function CatalogManagement({ role }) {
     mutationFn: ({ id, file }) => adminCatalogService.uploadModelImage(id, file),
     onSuccess: () => {
       setManageError(null);
-      qc.invalidateQueries({ queryKey: ['catalog', 'models', 'admin'] });
-      qc.invalidateQueries({ queryKey: ['trims'] });
+      qc.invalidateQueries({ queryKey: queryKeys.catalogModelsAdmin() });
+      invalidatePublicCatalog(qc);
     },
     onError: (e) => setManageError(getApiErrorMessage(e, 'Не удалось загрузить изображение')),
   });
@@ -192,7 +199,8 @@ export default function CatalogManagement({ role }) {
     onSuccess: () => {
       setStForm(SERVICE_DEFAULT_FORM);
       setManageError(null);
-      qc.invalidateQueries({ queryKey: ['service', 'types', 'admin'] });
+      qc.invalidateQueries({ queryKey: queryKeys.serviceTypesAdmin() });
+      qc.invalidateQueries({ queryKey: ['serviceTypes'] });
     },
     onError: (e) => setManageError(getApiErrorMessage(e, 'Не удалось создать услугу')),
   });
@@ -201,7 +209,8 @@ export default function CatalogManagement({ role }) {
     mutationFn: ({ id, payload }) => adminCatalogService.updateServiceType(id, payload),
     onSuccess: () => {
       setManageError(null);
-      qc.invalidateQueries({ queryKey: ['service', 'types', 'admin'] });
+      qc.invalidateQueries({ queryKey: queryKeys.serviceTypesAdmin() });
+      qc.invalidateQueries({ queryKey: ['serviceTypes'] });
     },
     onError: (e) => setManageError(getApiErrorMessage(e, 'Не удалось обновить')),
   });
@@ -210,7 +219,8 @@ export default function CatalogManagement({ role }) {
     mutationFn: ({ id, payload }) => adminCatalogService.updateBranch(id, payload),
     onSuccess: () => {
       setManageError(null);
-      qc.invalidateQueries({ queryKey: ['service', 'branches'] });
+      qc.invalidateQueries({ queryKey: queryKeys.serviceBranchesAdmin() });
+      qc.invalidateQueries({ queryKey: queryKeys.branches() });
     },
     onError: (e) => setManageError(getApiErrorMessage(e, 'Не удалось обновить филиал')),
   });
@@ -219,7 +229,8 @@ export default function CatalogManagement({ role }) {
     mutationFn: (id) => adminCatalogService.deleteServiceType(id),
     onSuccess: () => {
       setManageError(null);
-      qc.invalidateQueries({ queryKey: ['service', 'types', 'admin'] });
+      qc.invalidateQueries({ queryKey: queryKeys.serviceTypesAdmin() });
+      qc.invalidateQueries({ queryKey: ['serviceTypes'] });
     },
     onError: (e) => setManageError(getApiErrorMessage(e, 'Не удалось удалить')),
   });

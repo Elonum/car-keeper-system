@@ -103,7 +103,7 @@ func (r *ServiceTypeRepository) Create(ctx context.Context, name, category strin
 
 // Update patches a service type.
 func (r *ServiceTypeRepository) Update(ctx context.Context, id uuid.UUID, name, category string, description *string, price float64, durationMinutes *int, isAvailable bool) error {
-	_, err := r.db.Pool.Exec(ctx, `
+	cmd, err := r.db.Pool.Exec(ctx, `
 		UPDATE service_types
 		SET name = $1, category = $2, description = $3, price = $4, duration_minutes = $5, is_available = $6
 		WHERE service_type_id = $7
@@ -111,18 +111,24 @@ func (r *ServiceTypeRepository) Update(ctx context.Context, id uuid.UUID, name, 
 	if err != nil {
 		return apperr.Internal(err)
 	}
+	if cmd.RowsAffected() == 0 {
+		return apperr.NotFoundErr("Service type not found")
+	}
 	return nil
 }
 
 // Delete removes a service type (fails if referenced by appointments).
 func (r *ServiceTypeRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	_, err := r.db.Pool.Exec(ctx, `DELETE FROM service_types WHERE service_type_id = $1`, id)
+	cmd, err := r.db.Pool.Exec(ctx, `DELETE FROM service_types WHERE service_type_id = $1`, id)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23503" {
 			return apperr.BadRequest("Cannot delete: service type is in use")
 		}
 		return apperr.Internal(err)
+	}
+	if cmd.RowsAffected() == 0 {
+		return apperr.NotFoundErr("Service type not found")
 	}
 	return nil
 }
@@ -221,9 +227,12 @@ func (r *BranchRepository) UpdateBranch(ctx context.Context, id uuid.UUID, name,
 	q += strings.Join(sets, ", ")
 	q += fmt.Sprintf(", updated_at = now() WHERE branch_id = $%d", n)
 	args = append(args, id)
-	_, err := r.db.Pool.Exec(ctx, q, args...)
+	cmd, err := r.db.Pool.Exec(ctx, q, args...)
 	if err != nil {
 		return apperr.Internal(err)
+	}
+	if cmd.RowsAffected() == 0 {
+		return apperr.NotFoundErr("Branch not found")
 	}
 	return nil
 }

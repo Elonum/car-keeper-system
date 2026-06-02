@@ -40,6 +40,69 @@ func (r *OrderRepository) Create(ctx context.Context, userID uuid.UUID, create m
 	return &order, nil
 }
 
+// CreateAndMarkConfigurationOrdered inserts an order and sets configuration status to ordered atomically.
+func (r *OrderRepository) CreateAndMarkConfigurationOrdered(
+	ctx context.Context,
+	userID uuid.UUID,
+	create model.OrderCreate,
+	finalPrice float64,
+) (*model.Order, error) {
+	tx, err := r.db.Pool.Begin(ctx)
+	if err != nil {
+		return nil, apperr.Internal(err)
+	}
+	defer tx.Rollback(ctx)
+
+	var configUserID uuid.UUID
+	var configStatus string
+	err = tx.QueryRow(ctx, `
+		SELECT user_id, status FROM configurations
+		WHERE configuration_id = $1
+		FOR UPDATE
+	`, create.ConfigurationID).Scan(&configUserID, &configStatus)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, apperr.NotFoundErr("Configuration not found")
+		}
+		return nil, apperr.Internal(err)
+	}
+	if configUserID != userID {
+		return nil, apperr.Forbidden("Configuration does not belong to your account")
+	}
+	if configStatus != "confirmed" && configStatus != "draft" {
+		return nil, apperr.BadRequest("Configuration cannot be ordered in its current status")
+	}
+
+	var order model.Order
+	err = tx.QueryRow(ctx, `
+		INSERT INTO orders (user_id, configuration_id, status, final_price)
+		VALUES ($1, $2, 'pending', $3)
+		RETURNING order_id, user_id, configuration_id, manager_id, status, final_price, created_at, updated_at
+	`, userID, create.ConfigurationID, finalPrice).Scan(
+		&order.OrderID, &order.UserID, &order.ConfigurationID, &order.ManagerID,
+		&order.Status, &order.FinalPrice, &order.CreatedAt, &order.UpdatedAt,
+	)
+	if err != nil {
+		return nil, apperr.Internal(err)
+	}
+
+	tag, err := tx.Exec(ctx, `
+		UPDATE configurations SET status = 'ordered', updated_at = NOW()
+		WHERE configuration_id = $1
+	`, create.ConfigurationID)
+	if err != nil {
+		return nil, apperr.Internal(err)
+	}
+	if tag.RowsAffected() == 0 {
+		return nil, apperr.Internal(fmt.Errorf("configuration status not updated"))
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, apperr.Internal(err)
+	}
+	return &order, nil
+}
+
 func (r *OrderRepository) GetByID(ctx context.Context, orderID uuid.UUID) (*model.OrderWithDetails, error) {
 	var order model.OrderWithDetails
 	query := `

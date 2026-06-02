@@ -17,8 +17,7 @@ import AddUserCarDialog from './AddUserCarDialog';
 import { getApiErrorMessage } from '@/lib/apiErrors';
 import { Plus } from 'lucide-react';
 import { ErrorNotice } from '../common/ErrorNotice';
-
-const GARAGE_QUERY_KEYS = [['my-cars'], ['userCars']];
+import { invalidateGarageRelated } from '@/lib/queryKeys';
 
 export default function UserGarageSection() {
   const { isAuthenticated } = useAuth();
@@ -36,7 +35,7 @@ export default function UserGarageSection() {
   const deleteMutation = useMutation({
     mutationFn: (id) => profileService.deleteUserCar(id),
     onSuccess: () => {
-      GARAGE_QUERY_KEYS.forEach((key) => queryClient.invalidateQueries({ queryKey: key }));
+      invalidateGarageRelated(queryClient);
       setDeleteTarget(null);
       setGarageError(null);
     },

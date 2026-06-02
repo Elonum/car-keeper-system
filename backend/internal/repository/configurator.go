@@ -280,10 +280,13 @@ func (r *ConfigurationRepository) GetByUserID(ctx context.Context, userID uuid.U
 }
 
 func (r *ConfigurationRepository) UpdateStatus(ctx context.Context, configID uuid.UUID, status string) error {
-	query := `UPDATE configurations SET status = $1 WHERE configuration_id = $2`
-	_, err := r.db.Pool.Exec(ctx, query, status, configID)
+	query := `UPDATE configurations SET status = $1, updated_at = NOW() WHERE configuration_id = $2`
+	cmd, err := r.db.Pool.Exec(ctx, query, status, configID)
 	if err != nil {
-		return fmt.Errorf("failed to update configuration status: %w", err)
+		return apperr.Internal(err)
+	}
+	if cmd.RowsAffected() == 0 {
+		return apperr.NotFoundErr("Configuration not found")
 	}
 	return nil
 }

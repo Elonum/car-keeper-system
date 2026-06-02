@@ -10,6 +10,7 @@ import (
 	"github.com/carkeeper/backend/internal/model"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -56,7 +57,11 @@ func (r *UserRepository) Create(ctx context.Context, userCreate model.UserCreate
 	)
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to create user: %w", err)
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return nil, apperr.Conflict("This email is already registered")
+		}
+		return nil, apperr.Internal(err)
 	}
 
 	return &user, nil

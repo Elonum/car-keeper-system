@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ArrowLeft, ArrowRight, Save, ShoppingCart, Check } from 'lucide-react';
 import { getApiErrorMessage } from '@/lib/apiErrors';
+import { queryKeys } from '@/lib/queryKeys';
 
 const STEPS = ['Комплектация', 'Цвет', 'Опции', 'Итог'];
 
@@ -149,8 +150,8 @@ export default function Configurator() {
       if (!data) return;
       setFormError(null);
       
-      queryClient.invalidateQueries({ queryKey: ['configurations'] });
-      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.myConfigurations() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.myOrders() });
       
       if (data.status === 'draft') {
         navigate(createPageUrl("Profile") + "?tab=configurations");

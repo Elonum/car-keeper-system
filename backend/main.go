@@ -41,6 +41,7 @@ func main() {
 	}
 
 	repos := repository.New(db)
+	service.BootstrapAuthz(context.Background(), repos)
 	services := service.New(repos, cfg, fileStore)
 	handlers := handler.New(services, cfg)
 	router := app.NewRouter(handlers, cfg, db)

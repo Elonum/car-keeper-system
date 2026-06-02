@@ -30,20 +30,8 @@ func (s *OrderService) CreateOrder(ctx context.Context, userID uuid.UUID, create
 		return nil, err
 	}
 
-	if config.UserID != userID {
-		return nil, apperr.Forbidden("Configuration does not belong to your account")
-	}
-
-	if config.Status != "confirmed" && config.Status != "draft" {
-		return nil, apperr.BadRequest("Configuration cannot be ordered in its current status")
-	}
-
-	order, err := s.repo.Order.Create(ctx, userID, create, config.TotalPrice)
+	order, err := s.repo.Order.CreateAndMarkConfigurationOrdered(ctx, userID, create, config.TotalPrice)
 	if err != nil {
-		return nil, err
-	}
-
-	if err := s.repo.Configuration.UpdateStatus(ctx, create.ConfigurationID, "ordered"); err != nil {
 		return nil, err
 	}
 

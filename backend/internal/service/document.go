@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -13,20 +14,9 @@ import (
 	"github.com/carkeeper/backend/internal/model"
 	"github.com/carkeeper/backend/internal/repository"
 	"github.com/carkeeper/backend/internal/storage"
+	"github.com/carkeeper/backend/internal/upload"
 	"github.com/google/uuid"
 )
-
-// Allowed document Content-Types (keep in sync with product policy).
-var allowedDocumentMIME = map[string]struct{}{
-	"application/pdf":    {},
-	"image/jpeg":         {},
-	"image/png":          {},
-	"image/webp":         {},
-	"application/msword": {},
-	"application/vnd.openxmlformats-officedocument.wordprocessingml.document": {},
-	"application/vnd.ms-excel": {},
-	"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {},
-}
 
 type DocumentService struct {
 	repo    *repository.Repository
@@ -58,10 +48,18 @@ func (s *DocumentService) Create(ctx context.Context, in DocumentCreateInput) (*
 	if in.Size <= 0 {
 		return nil, fmt.Errorf("empty or invalid file")
 	}
-	mt := strings.TrimSpace(strings.ToLower(in.MimeType))
-	if _, ok := allowedDocumentMIME[mt]; !ok {
+
+	head := make([]byte, 512)
+	n, err := io.ReadFull(in.Reader, head)
+	if err != nil && err != io.EOF && err != io.ErrUnexpectedEOF {
+		return nil, fmt.Errorf("failed to read file header")
+	}
+	mt := upload.ResolveDocumentMIME(head[:n], in.MimeType, in.FileName)
+	if mt == "" {
 		return nil, fmt.Errorf("unsupported file type")
 	}
+	payload := io.MultiReader(bytes.NewReader(head[:n]), in.Reader)
+	in.Reader = payload
 	if !model.ValidDocumentType(in.DocumentType) {
 		return nil, fmt.Errorf("invalid document_type")
 	}

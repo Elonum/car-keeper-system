@@ -28,12 +28,8 @@ import {
   validateMileage,
 } from '@/lib/userCarValidation';
 import { getApiErrorMessage } from '@/lib/apiErrors';
+import { invalidateGarageRelated } from '@/lib/queryKeys';
 import { ErrorNotice, FieldErrorText } from '../common/ErrorNotice';
-
-const GARAGE_QUERY_KEYS = [
-  ['my-cars'],
-  ['userCars'],
-];
 
 function pickId(entity, ...keys) {
   if (!entity) return '';
@@ -114,9 +110,7 @@ export default function AddUserCarDialog({ open, onOpenChange }) {
   const createMutation = useMutation({
     mutationFn: (payload) => profileService.createUserCar(payload),
     onSuccess: () => {
-      GARAGE_QUERY_KEYS.forEach((key) => {
-        queryClient.invalidateQueries({ queryKey: key });
-      });
+      invalidateGarageRelated(queryClient);
       setFormError(null);
       onOpenChange(false);
     },
