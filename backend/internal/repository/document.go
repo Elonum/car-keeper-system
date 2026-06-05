@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/carkeeper/backend/database"
+	"github.com/carkeeper/backend/internal/apperr"
 	"github.com/carkeeper/backend/internal/model"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -49,7 +50,7 @@ func (r *DocumentRepository) GetByID(ctx context.Context, id uuid.UUID) (*model.
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, fmt.Errorf("document not found")
+			return nil, fmt.Errorf("%w", apperr.ErrNotFound)
 		}
 		return nil, fmt.Errorf("get document: %w", err)
 	}
@@ -64,6 +65,21 @@ func (r *DocumentRepository) ListByUserID(ctx context.Context, userID uuid.UUID)
 		ORDER BY created_at DESC
 	`
 	rows, err := r.db.Pool.Query(ctx, query, userID)
+	if err != nil {
+		return nil, fmt.Errorf("list documents: %w", err)
+	}
+	defer rows.Close()
+	return scanDocuments(rows)
+}
+
+func (r *DocumentRepository) ListAll(ctx context.Context) ([]model.Document, error) {
+	query := `
+		SELECT document_id, user_id, order_id, service_appointment_id,
+		       document_type, file_path, file_name, file_size, mime_type, created_at
+		FROM documents
+		ORDER BY created_at DESC
+	`
+	rows, err := r.db.Pool.Query(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("list documents: %w", err)
 	}
@@ -122,7 +138,7 @@ func (r *DocumentRepository) Delete(ctx context.Context, id uuid.UUID) error {
 		return fmt.Errorf("delete document: %w", err)
 	}
 	if cmd.RowsAffected() == 0 {
-		return fmt.Errorf("document not found")
+		return fmt.Errorf("%w", apperr.ErrNotFound)
 	}
 	return nil
 }

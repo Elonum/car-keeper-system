@@ -49,12 +49,8 @@ func (h *Handler) CreateDocument(w http.ResponseWriter, r *http.Request) {
 	}
 
 	size := header.Size
-	if size <= 0 {
-		BadRequest(w, "could not determine file size; upload a file with known length")
-		return
-	}
 	if size > maxB {
-		BadRequest(w, "file too large")
+		Error(w, http.StatusRequestEntityTooLarge, "file too large")
 		return
 	}
 
@@ -75,12 +71,11 @@ func (h *Handler) CreateDocument(w http.ResponseWriter, r *http.Request) {
 		Role:         role,
 	})
 	if err != nil {
-		switch {
-		case errors.Is(err, apperr.ErrForbidden):
+		if errors.Is(err, apperr.ErrForbidden) {
 			Forbidden(w, "not allowed to attach document to this resource")
-		default:
-			HandleError(w, r, err)
+			return
 		}
+		HandleError(w, r, err)
 		return
 	}
 

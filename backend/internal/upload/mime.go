@@ -53,3 +53,13 @@ func isAllowedDocumentMIME(m string) bool {
 	_, ok := allowedDocumentMIME[m]
 	return ok
 }
+
+// AllowedDocumentExtensions lists client-facing file extensions (lowercase, with dot).
+func AllowedDocumentExtensions() []string {
+	return []string{
+		".pdf",
+		".jpg", ".jpeg", ".png", ".webp",
+		".doc", ".docx",
+		".xls", ".xlsx",
+	}
+}

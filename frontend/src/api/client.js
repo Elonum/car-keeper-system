@@ -1,3 +1,5 @@
+/// <reference types="vite/client" />
+
 import axios from 'axios';
 import { formatBackendErrorMessage } from '@/lib/apiErrors';
 
@@ -15,6 +17,16 @@ function resolveApiOrigin() {
 }
 
 export const API_BASE_ORIGIN = resolveApiOrigin();
+
+/** Bearer header for fetch (binary download) — matches axios interceptor + httpOnly cookie. */
+export function getApiAuthHeaders() {
+  const headers = {};
+  const token = sessionStorage.getItem('auth_token');
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+  return headers;
+}
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,

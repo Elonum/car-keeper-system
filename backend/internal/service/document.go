@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"path/filepath"
@@ -31,7 +32,7 @@ func NewDocumentService(repos *repository.Repository, store storage.FileStorage,
 // DocumentCreateInput is validated business input for a new file document.
 type DocumentCreateInput struct {
 	Reader       io.Reader
-	Size         int64
+	Size         int64 // optional hint from multipart; actual size is measured from bytes read
 	FileName     string
 	MimeType     string
 	DocumentType string
@@ -41,27 +42,39 @@ type DocumentCreateInput struct {
 	Role         string
 }
 
-func (s *DocumentService) Create(ctx context.Context, in DocumentCreateInput) (*model.Document, error) {
-	if in.Size > s.maxSize {
-		return nil, fmt.Errorf("file exceeds maximum size of %d bytes", s.maxSize)
+func (s *DocumentService) maxUploadSize() int64 {
+	if s.maxSize > 0 {
+		return s.maxSize
 	}
-	if in.Size <= 0 {
-		return nil, fmt.Errorf("empty or invalid file")
+	return 15 << 20
+}
+
+func (s *DocumentService) Create(ctx context.Context, in DocumentCreateInput) (*model.Document, error) {
+	max := s.maxUploadSize()
+	if in.Size > max {
+		return nil, apperr.PayloadTooLarge(fmt.Sprintf("file exceeds maximum size of %d bytes", max))
 	}
 
-	head := make([]byte, 512)
-	n, err := io.ReadFull(in.Reader, head)
-	if err != nil && err != io.EOF && err != io.ErrUnexpectedEOF {
-		return nil, fmt.Errorf("failed to read file header")
+	buf := bytes.NewBuffer(make([]byte, 0, 4096))
+	limited := io.LimitReader(in.Reader, max+1)
+	written, err := io.Copy(buf, limited)
+	if err != nil {
+		return nil, apperr.BadRequest("failed to read uploaded file")
 	}
-	mt := upload.ResolveDocumentMIME(head[:n], in.MimeType, in.FileName)
+	if written > max {
+		return nil, apperr.PayloadTooLarge(fmt.Sprintf("file exceeds maximum size of %d bytes", max))
+	}
+	if written == 0 {
+		return nil, apperr.BadRequest("file is empty")
+	}
+
+	data := buf.Bytes()
+	mt := upload.ResolveDocumentMIME(data, in.MimeType, in.FileName)
 	if mt == "" {
-		return nil, fmt.Errorf("unsupported file type")
+		return nil, apperr.BadRequest("unsupported file type; allowed: PDF, JPEG, PNG, WebP, Word, Excel")
 	}
-	payload := io.MultiReader(bytes.NewReader(head[:n]), in.Reader)
-	in.Reader = payload
 	if !model.ValidDocumentType(in.DocumentType) {
-		return nil, fmt.Errorf("invalid document_type")
+		return nil, apperr.BadRequest("invalid document_type")
 	}
 
 	var ownerUserID uuid.UUID
@@ -90,20 +103,18 @@ func (s *DocumentService) Create(ctx context.Context, in DocumentCreateInput) (*
 		ownerUserID = appt.OwnerUserID
 		apptID = in.ApptID
 	default:
-		return nil, fmt.Errorf("provide exactly one of order_id or service_appointment_id")
+		return nil, apperr.BadRequest("provide exactly one of order_id or service_appointment_id")
 	}
 
 	docID := uuid.New()
 	key := docID.String()
-	if err := s.store.Store(ctx, key, in.Reader, in.Size); err != nil {
-		return nil, fmt.Errorf("store file: %w", err)
+	payload := bytes.NewReader(data)
+	if err := s.store.Store(ctx, key, payload, written); err != nil {
+		return nil, apperr.Internal(fmt.Errorf("store file: %w", err))
 	}
 
 	fn := sanitizeStoredFileName(in.FileName)
-	var sizePtr *int64
-	if in.Size > 0 {
-		sizePtr = &in.Size
-	}
+	size := written
 	doc := model.Document{
 		DocumentID:           docID,
 		UserID:               ownerUserID,
@@ -112,8 +123,9 @@ func (s *DocumentService) Create(ctx context.Context, in DocumentCreateInput) (*
 		DocumentType:         in.DocumentType,
 		FilePath:             key,
 		FileName:             stringPtrOrNil(fn),
-		FileSize:             sizePtr,
+		FileSize:             &size,
 		MimeType:             stringPtr(mt),
+		FileAvailable:        true,
 	}
 
 	if err := s.repo.Document.Insert(ctx, doc); err != nil {
@@ -121,13 +133,21 @@ func (s *DocumentService) Create(ctx context.Context, in DocumentCreateInput) (*
 		return nil, err
 	}
 
-	return s.repo.Document.GetByID(ctx, docID)
+	out, err := s.repo.Document.GetByID(ctx, docID)
+	if err != nil {
+		return nil, err
+	}
+	s.enrichFileAvailable(ctx, out)
+	return out, nil
 }
 
 func (s *DocumentService) List(ctx context.Context, requester uuid.UUID, role string, orderID, apptID *uuid.UUID) ([]model.Document, error) {
+	var list []model.Document
+	var err error
+
 	switch {
 	case orderID != nil && apptID != nil:
-		return nil, fmt.Errorf("use only one filter: order_id or service_appointment_id")
+		return nil, apperr.BadRequest("use only one filter: order_id or service_appointment_id")
 	case orderID != nil:
 		order, err := s.repo.Order.GetByID(ctx, *orderID)
 		if err != nil {
@@ -136,7 +156,7 @@ func (s *DocumentService) List(ctx context.Context, requester uuid.UUID, role st
 		if !authz.CanViewOrder(order.UserID, requester, role) {
 			return nil, fmt.Errorf("%w", apperr.ErrForbidden)
 		}
-		return s.repo.Document.ListByOrderID(ctx, *orderID)
+		list, err = s.repo.Document.ListByOrderID(ctx, *orderID)
 	case apptID != nil:
 		appt, err := s.repo.ServiceAppointment.GetByID(ctx, *apptID)
 		if err != nil {
@@ -145,10 +165,21 @@ func (s *DocumentService) List(ctx context.Context, requester uuid.UUID, role st
 		if !authz.IsOwnerOrHasPermission(appt.OwnerUserID, requester, role, authz.PermAppointmentsViewAny) {
 			return nil, fmt.Errorf("%w", apperr.ErrForbidden)
 		}
-		return s.repo.Document.ListByServiceAppointmentID(ctx, *apptID)
+		list, err = s.repo.Document.ListByServiceAppointmentID(ctx, *apptID)
 	default:
-		return s.repo.Document.ListByUserID(ctx, requester)
+		if authz.HasPermission(role, authz.PermDocumentsViewAny) {
+			list, err = s.repo.Document.ListAll(ctx)
+		} else {
+			list, err = s.repo.Document.ListByUserID(ctx, requester)
+		}
 	}
+	if err != nil {
+		return nil, err
+	}
+	for i := range list {
+		s.enrichFileAvailable(ctx, &list[i])
+	}
+	return list, nil
 }
 
 func (s *DocumentService) Get(ctx context.Context, documentID uuid.UUID, requester uuid.UUID, role string) (*model.Document, error) {
@@ -159,6 +190,7 @@ func (s *DocumentService) Get(ctx context.Context, documentID uuid.UUID, request
 	if !s.canAccessDocument(d, requester, role) {
 		return nil, fmt.Errorf("%w", apperr.ErrNotFound)
 	}
+	s.enrichFileAvailable(ctx, d)
 	return d, nil
 }
 
@@ -172,8 +204,12 @@ func (s *DocumentService) OpenFile(ctx context.Context, documentID uuid.UUID, re
 	}
 	rc, err := s.store.Open(ctx, d.FilePath)
 	if err != nil {
-		return nil, nil, fmt.Errorf("open file: %w", err)
+		if errors.Is(err, storage.ErrNotFound) {
+			return nil, nil, apperr.NotFoundErr("file is not available on the server")
+		}
+		return nil, nil, apperr.Internal(fmt.Errorf("open file: %w", err))
 	}
+	d.FileAvailable = true
 	return rc, d, nil
 }
 
@@ -191,6 +227,19 @@ func (s *DocumentService) Delete(ctx context.Context, documentID uuid.UUID, requ
 	}
 	_ = s.store.Remove(ctx, key)
 	return nil
+}
+
+func (s *DocumentService) enrichFileAvailable(ctx context.Context, d *model.Document) {
+	if d == nil || d.FilePath == "" {
+		d.FileAvailable = false
+		return
+	}
+	exists, err := s.store.Exists(ctx, d.FilePath)
+	if err != nil {
+		d.FileAvailable = false
+		return
+	}
+	d.FileAvailable = exists
 }
 
 func (s *DocumentService) canAccessDocument(d *model.Document, requester uuid.UUID, role string) bool {

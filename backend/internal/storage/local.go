@@ -81,12 +81,29 @@ func (l *Local) Open(ctx context.Context, key string) (io.ReadCloser, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, fmt.Errorf("object not found: %w", err)
+			return nil, fmt.Errorf("%w", ErrNotFound)
 		}
 		return nil, err
 	}
 	_ = ctx
 	return f, nil
+}
+
+func (l *Local) Exists(ctx context.Context, key string) (bool, error) {
+	path, err := l.resolve(key)
+	if err != nil {
+		return false, err
+	}
+	_, err = os.Stat(path)
+	if err == nil {
+		_ = ctx
+		return true, nil
+	}
+	if os.IsNotExist(err) {
+		_ = ctx
+		return false, nil
+	}
+	return false, err
 }
 
 func (l *Local) Remove(ctx context.Context, key string) error {

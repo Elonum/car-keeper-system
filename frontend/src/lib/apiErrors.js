@@ -158,6 +158,24 @@ const BACKEND_TO_RU = [
     'Не удалось определить размер файла. Загрузите файл с известным размером.',
   ],
   [/^\s*file too large\s*$/i, 'Файл слишком большой.'],
+  [/^\s*file is empty\s*$/i, 'Файл пустой.'],
+  [
+    /unsupported file type/i,
+    'Неподдерживаемый тип файла. Допустимо: PDF, изображения, Word, Excel.',
+  ],
+  [/^\s*invalid document_type\s*$/i, 'Некорректный тип документа.'],
+  [
+    /provide exactly one of order_id or service_appointment_id/i,
+    'Укажите заказ или запись на ТО (ровно одно).',
+  ],
+  [
+    /file is not available on the server/i,
+    'Файл недоступен на сервере (только запись в каталоге).',
+  ],
+  [
+    /not allowed to attach document to this resource/i,
+    'Нет прав прикрепить документ к этому заказу или записи.',
+  ],
 
   // News (handler)
   [/^\s*title is required \(max 255 characters\)\s*$/i, 'Заголовок обязателен (до 255 символов).'],

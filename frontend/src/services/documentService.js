@@ -1,9 +1,14 @@
-import apiClient from '@/api/client';
+import apiClient, { API_BASE_URL, getApiAuthHeaders } from '@/api/client';
 import { formatBackendErrorMessage } from '@/lib/apiErrors';
 
-import { API_BASE_URL } from '@/api/client';
-
 export const getDocumentsApiBaseUrl = () => API_BASE_URL;
+
+export const DOCUMENT_TYPE_LABELS = {
+  commercial_offer: 'Коммерческое предложение',
+  order_contract: 'Договор',
+  service_order: 'Заказ-наряд',
+  service_act: 'Акт',
+};
 
 export const documentService = {
   list: async (params = {}) => {
@@ -29,10 +34,10 @@ export const documentService = {
 
   /** Download file via fetch (binary, not JSON envelope). */
   download: async (documentId, fallbackName = 'document') => {
-    const token = localStorage.getItem('auth_token');
     const url = `${getDocumentsApiBaseUrl()}/documents/${documentId}/file`;
     const res = await fetch(url, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      credentials: 'include',
+      headers: getApiAuthHeaders(),
     });
     if (!res.ok) {
       let raw = '';
@@ -48,7 +53,7 @@ export const documentService = {
         (res.status === 401
           ? 'Требуется вход'
           : res.status === 404
-            ? 'Файл не найден'
+            ? 'Файл недоступен на сервере'
             : 'Не удалось скачать файл');
       const err = new Error(message);
       err.status = res.status;
@@ -65,14 +70,10 @@ export const documentService = {
     const a = document.createElement('a');
     a.href = href;
     a.download = name;
+    a.rel = 'noopener';
+    document.body.appendChild(a);
     a.click();
+    a.remove();
     URL.revokeObjectURL(href);
   },
-};
-
-export const DOCUMENT_TYPE_LABELS = {
-  commercial_offer: 'Коммерческое предложение',
-  order_contract: 'Договор',
-  service_order: 'Заказ-наряд',
-  service_act: 'Акт',
 };
