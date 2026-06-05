@@ -211,12 +211,12 @@ export default function Configurator() {
       {/* Header */}
       <div className="bg-white border-b border-slate-200 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between mb-4">
-            <Button variant="ghost" onClick={() => navigate(createPageUrl("Catalog"))} className="gap-2">
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <Button variant="ghost" onClick={() => navigate(createPageUrl("Catalog"))} className="gap-2 shrink-0">
               <ArrowLeft className="w-4 h-4" />
-              Каталог
+              <span className="sr-only sm:not-sr-only">Каталог</span>
             </Button>
-            <h1 className="text-xl font-bold text-slate-900 hidden sm:block">
+            <h1 className="text-base sm:text-xl font-bold text-slate-900 truncate min-w-0 flex-1 text-right sm:text-center">
               {trimDisplayName}
             </h1>
           </div>
@@ -369,7 +369,7 @@ export default function Configurator() {
 
           {/* Summary sidebar */}
           <div className="lg:col-span-1">
-            <div className="sticky top-24">
+            <div className="lg:sticky lg:top-24">
               <ConfigurationSummary 
                 trim={trim}
                 color={selectedColor}

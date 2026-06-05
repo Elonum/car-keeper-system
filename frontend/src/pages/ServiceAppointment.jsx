@@ -292,9 +292,9 @@ export default function ServiceAppointment() {
                       }`}
                     >
                       <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <h3 className="font-semibold text-slate-900">{service.name}</h3>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex flex-wrap items-center gap-2 mb-1">
+                            <h3 className="font-semibold text-slate-900 break-words">{service.name}</h3>
                             {service.duration_minutes != null && (
                               <span className="text-xs text-slate-400 flex items-center gap-1">
                                 <Clock className="w-3 h-3" /> {service.duration_minutes} мин
@@ -302,10 +302,10 @@ export default function ServiceAppointment() {
                             )}
                           </div>
                           {service.description && (
-                            <p className="text-sm text-slate-600">{service.description}</p>
+                            <p className="text-sm text-slate-600 break-words">{service.description}</p>
                           )}
                         </div>
-                        <div className="flex flex-col items-end gap-2">
+                        <div className="flex flex-col items-end gap-2 shrink-0">
                           <PriceDisplay price={service.price} size="md" className="" />
                           {isSelected && (
                             <div className="w-6 h-6 rounded-full bg-slate-900 flex items-center justify-center">
@@ -367,7 +367,7 @@ export default function ServiceAppointment() {
                   </p>
                 )}
                 {!slotsLoading && !slotsError && slotStarts.length > 0 && (
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                     {slotStarts.map((iso) => (
                       <button
                         key={iso}
@@ -513,7 +513,7 @@ export default function ServiceAppointment() {
           </div>
         )}
 
-        <div className="sticky bottom-0 z-20 -mx-4 flex items-center justify-between gap-4 border-t border-slate-200 bg-slate-50/95 px-4 py-4 backdrop-blur supports-[backdrop-filter]:bg-slate-50/90 sm:-mx-6 sm:px-6 mt-8">
+        <div className="sticky bottom-0 z-20 -mx-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-slate-50/95 px-4 py-4 backdrop-blur supports-[backdrop-filter]:bg-slate-50/90 sm:-mx-6 sm:px-6 mt-8">
           <Button
             type="button"
             variant="outline"

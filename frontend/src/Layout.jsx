@@ -77,7 +77,7 @@ export default function Layout({ children, currentPageName }) {
     hasPermission(role, PERMISSIONS.ORDERS_MANAGE_STATUS);
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans">
+    <div className="min-h-screen bg-slate-50 font-sans overflow-x-hidden">
       <style>{`
         :root {
           --color-primary: #0f172a;
@@ -223,7 +223,7 @@ export default function Layout({ children, currentPageName }) {
       </header>
 
       {/* Content */}
-      <main className={hideLayout ? "" : "pt-16"}>
+      <main className={hideLayout ? "overflow-x-hidden" : "pt-16 overflow-x-hidden"}>
         {children}
       </main>
 

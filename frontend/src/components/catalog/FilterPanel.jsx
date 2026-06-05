@@ -149,10 +149,10 @@ export default function FilterPanel({ filters, setFilters, brands, engineTypes, 
         </div>
       </div>
 
-      <div className="lg:hidden">
+      <div className="lg:hidden w-full">
         <Sheet open={open} onOpenChange={setOpen}>
           <SheetTrigger asChild>
-            <Button variant="outline" className="gap-2 rounded-xl" type="button">
+            <Button variant="outline" className="w-full sm:w-auto gap-2 rounded-xl" type="button">
               <SlidersHorizontal className="w-4 h-4" />
               Фильтры
               {activeCount > 0 && (

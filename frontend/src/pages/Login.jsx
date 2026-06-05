@@ -68,7 +68,7 @@ export default function Login() {
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col items-center justify-center px-4 py-12">
       <Card className="w-full max-w-md border-0 shadow-2xl bg-white/95 backdrop-blur-sm overflow-hidden">
         <div className="h-1.5 bg-gradient-to-r from-slate-800 via-slate-600 to-slate-800" />
-        <div className="p-8">
+        <div className="p-5 sm:p-8">
           <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-slate-900 shadow-lg mb-4">
               <Car className="w-8 h-8 text-white" />

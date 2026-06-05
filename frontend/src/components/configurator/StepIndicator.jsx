@@ -4,7 +4,8 @@ import { Check } from 'lucide-react';
 
 export default function StepIndicator({ steps, currentStep }) {
   return (
-    <div className="flex items-center gap-2">
+    <div className="overflow-x-auto pb-1 -mx-1 px-1">
+      <div className="flex items-center gap-1.5 sm:gap-2 min-w-max sm:min-w-0">
       {steps.map((step, index) => {
         const isActive = index === currentStep;
         const isCompleted = index < currentStep;
@@ -28,13 +29,14 @@ export default function StepIndicator({ steps, currentStep }) {
             </div>
             {index < steps.length - 1 && (
               <div className={cn(
-                "w-8 sm:w-12 h-0.5 rounded-full",
+                "w-4 sm:w-8 md:w-12 h-0.5 rounded-full shrink-0",
                 isCompleted ? "bg-green-500" : "bg-slate-200"
               )} />
             )}
           </React.Fragment>
         );
       })}
+      </div>
     </div>
   );
 }

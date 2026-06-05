@@ -103,32 +103,32 @@ export default function Profile() {
 
         <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
           <TabsList className="bg-white p-1.5 h-auto rounded-xl shadow-sm flex-wrap">
-            <TabsTrigger value="account" className="gap-2 data-[state=active]:bg-slate-900 data-[state=active]:text-white rounded-lg px-4 py-2.5">
+            <TabsTrigger value="account" title="Профиль" className="gap-2 data-[state=active]:bg-slate-900 data-[state=active]:text-white rounded-lg px-3 sm:px-4 py-2.5">
               <UserCircle className="w-4 h-4" />
               <span className="hidden sm:inline">Профиль</span>
             </TabsTrigger>
-            <TabsTrigger value="configurations" className="gap-2 data-[state=active]:bg-slate-900 data-[state=active]:text-white rounded-lg px-4 py-2.5">
+            <TabsTrigger value="configurations" title="Конфигурации" className="gap-2 data-[state=active]:bg-slate-900 data-[state=active]:text-white rounded-lg px-3 sm:px-4 py-2.5">
               <Settings className="w-4 h-4" />
               <span className="hidden sm:inline">Конфигурации</span>
             </TabsTrigger>
-            <TabsTrigger value="orders" className="gap-2 data-[state=active]:bg-slate-900 data-[state=active]:text-white rounded-lg px-4 py-2.5">
+            <TabsTrigger value="orders" title="Заказы" className="gap-2 data-[state=active]:bg-slate-900 data-[state=active]:text-white rounded-lg px-3 sm:px-4 py-2.5">
               <ShoppingCart className="w-4 h-4" />
               <span className="hidden sm:inline">Заказы</span>
             </TabsTrigger>
-            <TabsTrigger value="cars" className="gap-2 data-[state=active]:bg-slate-900 data-[state=active]:text-white rounded-lg px-4 py-2.5">
+            <TabsTrigger value="cars" title="Мои автомобили" className="gap-2 data-[state=active]:bg-slate-900 data-[state=active]:text-white rounded-lg px-3 sm:px-4 py-2.5">
               <Car className="w-4 h-4" />
               <span className="hidden sm:inline">Мои автомобили</span>
             </TabsTrigger>
-            <TabsTrigger value="service" className="gap-2 data-[state=active]:bg-slate-900 data-[state=active]:text-white rounded-lg px-4 py-2.5">
+            <TabsTrigger value="service" title="Записи на ТО" className="gap-2 data-[state=active]:bg-slate-900 data-[state=active]:text-white rounded-lg px-3 sm:px-4 py-2.5">
               <Wrench className="w-4 h-4" />
               <span className="hidden sm:inline">Записи на ТО</span>
             </TabsTrigger>
-            <TabsTrigger value="documents" className="gap-2 data-[state=active]:bg-slate-900 data-[state=active]:text-white rounded-lg px-4 py-2.5">
+            <TabsTrigger value="documents" title="Документы" className="gap-2 data-[state=active]:bg-slate-900 data-[state=active]:text-white rounded-lg px-3 sm:px-4 py-2.5">
               <FileText className="w-4 h-4" />
               <span className="hidden sm:inline">Документы</span>
             </TabsTrigger>
             {canOpenAdminTab && (
-              <TabsTrigger value="management" className="gap-2 data-[state=active]:bg-slate-900 data-[state=active]:text-white rounded-lg px-4 py-2.5">
+              <TabsTrigger value="management" title="Управление" className="gap-2 data-[state=active]:bg-slate-900 data-[state=active]:text-white rounded-lg px-3 sm:px-4 py-2.5">
                 <Shield className="w-4 h-4" />
                 <span className="hidden sm:inline">Управление</span>
               </TabsTrigger>

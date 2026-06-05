@@ -123,9 +123,10 @@ export default function ServiceAppointmentsList({ appointments, isLoading, staff
                       {appt.user_car_vin || appt.car_display || 'Сервисная запись'}
                     </h3>
                     {appt.owner_email && (
-                      <p className="text-sm text-slate-700 mb-1">
+                      <p className="text-sm text-slate-700 mb-1 break-words">
                         <span className="font-medium text-slate-800">Клиент:</span>{' '}
-                        {appt.owner_name || '—'} · {appt.owner_email}
+                        {appt.owner_name || '—'} ·{' '}
+                        <span className="break-all">{appt.owner_email}</span>
                       </p>
                     )}
                     {appt.appointment_date && (
@@ -151,7 +152,7 @@ export default function ServiceAppointmentsList({ appointments, isLoading, staff
                 {(appt.branch_name || appt.branch_display) && (
                   <div className="flex items-start gap-2 text-sm text-slate-600 mb-2">
                     <MapPin className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                    <span>
+                    <span className="break-words">
                       {appt.branch_name || appt.branch_display}
                       {appt.branch_address ? `, ${appt.branch_address}` : ''}
                     </span>

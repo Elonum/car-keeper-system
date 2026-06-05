@@ -12,13 +12,13 @@ export default function ConfigurationSummary({ trim, color, selectedOptions, tot
           Автомобиль
         </h3>
         <div className="space-y-2">
-          <p className="text-lg font-bold text-slate-900">
+          <p className="text-lg font-bold text-slate-900 break-words">
             {trim?.brand_name} {trim?.model_name}
           </p>
           {trim?.generation_name && (
             <p className="text-sm text-slate-500">{trim.generation_name}</p>
           )}
-          <p className="text-base font-semibold text-slate-700">
+          <p className="text-base font-semibold text-slate-700 break-words">
             Комплектация: {trim?.name}
           </p>
           <div className="pt-2 border-t border-slate-200">

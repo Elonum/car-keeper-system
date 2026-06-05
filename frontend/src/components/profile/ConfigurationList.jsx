@@ -114,7 +114,7 @@ export default function ConfigurationList({ configurations, isLoading }) {
           className="rounded-2xl border-slate-200 p-6 shadow-sm hover:shadow-md transition-shadow"
         >
           <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
-            <div className="flex-1">
+            <div className="flex-1 min-w-0">
               <div className="flex items-start gap-3 mb-3">
                 <div className="w-10 h-10 rounded-lg bg-slate-900 flex items-center justify-center flex-shrink-0">
                   <Settings className="w-5 h-5 text-white" />
@@ -138,13 +138,13 @@ export default function ConfigurationList({ configurations, isLoading }) {
                 </p>
               )}
               {config.option_names && Array.isArray(config.option_names) && config.option_names.length > 0 && (
-                <p className="text-sm text-slate-600">
+                <p className="text-sm text-slate-600 line-clamp-3 break-words">
                   <span className="font-medium">Опции:</span> {config.option_names.join(', ')}
                 </p>
               )}
             </div>
 
-            <div className="flex flex-col items-end gap-3">
+            <div className="flex flex-col items-stretch sm:items-end gap-3 w-full md:w-auto shrink-0">
               <PriceDisplay price={config.total_price} size="lg" />
               
               <div className="flex flex-wrap gap-2">

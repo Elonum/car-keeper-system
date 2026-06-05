@@ -518,7 +518,7 @@ export default function MyDocuments({ orders = [], appointments = [] }) {
                   return (
                     <Card
                       key={id}
-                      className="rounded-2xl border-slate-200 p-4 shadow-sm flex flex-wrap items-center justify-between gap-4"
+                      className="rounded-2xl border-slate-200 p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4"
                     >
                       <div className="flex items-start gap-3 min-w-0 flex-1">
                         <div className="w-11 h-11 rounded-xl bg-slate-100 flex items-center justify-center flex-shrink-0">
@@ -553,7 +553,7 @@ export default function MyDocuments({ orders = [], appointments = [] }) {
                           ) : null}
                         </div>
                       </div>
-                      <div className="flex gap-2 flex-shrink-0">
+                      <div className="flex gap-2 w-full sm:w-auto sm:shrink-0 justify-end">
                         <Button
                           type="button"
                           variant="outline"

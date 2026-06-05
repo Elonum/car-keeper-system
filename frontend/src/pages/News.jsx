@@ -105,7 +105,7 @@ export default function News() {
                 Все
               </Button>
             </div>
-            <div className="grid md:grid-cols-2 gap-3">
+            <div className="flex flex-col sm:grid sm:grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Input
                   placeholder="Заголовок новой новости"
@@ -123,6 +123,7 @@ export default function News() {
               <Button
                 onClick={handleCreateDraft}
                 disabled={createMutation.isPending}
+                className="w-full sm:w-auto"
               >
                 Создать черновик
               </Button>
@@ -195,13 +196,15 @@ export default function News() {
                       <ArrowRight className="w-4 h-4" />
                     </div>
                     {canManageNews && (
-                      <div className="mt-3 flex gap-2">
+                      <div className="mt-3 flex flex-col sm:flex-row flex-wrap gap-2">
                         <Button
                           type="button"
                           variant="outline"
                           size="sm"
+                          className="w-full sm:w-auto"
                           onClick={(e) => {
                             e.preventDefault();
+                            e.stopPropagation();
                             publishMutation.mutate({ id: item.news_id || item.id, publish: !item.is_published });
                           }}
                         >
@@ -211,9 +214,10 @@ export default function News() {
                           type="button"
                           variant="outline"
                           size="sm"
-                          className="text-red-600"
+                          className="w-full sm:w-auto text-red-600"
                           onClick={(e) => {
                             e.preventDefault();
+                            e.stopPropagation();
                             deleteMutation.mutate(item.news_id || item.id);
                           }}
                         >

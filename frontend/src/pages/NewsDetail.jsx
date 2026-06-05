@@ -41,15 +41,15 @@ export default function NewsDetail() {
     <div className="min-h-screen bg-slate-50">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Link to={createPageUrl("News")}>
-          <Button variant="ghost" className="mb-6 gap-2 -ml-3">
+          <Button variant="ghost" className="mb-6 gap-2">
             <ArrowLeft className="w-4 h-4" />
             Все новости
           </Button>
         </Link>
 
         <article className="bg-white rounded-2xl shadow-sm overflow-hidden">
-          <div className="p-8 md:p-12">
-            <h1 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4 leading-tight">
+          <div className="p-5 sm:p-8 md:p-12">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-slate-900 mb-4 leading-tight break-words">
               {news.title}
             </h1>
 
@@ -71,7 +71,7 @@ export default function NewsDetail() {
             </div>
 
             {news.content && (
-              <div className="prose prose-slate max-w-none prose-headings:font-bold prose-a:text-blue-600 prose-img:rounded-xl">
+              <div className="prose prose-slate max-w-none break-words prose-headings:font-bold prose-a:text-blue-600 prose-img:rounded-xl prose-img:max-w-full prose-pre:overflow-x-auto prose-table:block prose-table:overflow-x-auto">
                 <ReactMarkdown>{news.content}</ReactMarkdown>
               </div>
             )}

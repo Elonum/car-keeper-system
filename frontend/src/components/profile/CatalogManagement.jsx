@@ -702,9 +702,9 @@ export default function CatalogManagement({ role }) {
                 key={st.service_type_id}
                 className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white p-2 text-sm"
               >
-                <div>
-                  <span className="font-medium">{st.name}</span>
-                  <span className="text-slate-500 ml-2">
+                <div className="min-w-0 flex-1">
+                  <span className="font-medium break-words">{st.name}</span>
+                  <span className="text-slate-500 block sm:inline sm:ml-2 truncate">
                     {st.category} · {st.price} ₽
                   </span>
                 </div>
@@ -780,7 +780,7 @@ export default function CatalogManagement({ role }) {
             setBrandDialogOpen(true);
           }}
         >
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{editingBrandId ? 'Редактировать бренд' : 'Добавить бренд'}</DialogTitle>
               <DialogDescription>Укажите название бренда и страну происхождения.</DialogDescription>
@@ -852,7 +852,7 @@ export default function CatalogManagement({ role }) {
             setServiceDialogOpen(true);
           }}
         >
-          <DialogContent className="sm:max-w-xl">
+          <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
                 {editingServiceTypeId ? 'Редактировать услугу' : 'Добавить услугу'}

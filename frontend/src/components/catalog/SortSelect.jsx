@@ -12,7 +12,7 @@ const sortOptions = [
 export default function SortSelect({ value, onChange }) {
   return (
     <Select value={value} onValueChange={onChange}>
-      <SelectTrigger className="w-56 rounded-xl bg-white">
+      <SelectTrigger className="w-full sm:w-56 rounded-xl bg-white">
         <div className="flex items-center gap-2">
           <ArrowUpDown className="w-3.5 h-3.5 text-slate-400" />
           <SelectValue placeholder="Сортировка" />

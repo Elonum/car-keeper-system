@@ -146,7 +146,7 @@ export default function OrdersList({ orders, isLoading, staffMode = false }) {
               className="rounded-2xl border-slate-200 p-6 shadow-sm hover:shadow-md transition-shadow"
             >
               <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <div className="flex items-start gap-3 mb-3">
                     <div className="w-10 h-10 rounded-lg bg-blue-600 flex items-center justify-center flex-shrink-0">
                       <ShoppingCart className="w-5 h-5 text-white" />
@@ -170,13 +170,14 @@ export default function OrdersList({ orders, isLoading, staffMode = false }) {
                   </div>
 
                   {order.customer_email && (
-                    <p className="text-sm text-slate-700 mb-1">
+                    <p className="text-sm text-slate-700 mb-1 break-words">
                       <span className="font-medium text-slate-800">Клиент:</span>{' '}
-                      {order.customer_name || '—'} · {order.customer_email}
+                      {order.customer_name || '—'} ·{' '}
+                      <span className="break-all">{order.customer_email}</span>
                     </p>
                   )}
                   {order.configuration_summary && (
-                    <p className="text-sm text-slate-600 mb-1">
+                    <p className="text-sm text-slate-600 mb-1 line-clamp-3 break-words">
                       {order.configuration_summary}
                     </p>
                   )}
@@ -187,10 +188,10 @@ export default function OrdersList({ orders, isLoading, staffMode = false }) {
                   )}
                 </div>
 
-                <div className="flex flex-col items-end gap-2">
-                  <PriceDisplay price={order.total_price || order.final_price} size="lg" />
+                <div className="flex flex-col items-stretch sm:items-end gap-2 w-full md:w-auto shrink-0">
+                  <PriceDisplay price={order.total_price || order.final_price} size="lg" className="self-start sm:self-end" />
                   {showStatusControls && (
-                    <div className="w-56 flex flex-col gap-2">
+                    <div className="w-full sm:w-56 flex flex-col gap-2">
                       <Select
                         value={selectedStatus}
                         onValueChange={(v) =>

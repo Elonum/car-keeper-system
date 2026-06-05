@@ -60,8 +60,8 @@ export default function Services() {
           title="Сервисные услуги"
           description="Выберите услуги для вашего автомобиля"
           action={
-            <Link to={createPageUrl("ServiceAppointment")}>
-              <Button className="bg-blue-600 hover:bg-blue-700 gap-2">
+            <Link to={createPageUrl("ServiceAppointment")} className="block w-full sm:w-auto">
+              <Button className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 gap-2">
                 <Wrench className="w-4 h-4" />
                 Записаться на ТО
               </Button>
@@ -100,9 +100,11 @@ export default function Services() {
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {items.map(service => (
                   <Card key={serviceId(service)} className="p-5 border-0 shadow-sm hover:shadow-md transition-shadow">
-                    <div className="flex items-start justify-between mb-3">
-                      <h3 className="font-bold text-slate-900 text-lg">{service.name}</h3>
-                      <PriceDisplay price={service.price} size="md" />
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between mb-3">
+                      <h3 className="font-bold text-slate-900 text-lg min-w-0 break-words flex-1">
+                        {service.name}
+                      </h3>
+                      <PriceDisplay price={service.price} size="md" className="shrink-0" />
                     </div>
 
                     {service.description && (

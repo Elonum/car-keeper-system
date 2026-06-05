@@ -126,15 +126,17 @@ export default function Catalog() {
           description="Выберите автомобиль и создайте свою идеальную конфигурацию"
         />
 
-        <div className="flex gap-6 lg:gap-8">
-          <FilterPanel 
-            filters={filters} 
-            setFilters={setFilters} 
-            brands={brands || []}
-            engineTypes={engineTypes || []}
-            transmissions={transmissions || []}
-            driveTypes={driveTypes || []}
-          />
+        <div className="flex flex-col lg:flex-row gap-4 lg:gap-8">
+          <div className="w-full lg:w-64 lg:shrink-0">
+            <FilterPanel
+              filters={filters}
+              setFilters={setFilters}
+              brands={brands || []}
+              engineTypes={engineTypes || []}
+              transmissions={transmissions || []}
+              driveTypes={driveTypes || []}
+            />
+          </div>
 
           <div className="flex-1 min-w-0">
             <div className="flex flex-col sm:flex-row gap-3 mb-6">
