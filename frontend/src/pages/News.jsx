@@ -156,20 +156,9 @@ export default function News() {
             {list.map(item => (
               <Link key={item.news_id || item.id} to={createPageUrl("NewsDetail") + `?id=${item.news_id || item.id}`}>
                 <Card className="group overflow-hidden border-0 shadow-sm hover:shadow-xl transition-all duration-500 bg-white rounded-2xl h-full">
-                  {/* Image */}
-                  {item.image_url ? (
-                    <div className="relative aspect-video overflow-hidden bg-slate-100">
-                      <img
-                        src={item.image_url}
-                        alt={item.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                      />
-                    </div>
-                  ) : (
-                    <div className="relative aspect-video bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center">
-                      <Newspaper className="w-12 h-12 text-slate-300" />
-                    </div>
-                  )}
+                  <div className="relative aspect-video bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center">
+                    <Newspaper className="w-12 h-12 text-slate-300" />
+                  </div>
 
                   {/* Content */}
                   <div className="p-5">

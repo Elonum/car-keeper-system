@@ -48,16 +48,6 @@ export default function NewsDetail() {
         </Link>
 
         <article className="bg-white rounded-2xl shadow-sm overflow-hidden">
-          {news.image_url && (
-            <div className="relative aspect-[21/9] overflow-hidden bg-slate-100">
-              <img
-                src={news.image_url}
-                alt={news.title}
-                className="w-full h-full object-cover"
-              />
-            </div>
-          )}
-
           <div className="p-8 md:p-12">
             <h1 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4 leading-tight">
               {news.title}

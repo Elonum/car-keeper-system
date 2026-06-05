@@ -27,6 +27,7 @@ import { adminCatalogService } from '@/services/adminCatalogService';
 import { PERMISSIONS, hasPermission } from '@/lib/authz';
 import { getApiErrorMessage } from '@/lib/apiErrors';
 import { resolveApiAssetUrl } from '@/lib/assetUrls';
+import { MODEL_IMAGE_ACCEPT, validateModelImageFile } from '@/lib/modelImages';
 import { queryKeys, invalidatePublicCatalog } from '@/lib/queryKeys';
 import { ErrorNotice, FieldErrorText } from '@/components/common/ErrorNotice';
 import ConfirmDialog from '@/components/common/ConfirmDialog';
@@ -39,7 +40,6 @@ import {
 } from '@/lib/adminValidation';
 const BRAND_DEFAULT_FORM = { name: '', country: '' };
 const MODEL_DEFAULT_FORM = { brand_id: '', name: '', segment: '', description: '' };
-const MODEL_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
 const SERVICE_DEFAULT_FORM = {
   name: '',
   category: 'maintenance',
@@ -390,9 +390,8 @@ export default function CatalogManagement({ role }) {
   const validateModelForm = () => {
     const next = validateModelFields(modelForm);
     if (modelImageFile) {
-      const allowed = ['image/jpeg', 'image/png', 'image/webp'];
-      if (!allowed.includes(modelImageFile.type)) next.image = 'Допустимы JPG, PNG или WEBP.';
-      if (modelImageFile.size > MODEL_IMAGE_MAX_BYTES) next.image = 'Размер файла не более 5 МБ.';
+      const imageErr = validateModelImageFile(modelImageFile);
+      if (imageErr) next.image = imageErr;
     }
     setModelErrors(next);
     return Object.keys(next).length === 0;
@@ -645,11 +644,23 @@ export default function CatalogManagement({ role }) {
                   key={m.model_id}
                   className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white p-2 text-sm"
                 >
-                  <div className="min-w-0">
-                    <span className="font-medium">
-                      {brandLabel} {m.name}
-                    </span>
-                    {m.segment ? <span className="text-slate-500 ml-2">· {m.segment}</span> : null}
+                  <div className="flex items-center gap-2 min-w-0">
+                    {m.image_url ? (
+                      <img
+                        src={resolveApiAssetUrl(m.image_url)}
+                        alt=""
+                        loading="lazy"
+                        className="w-12 h-8 rounded object-cover bg-slate-100 shrink-0"
+                      />
+                    ) : (
+                      <div className="w-12 h-8 rounded bg-slate-100 shrink-0" aria-hidden />
+                    )}
+                    <div className="min-w-0">
+                      <span className="font-medium">
+                        {brandLabel} {m.name}
+                      </span>
+                      {m.segment ? <span className="text-slate-500 ml-2">· {m.segment}</span> : null}
+                    </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <Button type="button" variant="ghost" size="sm" onClick={() => openEditModelDialog(m)}>
@@ -1074,7 +1085,7 @@ export default function CatalogManagement({ role }) {
                 )}
                 <Input
                   type="file"
-                  accept="image/jpeg,image/png,image/webp"
+                  accept={MODEL_IMAGE_ACCEPT}
                   onChange={(e) => {
                     setModelImageFile(e.target.files?.[0] || null);
                     setModelErrors((prev) => ({ ...prev, image: undefined }));

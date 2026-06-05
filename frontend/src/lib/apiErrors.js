@@ -200,6 +200,13 @@ const BACKEND_TO_RU = [
   [/^\s*address is required\s*$/i, 'Укажите адрес филиала.'],
   [/^\s*address is too long/i, 'Адрес слишком длинный.'],
 
+  // Model images
+  [/^\s*image too large\s*$/i, 'Изображение слишком большое (не более 5 МБ).'],
+  [/^\s*image file is required\s*$/i, 'Выберите изображение для загрузки.'],
+  [/only jpeg\/png\/webp images are allowed/i, 'Допустимы только JPG, PNG или WEBP.'],
+  [/^\s*failed to read image\s*$/i, 'Не удалось прочитать файл изображения.'],
+  [/model image not found/i, 'Изображение модели не найдено.'],
+
   // Order statuses
   [/^\s*invalid order status code\s*$/i, 'Некорректный код статуса заказа.'],
   [/^\s*code is too long/i, 'Код статуса слишком длинный.'],

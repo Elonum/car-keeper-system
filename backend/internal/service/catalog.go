@@ -5,16 +5,13 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"mime"
-	"net/http"
-	"path/filepath"
-	"strings"
 
 	"github.com/carkeeper/backend/internal/apperr"
 	"github.com/carkeeper/backend/internal/model"
 	"github.com/carkeeper/backend/internal/repository"
-	"github.com/carkeeper/backend/internal/validate"
 	"github.com/carkeeper/backend/internal/storage"
+	"github.com/carkeeper/backend/internal/upload"
+	"github.com/carkeeper/backend/internal/validate"
 	"github.com/google/uuid"
 )
 
@@ -129,80 +126,84 @@ func (s *CatalogService) AdminUpdateModel(ctx context.Context, id, brandID uuid.
 }
 
 func (s *CatalogService) AdminDeleteModel(ctx context.Context, id uuid.UUID) error {
-	return s.repo.Model.Delete(ctx, id)
+	var oldKey string
+	if s.store != nil {
+		if key, _, err := s.repo.Model.GetImageMeta(ctx, id); err == nil {
+			oldKey = key
+		}
+	}
+	if err := s.repo.Model.Delete(ctx, id); err != nil {
+		return err
+	}
+	if oldKey != "" && s.store != nil {
+		_ = s.store.Remove(ctx, oldKey)
+	}
+	return nil
 }
 
-func (s *CatalogService) AdminUploadModelImage(ctx context.Context, modelID uuid.UUID, r io.Reader, size int64, fileName, mimeHint string) error {
+func (s *CatalogService) maxModelImageBytes() int64 {
+	if s.maxUploadSize > 0 {
+		return s.maxUploadSize
+	}
+	return 5 << 20
+}
+
+func (s *CatalogService) AdminUploadModelImage(ctx context.Context, modelID uuid.UUID, r io.Reader, fileName, mimeHint string) error {
 	if s.store == nil {
 		return apperr.Internal(fmt.Errorf("file storage is not configured"))
 	}
-	if size <= 0 {
-		return apperr.BadRequest("image file is required")
-	}
-	maxUpload := s.maxUploadSize
-	if maxUpload <= 0 {
-		maxUpload = 5 << 20
-	}
-	if size > maxUpload {
-		return apperr.BadRequest("image too large")
-	}
+	maxUpload := s.maxModelImageBytes()
 
-	head := make([]byte, 512)
-	n, err := io.ReadFull(r, head)
-	if err != nil && err != io.EOF && err != io.ErrUnexpectedEOF {
+	buf := bytes.NewBuffer(make([]byte, 0, 4096))
+	limited := io.LimitReader(r, maxUpload+1)
+	written, err := io.Copy(buf, limited)
+	if err != nil {
 		return apperr.BadRequest("failed to read image")
 	}
-	mimeType := normalizeImageMime(http.DetectContentType(head[:n]), mimeHint, fileName)
+	if written > maxUpload {
+		return apperr.BadRequest("image too large")
+	}
+	if written == 0 {
+		return apperr.BadRequest("image file is required")
+	}
+
+	data := buf.Bytes()
+	mimeType := upload.ResolveImageMIME(data, mimeHint, fileName)
 	if mimeType == "" {
 		return apperr.BadRequest("only jpeg/png/webp images are allowed")
 	}
 
+	var oldKey string
+	if key, _, err := s.repo.Model.GetImageMeta(ctx, modelID); err == nil {
+		oldKey = key
+	}
+
 	key := uuid.NewString()
-	payload := io.MultiReader(bytes.NewReader(head[:n]), r)
-	if err := s.store.Store(ctx, key, payload, size); err != nil {
+	if err := s.store.Store(ctx, key, bytes.NewReader(data), written); err != nil {
 		return apperr.Internal(err)
 	}
 	if err := s.repo.Model.SetImageMeta(ctx, modelID, key, mimeType); err != nil {
 		_ = s.store.Remove(ctx, key)
 		return err
 	}
+	if oldKey != "" && oldKey != key {
+		_ = s.store.Remove(ctx, oldKey)
+	}
 	return nil
 }
 
-func (s *CatalogService) OpenModelImage(ctx context.Context, modelID uuid.UUID) (io.ReadCloser, string, error) {
+// OpenModelImage streams a model image. etagKey is the storage key (stable cache validator).
+func (s *CatalogService) OpenModelImage(ctx context.Context, modelID uuid.UUID) (io.ReadCloser, string, string, error) {
 	if s.store == nil {
-		return nil, "", apperr.Internal(fmt.Errorf("file storage is not configured"))
+		return nil, "", "", apperr.Internal(fmt.Errorf("file storage is not configured"))
 	}
 	key, mimeType, err := s.repo.Model.GetImageMeta(ctx, modelID)
 	if err != nil {
-		return nil, "", err
+		return nil, "", "", err
 	}
 	rc, err := s.store.Open(ctx, key)
 	if err != nil {
-		return nil, "", apperr.NotFoundErr("Model image not found")
+		return nil, "", "", apperr.NotFoundErr("Model image not found")
 	}
-	return rc, mimeType, nil
-}
-
-func normalizeImageMime(detected, hint, fileName string) string {
-	candidate := strings.TrimSpace(strings.ToLower(detected))
-	if isAllowedImageMime(candidate) {
-		return candidate
-	}
-	candidate = strings.TrimSpace(strings.ToLower(strings.Split(hint, ";")[0]))
-	if isAllowedImageMime(candidate) {
-		return candidate
-	}
-	if ext := strings.ToLower(filepath.Ext(fileName)); ext != "" {
-		byExt := mime.TypeByExtension(ext)
-		byExt = strings.TrimSpace(strings.ToLower(strings.Split(byExt, ";")[0]))
-		if isAllowedImageMime(byExt) {
-			return byExt
-		}
-	}
-	return ""
-}
-
-func isAllowedImageMime(m string) bool {
-	return m == "image/jpeg" || m == "image/png" || m == "image/webp"
+	return rc, mimeType, key, nil
 }

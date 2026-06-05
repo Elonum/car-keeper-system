@@ -50,7 +50,8 @@ func (r *UserCarRepository) GetByID(ctx context.Context, userCarID uuid.UUID) (*
 			uc.user_car_id, uc.user_id, uc.trim_id, uc.color_id, uc.vin, uc.year,
 			uc.current_mileage, uc.purchase_date, uc.created_at,
 			t.name as trim_name, b.name as brand_name, m.name as model_name,
-			c.name as color_name, c.hex_code as color_hex
+			c.name as color_name, c.hex_code as color_hex,
+			CASE WHEN m.image_key IS NOT NULL THEN '/api/catalog/models/' || m.model_id::text || '/image' ELSE NULL END as image_url
 		FROM user_cars uc
 		JOIN trims t ON uc.trim_id = t.trim_id
 		JOIN generations g ON t.generation_id = g.generation_id
@@ -64,7 +65,7 @@ func (r *UserCarRepository) GetByID(ctx context.Context, userCarID uuid.UUID) (*
 		&userCar.UserCarID, &userCar.UserID, &userCar.TrimID, &userCar.ColorID,
 		&userCar.VIN, &userCar.Year, &userCar.CurrentMileage, &userCar.PurchaseDate,
 		&userCar.CreatedAt, &userCar.TrimName, &userCar.BrandName, &userCar.ModelName,
-		&userCar.ColorName, &userCar.ColorHex,
+		&userCar.ColorName, &userCar.ColorHex, &userCar.ImageURL,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -82,7 +83,8 @@ func (r *UserCarRepository) GetByUserID(ctx context.Context, userID uuid.UUID) (
 			uc.user_car_id, uc.user_id, uc.trim_id, uc.color_id, uc.vin, uc.year,
 			uc.current_mileage, uc.purchase_date, uc.created_at,
 			t.name as trim_name, b.name as brand_name, m.name as model_name,
-			c.name as color_name, c.hex_code as color_hex
+			c.name as color_name, c.hex_code as color_hex,
+			CASE WHEN m.image_key IS NOT NULL THEN '/api/catalog/models/' || m.model_id::text || '/image' ELSE NULL END as image_url
 		FROM user_cars uc
 		JOIN trims t ON uc.trim_id = t.trim_id
 		JOIN generations g ON t.generation_id = g.generation_id
@@ -106,7 +108,7 @@ func (r *UserCarRepository) GetByUserID(ctx context.Context, userID uuid.UUID) (
 			&userCar.UserCarID, &userCar.UserID, &userCar.TrimID, &userCar.ColorID,
 			&userCar.VIN, &userCar.Year, &userCar.CurrentMileage, &userCar.PurchaseDate,
 			&userCar.CreatedAt, &userCar.TrimName, &userCar.BrandName, &userCar.ModelName,
-			&userCar.ColorName, &userCar.ColorHex,
+			&userCar.ColorName, &userCar.ColorHex, &userCar.ImageURL,
 		); err != nil {
 			return nil, fmt.Errorf("failed to scan user car: %w", err)
 		}

@@ -7,6 +7,7 @@ import EmptyState from '../common/EmptyState';
 import { Car, Calendar, Gauge, Wrench, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
+import { resolveApiAssetUrl } from '@/lib/assetUrls';
 
 export default function UserCarsList({ cars, isLoading, onRequestDelete, deletingId }) {
   if (isLoading) {
@@ -42,7 +43,12 @@ export default function UserCarsList({ cars, isLoading, onRequestDelete, deletin
           <Card key={carId} className="p-6 hover:shadow-md transition-shadow flex flex-col">
             {car.image_url && (
               <div className="aspect-video rounded-lg overflow-hidden mb-4 bg-slate-100">
-                <img src={car.image_url} alt="" className="w-full h-full object-cover" />
+                <img
+                  src={resolveApiAssetUrl(car.image_url)}
+                  alt={`${car.brand_name || ''} ${car.model_name || ''}`.trim()}
+                  loading="lazy"
+                  className="w-full h-full object-cover"
+                />
               </div>
             )}
 

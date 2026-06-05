@@ -22,7 +22,9 @@ export default function CatalogCard({ trim }) {
       <div className="relative aspect-[16/10] overflow-hidden bg-slate-100">
         <img
           src={imageUrl}
-          alt={`${trim.brand_name || ''} ${trim.model_name || ''}`}
+          alt={`${trim.brand_name || ''} ${trim.model_name || ''}`.trim()}
+          loading="lazy"
+          decoding="async"
           onError={(e) => {
             if (e.currentTarget.src !== FALLBACK_IMAGE) {
               e.currentTarget.src = FALLBACK_IMAGE;

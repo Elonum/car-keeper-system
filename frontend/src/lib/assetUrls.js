@@ -7,4 +7,3 @@ export function resolveApiAssetUrl(rawUrl) {
   if (raw.startsWith('/')) return `${API_BASE_ORIGIN}${raw}`;
   return `${API_BASE_ORIGIN}/${raw}`;
 }
-

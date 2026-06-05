@@ -32,7 +32,8 @@ type UserCarWithDetails struct {
 	TrimName   string `db:"trim_name" json:"trim_name"`
 	BrandName  string `db:"brand_name" json:"brand_name"`
 	ModelName  string `db:"model_name" json:"model_name"`
-	ColorName  string `db:"color_name" json:"color_name"`
+	ColorName  string  `db:"color_name" json:"color_name"`
 	ColorHex   *string `db:"color_hex" json:"color_hex,omitempty"`
+	ImageURL   *string `db:"image_url" json:"image_url,omitempty"`
 }
 

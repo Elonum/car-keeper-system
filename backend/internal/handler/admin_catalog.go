@@ -272,11 +272,7 @@ func (h *Handler) AdminUploadModelImage(w http.ResponseWriter, r *http.Request) 
 	}
 	defer file.Close()
 
-	if header.Size <= 0 {
-		BadRequest(w, "could not determine image size")
-		return
-	}
-	if err := h.services.Catalog.AdminUploadModelImage(r.Context(), modelID, file, header.Size, header.Filename, header.Header.Get("Content-Type")); err != nil {
+	if err := h.services.Catalog.AdminUploadModelImage(r.Context(), modelID, file, header.Filename, header.Header.Get("Content-Type")); err != nil {
 		HandleError(w, r, err)
 		return
 	}
@@ -289,7 +285,7 @@ func (h *Handler) GetModelImage(w http.ResponseWriter, r *http.Request) {
 		BadRequest(w, "Invalid model ID")
 		return
 	}
-	rc, mimeType, err := h.services.Catalog.OpenModelImage(r.Context(), modelID)
+	rc, mimeType, etagKey, err := h.services.Catalog.OpenModelImage(r.Context(), modelID)
 	if err != nil {
 		HandleError(w, r, err)
 		return
@@ -298,7 +294,15 @@ func (h *Handler) GetModelImage(w http.ResponseWriter, r *http.Request) {
 	if strings.TrimSpace(mimeType) == "" {
 		mimeType = "application/octet-stream"
 	}
+	etag := `"` + etagKey + `"`
+	if inm := strings.TrimSpace(r.Header.Get("If-None-Match")); inm == etag {
+		w.Header().Set("ETag", etag)
+		w.WriteHeader(http.StatusNotModified)
+		return
+	}
 	w.Header().Set("Content-Type", mimeType)
+	w.Header().Set("Cache-Control", "public, max-age=86400")
+	w.Header().Set("ETag", etag)
 	w.Header().Set("Content-Disposition", mime.FormatMediaType("inline", map[string]string{"filename": "model-image"}))
 	w.WriteHeader(http.StatusOK)
 	_, _ = io.Copy(w, rc)
