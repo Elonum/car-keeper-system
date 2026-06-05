@@ -16,3 +16,10 @@ func TestResolveDocumentMIME_rejectsSpoofedHint(t *testing.T) {
 		t.Fatalf("expected empty, got %q", got)
 	}
 }
+
+func TestResolveDocumentMIME_rejectsExtensionOnly(t *testing.T) {
+	got := ResolveDocumentMIME(nil, "application/pdf", "report.pdf")
+	if got != "" {
+		t.Fatalf("expected empty without magic bytes, got %q", got)
+	}
+}

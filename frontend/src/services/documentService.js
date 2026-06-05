@@ -1,4 +1,5 @@
 import apiClient, { API_BASE_URL, getApiAuthHeaders } from '@/api/client';
+import { authService } from '@/services/authService';
 import { formatBackendErrorMessage } from '@/lib/apiErrors';
 
 export const getDocumentsApiBaseUrl = () => API_BASE_URL;
@@ -40,6 +41,15 @@ export const documentService = {
       headers: getApiAuthHeaders(),
     });
     if (!res.ok) {
+      if (res.status === 401) {
+        authService.clearSession();
+        const onAuthPage =
+          window.location.pathname === '/Login' ||
+          window.location.pathname === '/Register';
+        if (!onAuthPage) {
+          window.location.href = '/Login';
+        }
+      }
       let raw = '';
       try {
         const data = await res.json();

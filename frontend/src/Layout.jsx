@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from './utils';
 import { useAuth } from '@/lib/AuthContext';
-import { PERMISSIONS, hasPermission } from '@/lib/authz';
+import { PERMISSIONS, hasPermission, ROLE_TITLE_RU } from '@/lib/authz';
 import { 
   Car, Menu, X, User, LogOut, ChevronDown,
   Newspaper, Wrench, ShoppingCart
@@ -146,8 +146,8 @@ export default function Layout({ children, currentPageName }) {
                       <p className="text-sm font-semibold text-slate-900">{getUserName()}</p>
                       <p className="text-xs text-slate-500 truncate">{user.email || ''}</p>
                       {role && (
-                        <p className="text-[11px] uppercase tracking-wide text-slate-400 mt-1">
-                          role: {role}
+                        <p className="text-[11px] text-slate-500 mt-1">
+                          {ROLE_TITLE_RU[role] || 'Пользователь'}
                         </p>
                       )}
                     </div>

@@ -77,8 +77,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	auth.SetSessionCookie(w, token, h.cfg.JWT.SecureCookie, maxAge)
 
 	Success(w, map[string]interface{}{
-		"token": token,
-		"user":  user,
+		"user": user,
 	})
 }
 

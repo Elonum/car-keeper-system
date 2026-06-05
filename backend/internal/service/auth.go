@@ -117,6 +117,25 @@ func (s *AuthService) generateToken(userID uuid.UUID, role string) (string, erro
 	return token.SignedString([]byte(s.cfg.JWT.Secret))
 }
 
+// AuthenticateRequest validates the JWT and reloads the current role from the database.
+func (s *AuthService) AuthenticateRequest(ctx context.Context, tokenString string) (*TokenClaims, error) {
+	claims, err := s.ValidateToken(tokenString)
+	if err != nil {
+		return nil, err
+	}
+	user, err := s.repo.User.GetByID(ctx, claims.UserID)
+	if err != nil {
+		if errors.Is(err, apperr.ErrNotFound) {
+			return nil, apperr.Unauthorized("Invalid token")
+		}
+		return nil, err
+	}
+	return &TokenClaims{
+		UserID: claims.UserID,
+		Role:   user.Role,
+	}, nil
+}
+
 func (s *AuthService) ValidateToken(tokenString string) (*TokenClaims, error) {
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {

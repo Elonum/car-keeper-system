@@ -10,6 +10,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
+	"github.com/go-chi/httprate"
 )
 
 // NewRouter builds the HTTP router used by the API server and integration tests.
@@ -18,9 +19,10 @@ func NewRouter(handlers *handler.Handler, cfg *config.Config, db *database.DB) *
 
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
+	r.Use(authMiddleware.SecurityHeaders(cfg.Env == "production"))
 	r.Use(authMiddleware.LimitRequestBody(cfg.Server.MaxJSONBodyBytes))
 	r.Use(authMiddleware.RequestLogger)
-	r.Use(middleware.Recoverer)
+	r.Use(authMiddleware.JSONRecover)
 	r.Use(middleware.Timeout(60 * time.Second))
 
 	r.Use(cors.Handler(cors.Options{
@@ -73,6 +75,7 @@ func NewRouter(handlers *handler.Handler, cfg *config.Config, db *database.DB) *
 		})
 
 		r.Route("/auth", func(r chi.Router) {
+			r.Use(httprate.LimitByIP(20, time.Minute))
 			r.Post("/register", handlers.Register)
 			r.Post("/login", handlers.Login)
 			r.Post("/logout", handlers.Logout)

@@ -42,7 +42,7 @@ func OptionalAuthMiddleware(authService *service.AuthService) func(http.Handler)
 				next.ServeHTTP(w, r)
 				return
 			}
-			claims, err := authService.ValidateToken(token)
+			claims, err := authService.AuthenticateRequest(r.Context(), token)
 			if err != nil {
 				next.ServeHTTP(w, r)
 				return

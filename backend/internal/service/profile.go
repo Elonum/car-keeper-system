@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -62,6 +63,9 @@ func (s *ProfileService) CreateUserCar(ctx context.Context, userID uuid.UUID, cr
 func (s *ProfileService) GetUserCar(ctx context.Context, userCarID uuid.UUID, requester uuid.UUID, role string) (*model.UserCarWithDetails, error) {
 	car, err := s.repo.UserCar.GetByID(ctx, userCarID)
 	if err != nil {
+		if errors.Is(err, apperr.ErrNotFound) {
+			return nil, apperr.NotFoundErr("User car not found")
+		}
 		return nil, err
 	}
 	if !authz.IsOwnerOrHasPermission(car.UserID, requester, role, authz.PermGarageViewAny) {

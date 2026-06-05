@@ -37,6 +37,9 @@ func (r *UserCarRepository) Create(ctx context.Context, userID uuid.UUID, create
 		&userCar.CreatedAt,
 	)
 	if err != nil {
+		if conflict := mapUniqueViolation(err, "This VIN is already registered"); conflict != nil {
+			return nil, conflict
+		}
 		return nil, fmt.Errorf("failed to create user car: %w", err)
 	}
 
@@ -69,7 +72,7 @@ func (r *UserCarRepository) GetByID(ctx context.Context, userCarID uuid.UUID) (*
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, fmt.Errorf("user car not found")
+			return nil, fmt.Errorf("%w", apperr.ErrNotFound)
 		}
 		return nil, fmt.Errorf("failed to get user car: %w", err)
 	}

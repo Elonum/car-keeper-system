@@ -76,12 +76,15 @@ func ParseDataArray(t *testing.T, raw json.RawMessage) []map[string]any {
 	return arr
 }
 
-func TokenFromLogin(t *testing.T, raw json.RawMessage) string {
+func TokenFromLogin(t *testing.T, rr *httptest.ResponseRecorder, raw json.RawMessage) string {
 	t.Helper()
 	m := ParseDataMap(t, raw)
-	tok, _ := m["token"].(string)
-	if tok == "" {
-		t.Fatal("missing token in login response")
+	if tok, _ := m["token"].(string); tok != "" {
+		return tok
 	}
-	return tok
+	if c := SessionCookieFromResponse(t, rr); c != nil && c.Value != "" {
+		return c.Value
+	}
+	t.Fatal("missing session token in login response")
+	return ""
 }

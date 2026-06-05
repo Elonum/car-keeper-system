@@ -18,12 +18,12 @@ func AuthMiddleware(authService *service.AuthService) func(http.Handler) http.Ha
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			token := auth.TokenFromRequest(r)
 			if token == "" {
-				http.Error(w, "Unauthorized", http.StatusUnauthorized)
+				writeJSONError(w, http.StatusUnauthorized, "Unauthorized")
 				return
 			}
-			claims, err := authService.ValidateToken(token)
+			claims, err := authService.AuthenticateRequest(r.Context(), token)
 			if err != nil {
-				http.Error(w, "Invalid token", http.StatusUnauthorized)
+				writeJSONError(w, http.StatusUnauthorized, "Invalid token")
 				return
 			}
 

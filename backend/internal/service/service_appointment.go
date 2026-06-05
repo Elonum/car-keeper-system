@@ -44,6 +44,9 @@ func (s *ServiceService) CreateAppointment(ctx context.Context, userID uuid.UUID
 	// Verify user car belongs to user
 	userCar, err := s.repo.UserCar.GetByID(ctx, create.UserCarID)
 	if err != nil {
+		if errors.Is(err, apperr.ErrNotFound) {
+			return nil, apperr.NotFoundErr("User car not found")
+		}
 		return nil, fmt.Errorf("failed to get user car: %w", err)
 	}
 
@@ -54,6 +57,9 @@ func (s *ServiceService) CreateAppointment(ctx context.Context, userID uuid.UUID
 	// Verify branch exists and is active
 	branch, err := s.repo.Branch.GetByID(ctx, create.BranchID)
 	if err != nil {
+		if errors.Is(err, apperr.ErrNotFound) {
+			return nil, apperr.NotFoundErr("Branch not found")
+		}
 		return nil, fmt.Errorf("failed to get branch: %w", err)
 	}
 

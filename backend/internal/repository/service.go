@@ -96,6 +96,9 @@ func (r *ServiceTypeRepository) Create(ctx context.Context, name, category strin
 		&st.ServiceTypeID, &st.Name, &st.Category, &st.Description, &st.Price, &st.DurationMinutes, &st.IsAvailable, &st.CreatedAt,
 	)
 	if err != nil {
+		if conflict := mapUniqueViolation(err, "Service type name already exists"); conflict != nil {
+			return nil, conflict
+		}
 		return nil, apperr.Internal(err)
 	}
 	return &st, nil
@@ -109,6 +112,9 @@ func (r *ServiceTypeRepository) Update(ctx context.Context, id uuid.UUID, name, 
 		WHERE service_type_id = $7
 	`, name, category, description, price, durationMinutes, isAvailable, id)
 	if err != nil {
+		if conflict := mapUniqueViolation(err, "Service type name already exists"); conflict != nil {
+			return conflict
+		}
 		return apperr.Internal(err)
 	}
 	if cmd.RowsAffected() == 0 {
@@ -182,7 +188,7 @@ func (r *BranchRepository) GetByID(ctx context.Context, branchID uuid.UUID) (*mo
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, fmt.Errorf("branch not found")
+			return nil, fmt.Errorf("%w", apperr.ErrNotFound)
 		}
 		return nil, fmt.Errorf("failed to get branch: %w", err)
 	}

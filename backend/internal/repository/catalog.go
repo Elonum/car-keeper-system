@@ -55,6 +55,9 @@ func (r *BrandRepository) Create(ctx context.Context, name, country string) (*mo
 		RETURNING brand_id, name, country, created_at
 	`, name, country).Scan(&b.BrandID, &b.Name, &b.Country, &b.CreatedAt)
 	if err != nil {
+		if conflict := mapUniqueViolation(err, "Brand name already exists"); conflict != nil {
+			return nil, conflict
+		}
 		return nil, apperr.Internal(err)
 	}
 	return &b, nil
@@ -64,6 +67,9 @@ func (r *BrandRepository) Create(ctx context.Context, name, country string) (*mo
 func (r *BrandRepository) Update(ctx context.Context, brandID uuid.UUID, name, country string) error {
 	cmd, err := r.db.Pool.Exec(ctx, `UPDATE brands SET name = $1, country = $2 WHERE brand_id = $3`, name, country, brandID)
 	if err != nil {
+		if conflict := mapUniqueViolation(err, "Brand name already exists"); conflict != nil {
+			return conflict
+		}
 		return apperr.Internal(err)
 	}
 	if cmd.RowsAffected() == 0 {
@@ -157,6 +163,9 @@ func (r *ModelRepository) Create(ctx context.Context, brandID uuid.UUID, name st
 	`, modelImageColsSelect)
 	err := r.db.Pool.QueryRow(ctx, query, brandID, name, segment, description).Scan(&m.ModelID, &m.BrandID, &m.Name, &m.Segment, &m.Description, &m.ImageKey, &m.ImageMime, &m.ImageURL, &m.CreatedAt)
 	if err != nil {
+		if conflict := mapUniqueViolation(err, "Model name already exists for this brand"); conflict != nil {
+			return nil, conflict
+		}
 		return nil, apperr.Internal(err)
 	}
 	return &m, nil
@@ -169,6 +178,9 @@ func (r *ModelRepository) Update(ctx context.Context, modelID, brandID uuid.UUID
 		WHERE model_id = $5
 	`, brandID, name, segment, description, modelID)
 	if err != nil {
+		if conflict := mapUniqueViolation(err, "Model name already exists for this brand"); conflict != nil {
+			return conflict
+		}
 		return apperr.Internal(err)
 	}
 	if cmd.RowsAffected() == 0 {

@@ -22,7 +22,7 @@ const STEPS = ['Комплектация', 'Цвет', 'Опции', 'Итог']
 export default function Configurator() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { user, isAuthenticated, navigateToLogin } = useAuth();
+  const { user, isAuthenticated, isLoadingAuth, navigateToLogin } = useAuth();
   const [searchParams] = useSearchParams();
   const trimId = searchParams.get('trim_id');
   const configId = searchParams.get('config_id');
@@ -33,10 +33,16 @@ export default function Configurator() {
   const [selectedOptionIds, setSelectedOptionIds] = useState([]);
   const [formError, setFormError] = useState(null);
 
+  useEffect(() => {
+    if (isEditMode && !isLoadingAuth && !isAuthenticated) {
+      navigateToLogin();
+    }
+  }, [isEditMode, isLoadingAuth, isAuthenticated, navigateToLogin]);
+
   const { data: existingConfig, isLoading: configLoading } = useQuery({
     queryKey: ['configuration', configId],
     queryFn: () => configuratorService.getConfiguration(configId),
-    enabled: isEditMode && !!configId,
+    enabled: isEditMode && !!configId && isAuthenticated,
   });
 
   // Use trim_id from existing config if in edit mode, otherwise use from URL

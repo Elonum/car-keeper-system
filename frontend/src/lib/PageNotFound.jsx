@@ -1,23 +1,19 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '@/lib/AuthContext';
 
 export default function PageNotFound() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, isAuthenticated } = useAuth();
   const pageName = location.pathname.substring(1);
 
   return (
     <div className="min-h-screen flex items-center justify-center p-6 bg-slate-50">
       <div className="max-w-md w-full">
         <div className="text-center space-y-6">
-          {/* 404 Error Code */}
           <div className="space-y-2">
             <h1 className="text-7xl font-light text-slate-300">404</h1>
             <div className="h-0.5 w-16 bg-slate-200 mx-auto"></div>
           </div>
-          
-          {/* Main Message */}
+
           <div className="space-y-3">
             <h2 className="text-2xl font-medium text-slate-800">
               Страница не найдена
@@ -26,28 +22,10 @@ export default function PageNotFound() {
               Страница <span className="font-medium text-slate-700">"{pageName}"</span> не существует в этом приложении.
             </p>
           </div>
-          
-          {/* Admin Note */}
-          {isAuthenticated && user?.role === 'admin' && (
-            <div className="mt-8 p-4 bg-slate-100 rounded-lg border border-slate-200">
-              <div className="flex items-start space-x-3">
-                <div className="flex-shrink-0 w-5 h-5 rounded-full bg-orange-100 flex items-center justify-center mt-0.5">
-                  <div className="w-2 h-2 rounded-full bg-orange-400"></div>
-                </div>
-                <div className="text-left space-y-1">
-                  <p className="text-sm font-medium text-slate-700">Примечание для администратора</p>
-                  <p className="text-sm text-slate-600 leading-relaxed">
-                    Эта страница еще не реализована. Обратитесь к разработчику для её реализации.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-          
-          {/* Action Button */}
+
           <div className="pt-6">
-            <button 
-              onClick={() => navigate('/')} 
+            <button
+              onClick={() => navigate('/')}
               className="inline-flex items-center px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 hover:border-slate-300 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500"
             >
               <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">

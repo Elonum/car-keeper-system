@@ -96,6 +96,14 @@ func (c *Config) validate() error {
 	if c.JWT.Secret == "change-me-in-production" && c.Env == "production" {
 		return fmt.Errorf("JWT_SECRET must be changed in production")
 	}
+	if c.Env == "production" {
+		if len(c.CORSAllowedOrigins) == 0 {
+			return fmt.Errorf("CORS_ALLOWED_ORIGINS is required in production")
+		}
+		if c.Database.SSLMode == "disable" {
+			return fmt.Errorf("DB_SSLMODE must not be disable in production")
+		}
+	}
 	if c.Storage.MaxUploadBytes < 1<<20 {
 		c.Storage.MaxUploadBytes = 15 << 20
 	}

@@ -21,25 +21,6 @@ func NewOrderRepository(db *database.DB) *OrderRepository {
 	return &OrderRepository{db: db}
 }
 
-func (r *OrderRepository) Create(ctx context.Context, userID uuid.UUID, create model.OrderCreate, finalPrice float64) (*model.Order, error) {
-	var order model.Order
-	query := `
-		INSERT INTO orders (user_id, configuration_id, status, final_price)
-		VALUES ($1, $2, 'pending', $3)
-		RETURNING order_id, user_id, configuration_id, manager_id, status, final_price, created_at, updated_at
-	`
-
-	err := r.db.Pool.QueryRow(ctx, query, userID, create.ConfigurationID, finalPrice).Scan(
-		&order.OrderID, &order.UserID, &order.ConfigurationID, &order.ManagerID,
-		&order.Status, &order.FinalPrice, &order.CreatedAt, &order.UpdatedAt,
-	)
-	if err != nil {
-		return nil, apperr.Internal(err)
-	}
-
-	return &order, nil
-}
-
 // CreateAndMarkConfigurationOrdered inserts an order and sets configuration status to ordered atomically.
 func (r *OrderRepository) CreateAndMarkConfigurationOrdered(
 	ctx context.Context,

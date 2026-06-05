@@ -1,9 +1,7 @@
 package upload
 
 import (
-	"mime"
 	"net/http"
-	"path/filepath"
 	"strings"
 )
 
@@ -13,30 +11,19 @@ var allowedImageMIME = map[string]struct{}{
 	"image/webp": {},
 }
 
-// ResolveImageMIME picks a trusted image MIME from magic bytes, client hint, and file name.
+// ResolveImageMIME picks a trusted image MIME from file magic bytes only.
 func ResolveImageMIME(head []byte, hint, fileName string) string {
-	if len(head) > 0 {
-		detected := strings.TrimSpace(strings.ToLower(http.DetectContentType(head)))
-		if i := strings.Index(detected, ";"); i >= 0 {
-			detected = strings.TrimSpace(detected[:i])
-		}
-		if isAllowedImageMIME(detected) {
-			return detected
-		}
+	_ = hint
+	_ = fileName
+	if len(head) == 0 {
+		return ""
 	}
-	candidate := strings.TrimSpace(strings.ToLower(hint))
-	if i := strings.Index(candidate, ";"); i >= 0 {
-		candidate = strings.TrimSpace(candidate[:i])
+	detected := strings.TrimSpace(strings.ToLower(http.DetectContentType(head)))
+	if i := strings.Index(detected, ";"); i >= 0 {
+		detected = strings.TrimSpace(detected[:i])
 	}
-	if isAllowedImageMIME(candidate) {
-		return candidate
-	}
-	if ext := strings.ToLower(filepath.Ext(fileName)); ext != "" {
-		byExt := mime.TypeByExtension(ext)
-		byExt = strings.TrimSpace(strings.ToLower(strings.Split(byExt, ";")[0]))
-		if isAllowedImageMIME(byExt) {
-			return byExt
-		}
+	if isAllowedImageMIME(detected) {
+		return detected
 	}
 	return ""
 }

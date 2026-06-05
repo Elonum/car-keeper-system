@@ -3,7 +3,10 @@ import { queryClientInstance } from '@/lib/query-client';
 import { pagesConfig } from './pages.config';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
+import ProtectedRoute from '@/components/common/ProtectedRoute';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
+
+const PROTECTED_PAGES = new Set(['Profile', 'ServiceAppointment']);
 
 const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
@@ -34,17 +37,26 @@ const AuthenticatedApp = () => {
           <MainPage />
         </LayoutWrapper>
       } />
-      {Object.entries(Pages).map(([path, Page]) => (
-        <Route
-          key={path}
-          path={`/${path}`}
-          element={
-            <LayoutWrapper currentPageName={path}>
-              <Page />
-            </LayoutWrapper>
-          }
-        />
-      ))}
+      {Object.entries(Pages).map(([path, Page]) => {
+        const page = PROTECTED_PAGES.has(path) ? (
+          <ProtectedRoute>
+            <Page />
+          </ProtectedRoute>
+        ) : (
+          <Page />
+        );
+        return (
+          <Route
+            key={path}
+            path={`/${path}`}
+            element={
+              <LayoutWrapper currentPageName={path}>
+                {page}
+              </LayoutWrapper>
+            }
+          />
+        );
+      })}
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );

@@ -18,14 +18,9 @@ function resolveApiOrigin() {
 
 export const API_BASE_ORIGIN = resolveApiOrigin();
 
-/** Bearer header for fetch (binary download) — matches axios interceptor + httpOnly cookie. */
+/** Headers for fetch (binary download) — auth via HttpOnly session cookie. */
 export function getApiAuthHeaders() {
-  const headers = {};
-  const token = sessionStorage.getItem('auth_token');
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
-  }
-  return headers;
+  return {};
 }
 
 const apiClient = axios.create({
@@ -41,10 +36,6 @@ apiClient.interceptors.request.use(
   (config) => {
     if (config.data instanceof FormData) {
       delete config.headers['Content-Type'];
-    }
-    const token = sessionStorage.getItem('auth_token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
@@ -75,16 +66,14 @@ apiClient.interceptors.response.use(
         const skipRedirect = Boolean(error.config?.skipAuthRedirect);
         const requestUrl = String(error.config?.url || '');
         const isAuthMe = requestUrl.includes('/auth/me');
-        const hadBearer = Boolean(error.config?.headers?.Authorization);
 
-        sessionStorage.removeItem('auth_token');
         sessionStorage.removeItem('user');
 
         const onAuthPage =
           window.location.pathname === '/Login' ||
           window.location.pathname === '/Register';
 
-        if (!skipRedirect && !isAuthMe && hadBearer && !onAuthPage) {
+        if (!skipRedirect && !isAuthMe && !onAuthPage) {
           window.location.href = '/Login';
         }
       }

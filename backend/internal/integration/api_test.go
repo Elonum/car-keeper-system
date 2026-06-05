@@ -95,7 +95,7 @@ func TestAuth_RegisterLoginMe(t *testing.T) {
 	if rr.Code != http.StatusOK || !resp.Success {
 		t.Fatalf("login status=%d err=%s", rr.Code, resp.Error)
 	}
-	token := testsupport.TokenFromLogin(t, resp.Data)
+	token := testsupport.TokenFromLogin(t, rr, resp.Data)
 
 	rr, resp = testsupport.DoJSON(t, testHandler, http.MethodGet, "/api/auth/me", nil, token)
 	if rr.Code != http.StatusOK || !resp.Success {
@@ -206,7 +206,7 @@ func loginSeedUser(t *testing.T, email string) string {
 		t.Skipf("seed user %s unavailable (run schema.sql + seed.sql; password %q): status=%d err=%s",
 			email, seedPassword, rr.Code, resp.Error)
 	}
-	return testsupport.TokenFromLogin(t, resp.Data)
+	return testsupport.TokenFromLogin(t, rr, resp.Data)
 }
 
 func registerFreshCustomerCredentials(t *testing.T) (email, pass string) {
@@ -234,5 +234,5 @@ func registerFreshCustomer(t *testing.T) string {
 	if rr.Code != http.StatusOK || !resp.Success {
 		t.Fatalf("login failed: %d %s", rr.Code, resp.Error)
 	}
-	return testsupport.TokenFromLogin(t, resp.Data)
+	return testsupport.TokenFromLogin(t, rr, resp.Data)
 }
