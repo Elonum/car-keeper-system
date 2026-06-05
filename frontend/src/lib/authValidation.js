@@ -73,6 +73,20 @@ export function validatePersonName(value, fieldLabel) {
   return null;
 }
 
+const PHONE_CHARS = /^[+\d\s().-]+$/;
+const MIN_PHONE_DIGITS = 10;
+const MAX_PHONE_DIGITS = 15;
+
+/** Compact storage form aligned with backend PhonePtr normalization */
+export function normalizePhoneOptional(phone) {
+  const raw = String(phone ?? '').trim();
+  if (!raw) return null;
+  const digits = raw.replace(/\D/g, '');
+  if (!digits) return null;
+  if (/\+/.test(raw)) return `+${digits}`;
+  return digits;
+}
+
 /** Optional phone: E.164-ish, 10–15 digits when provided */
 export function validatePhoneOptional(phone) {
   const raw = String(phone ?? '').trim();
@@ -82,8 +96,11 @@ export function validatePhoneOptional(phone) {
   if (raw.length > PHONE_MAX) {
     return `Номер не длиннее ${PHONE_MAX} символов`;
   }
+  if (!PHONE_CHARS.test(raw)) {
+    return 'Номер может содержать только цифры и символы + ( ) - .';
+  }
   const digits = raw.replace(/\D/g, '');
-  if (digits.length < 10 || digits.length > 15) {
+  if (digits.length < MIN_PHONE_DIGITS || digits.length > MAX_PHONE_DIGITS) {
     return 'Введите корректный номер (10–15 цифр)';
   }
   return null;

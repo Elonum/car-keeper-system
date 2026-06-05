@@ -56,6 +56,17 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	em, msg := validate.Email(login.Email)
+	if msg != "" {
+		BadRequest(w, msg)
+		return
+	}
+	login.Email = em
+	if login.Password == "" {
+		BadRequest(w, "password is required")
+		return
+	}
+
 	token, user, err := h.services.Auth.Login(r.Context(), login)
 	if err != nil {
 		HandleError(w, r, err)

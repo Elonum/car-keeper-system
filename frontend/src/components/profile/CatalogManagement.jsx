@@ -29,8 +29,14 @@ import { getApiErrorMessage } from '@/lib/apiErrors';
 import { resolveApiAssetUrl } from '@/lib/assetUrls';
 import { queryKeys, invalidatePublicCatalog } from '@/lib/queryKeys';
 import { ErrorNotice, FieldErrorText } from '@/components/common/ErrorNotice';
-
-const SERVICE_CATEGORIES = ['maintenance', 'repair', 'diagnostics', 'detailing', 'tires'];
+import ConfirmDialog from '@/components/common/ConfirmDialog';
+import {
+  ADMIN_LIMITS,
+  SERVICE_CATEGORIES,
+  validateBrandForm as validateBrandFields,
+  validateModelForm as validateModelFields,
+  validateServiceForm as validateServiceFields,
+} from '@/lib/adminValidation';
 const BRAND_DEFAULT_FORM = { name: '', country: '' };
 const MODEL_DEFAULT_FORM = { brand_id: '', name: '', segment: '', description: '' };
 const MODEL_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
@@ -126,6 +132,7 @@ export default function CatalogManagement({ role }) {
   const [modelErrors, setModelErrors] = useState({});
   const [serviceErrors, setServiceErrors] = useState({});
   const [manageError, setManageError] = useState(null);
+  const [confirmIntent, setConfirmIntent] = useState(null);
   const updateBrand = useMutation({
     mutationFn: ({ id, payload }) => adminCatalogService.updateBrand(id, payload),
     onSuccess: () => {
@@ -234,12 +241,11 @@ export default function CatalogManagement({ role }) {
     },
     onError: (e) => setManageError(getApiErrorMessage(e, 'Не удалось удалить')),
   });
-
-  if (!canCatalog && !canService) return null;
   const brandPending = createBrand.isPending || updateBrand.isPending;
   const modelPending =
     createModel.isPending || updateModel.isPending || deleteModel.isPending || uploadModelImage.isPending;
   const servicePending = createSt.isPending || patchSt.isPending;
+  const deletePending = deleteBrand.isPending || deleteModel.isPending || deleteSt.isPending;
   const brandCurrentSnapshot = useMemo(
     () => JSON.stringify(normalizeBrandForm(brandForm)),
     [brandForm]
@@ -265,6 +271,8 @@ export default function CatalogManagement({ role }) {
     setModelImagePreviewUrl(localUrl);
     return () => URL.revokeObjectURL(localUrl);
   }, [modelImageFile]);
+
+  if (!canCatalog && !canService) return null;
 
   const resetBrandForm = () => {
     setBrandForm(BRAND_DEFAULT_FORM);
@@ -368,40 +376,19 @@ export default function CatalogManagement({ role }) {
   };
 
   const validateBrandForm = () => {
-    const next = {};
-    if (!brandForm.name.trim()) next.name = 'Укажите название бренда.';
-    if (brandForm.name.trim().length > 100) next.name = 'Название: не более 100 символов.';
-    if (!brandForm.country.trim()) next.country = 'Укажите страну.';
-    if (brandForm.country.trim().length > 100) next.country = 'Страна: не более 100 символов.';
+    const next = validateBrandFields(brandForm);
     setBrandErrors(next);
     return Object.keys(next).length === 0;
   };
 
   const validateServiceForm = () => {
-    const next = {};
-    const price = Number(stForm.price);
-    const duration = stForm.duration_minutes === '' ? null : Number(stForm.duration_minutes);
-    if (!stForm.name.trim()) next.name = 'Укажите название услуги.';
-    if (stForm.name.trim().length > 120) next.name = 'Название: не более 120 символов.';
-    if (!SERVICE_CATEGORIES.includes(stForm.category)) next.category = 'Выберите категорию из списка.';
-    if (!Number.isFinite(price) || price < 0) next.price = 'Цена должна быть числом >= 0.';
-    if (duration != null && (!Number.isFinite(duration) || duration <= 0 || duration > 1440)) {
-      next.duration_minutes = 'Длительность: от 1 до 1440 минут.';
-    }
-    if (String(stForm.description || '').length > 1000) {
-      next.description = 'Описание: не более 1000 символов.';
-    }
+    const next = validateServiceFields(stForm);
     setServiceErrors(next);
     return Object.keys(next).length === 0;
   };
+
   const validateModelForm = () => {
-    const next = {};
-    const normalized = normalizeModelForm(modelForm);
-    if (!normalized.brand_id) next.brand_id = 'Выберите бренд.';
-    if (!normalized.name) next.name = 'Укажите название модели.';
-    if (normalized.name.length > 150) next.name = 'Название: не более 150 символов.';
-    if (normalized.segment.length > 100) next.segment = 'Сегмент: не более 100 символов.';
-    if (normalized.description.length > 2000) next.description = 'Описание: не более 2000 символов.';
+    const next = validateModelFields(modelForm);
     if (modelImageFile) {
       const allowed = ['image/jpeg', 'image/png', 'image/webp'];
       if (!allowed.includes(modelImageFile.type)) next.image = 'Допустимы JPG, PNG или WEBP.';
@@ -507,7 +494,17 @@ export default function CatalogManagement({ role }) {
 
   const requestCloseBrandDialog = () => {
     if (brandPending) return;
-    if (isBrandDirty && !window.confirm('Есть несохранённые изменения. Закрыть без сохранения?')) {
+    if (isBrandDirty) {
+      setConfirmIntent({
+        variant: 'warning',
+        title: 'Закрыть без сохранения?',
+        description: 'Изменения бренда не будут сохранены.',
+        confirmLabel: 'Закрыть',
+        onConfirm: () => {
+          setBrandDialogOpen(false);
+          resetBrandForm();
+        },
+      });
       return;
     }
     setBrandDialogOpen(false);
@@ -516,7 +513,17 @@ export default function CatalogManagement({ role }) {
 
   const requestCloseServiceDialog = () => {
     if (servicePending) return;
-    if (isServiceDirty && !window.confirm('Есть несохранённые изменения. Закрыть без сохранения?')) {
+    if (isServiceDirty) {
+      setConfirmIntent({
+        variant: 'warning',
+        title: 'Закрыть без сохранения?',
+        description: 'Изменения услуги не будут сохранены.',
+        confirmLabel: 'Закрыть',
+        onConfirm: () => {
+          setServiceDialogOpen(false);
+          resetServiceForm();
+        },
+      });
       return;
     }
     setServiceDialogOpen(false);
@@ -524,11 +531,51 @@ export default function CatalogManagement({ role }) {
   };
   const requestCloseModelDialog = () => {
     if (modelPending) return;
-    if (isModelDirty && !window.confirm('Есть несохранённые изменения. Закрыть без сохранения?')) {
+    if (isModelDirty) {
+      setConfirmIntent({
+        variant: 'warning',
+        title: 'Закрыть без сохранения?',
+        description: 'Изменения автомобиля не будут сохранены.',
+        confirmLabel: 'Закрыть',
+        onConfirm: () => {
+          setModelDialogOpen(false);
+          resetModelForm();
+        },
+      });
       return;
     }
     setModelDialogOpen(false);
     resetModelForm();
+  };
+
+  const requestDeleteBrand = (brand) => {
+    setConfirmIntent({
+      variant: 'destructive',
+      title: 'Удалить бренд?',
+      description: `Бренд «${brand.name}» будет удалён из каталога. Если к нему привязаны автомобили, сервер безопасно отклонит удаление.`,
+      confirmLabel: 'Удалить',
+      onConfirm: () => deleteBrand.mutate(brand.brand_id),
+    });
+  };
+
+  const requestDeleteModel = (model) => {
+    setConfirmIntent({
+      variant: 'destructive',
+      title: 'Удалить автомобиль?',
+      description: `Автомобиль «${model.name}» будет удалён из каталога. Если он используется в комплектациях или заказах, сервер безопасно отклонит удаление.`,
+      confirmLabel: 'Удалить',
+      onConfirm: () => deleteModel.mutate(model.model_id),
+    });
+  };
+
+  const requestDeleteServiceType = (serviceType) => {
+    setConfirmIntent({
+      variant: 'destructive',
+      title: 'Удалить услугу?',
+      description: `Услуга «${serviceType.name}» будет удалена из справочника. Если она используется в записях на ТО, сервер безопасно отклонит удаление.`,
+      confirmLabel: 'Удалить',
+      onConfirm: () => deleteSt.mutate(serviceType.service_type_id),
+    });
   };
 
   return (
@@ -566,9 +613,7 @@ export default function CatalogManagement({ role }) {
                   variant="ghost"
                   size="sm"
                   className="text-red-600 h-7"
-                  onClick={() => {
-                    if (window.confirm(`Удалить бренд «${b.name}»?`)) deleteBrand.mutate(b.brand_id);
-                  }}
+                  onClick={() => requestDeleteBrand(b)}
                 >
                   ×
                 </Button>
@@ -615,11 +660,7 @@ export default function CatalogManagement({ role }) {
                       variant="ghost"
                       size="sm"
                       className="text-red-600"
-                      onClick={() => {
-                        if (window.confirm(`Удалить автомобиль «${m.name}»?`)) {
-                          deleteModel.mutate(m.model_id);
-                        }
-                      }}
+                      onClick={() => requestDeleteModel(m)}
                     >
                       Удалить
                     </Button>
@@ -686,11 +727,7 @@ export default function CatalogManagement({ role }) {
                     variant="ghost"
                     size="sm"
                     className="text-red-600"
-                    onClick={() => {
-                      if (window.confirm(`Удалить услугу «${st.name}»?`)) {
-                        deleteSt.mutate(st.service_type_id);
-                      }
-                    }}
+                    onClick={() => requestDeleteServiceType(st)}
                   >
                     Удалить
                   </Button>
@@ -748,6 +785,7 @@ export default function CatalogManagement({ role }) {
                 <Label>Название *</Label>
                 <Input
                   value={brandForm.name}
+                  maxLength={ADMIN_LIMITS.BRAND_NAME}
                   onChange={(e) => {
                     setBrandForm((f) => ({ ...f, name: e.target.value }));
                     setBrandErrors((prev) => ({ ...prev, name: undefined }));
@@ -760,6 +798,7 @@ export default function CatalogManagement({ role }) {
                 <Label>Страна *</Label>
                 <Input
                   value={brandForm.country}
+                  maxLength={ADMIN_LIMITS.BRAND_COUNTRY}
                   onChange={(e) => {
                     setBrandForm((f) => ({ ...f, country: e.target.value }));
                     setBrandErrors((prev) => ({ ...prev, country: undefined }));
@@ -823,6 +862,7 @@ export default function CatalogManagement({ role }) {
                   <Label>Название *</Label>
                   <Input
                     value={stForm.name}
+                    maxLength={ADMIN_LIMITS.SERVICE_NAME}
                     onChange={(e) => {
                       setStForm((f) => ({ ...f, name: e.target.value }));
                       setServiceErrors((prev) => ({ ...prev, name: undefined }));
@@ -893,7 +933,7 @@ export default function CatalogManagement({ role }) {
                     setServiceErrors((prev) => ({ ...prev, description: undefined }));
                     setManageError(null);
                   }}
-                  maxLength={1000}
+                  maxLength={ADMIN_LIMITS.SERVICE_DESCRIPTION}
                 />
                 <FieldErrorText>{serviceErrors.description}</FieldErrorText>
               </div>
@@ -981,6 +1021,7 @@ export default function CatalogManagement({ role }) {
                 <Label>Название модели *</Label>
                 <Input
                   value={modelForm.name}
+                  maxLength={ADMIN_LIMITS.MODEL_NAME}
                   onChange={(e) => {
                     setModelForm((f) => ({ ...f, name: e.target.value }));
                     setModelErrors((prev) => ({ ...prev, name: undefined }));
@@ -993,6 +1034,7 @@ export default function CatalogManagement({ role }) {
                 <Label>Сегмент</Label>
                 <Input
                   value={modelForm.segment}
+                  maxLength={ADMIN_LIMITS.MODEL_SEGMENT}
                   onChange={(e) => {
                     setModelForm((f) => ({ ...f, segment: e.target.value }));
                     setModelErrors((prev) => ({ ...prev, segment: undefined }));
@@ -1005,7 +1047,7 @@ export default function CatalogManagement({ role }) {
                 <Label>Описание</Label>
                 <Textarea
                   value={modelForm.description}
-                  maxLength={2000}
+                  maxLength={ADMIN_LIMITS.MODEL_DESCRIPTION}
                   onChange={(e) => {
                     setModelForm((f) => ({ ...f, description: e.target.value }));
                     setModelErrors((prev) => ({ ...prev, description: undefined }));
@@ -1069,6 +1111,22 @@ export default function CatalogManagement({ role }) {
           </DialogContent>
         </Dialog>
       )}
+      <ConfirmDialog
+        open={Boolean(confirmIntent)}
+        onOpenChange={(open) => {
+          if (!open && !deletePending) setConfirmIntent(null);
+        }}
+        variant={confirmIntent?.variant}
+        title={confirmIntent?.title}
+        description={confirmIntent?.description}
+        confirmLabel={deletePending ? 'Удаление…' : confirmIntent?.confirmLabel}
+        disabled={deletePending}
+        onConfirm={() => {
+          const action = confirmIntent?.onConfirm;
+          action?.();
+          if (!deletePending) setConfirmIntent(null);
+        }}
+      />
     </div>
   );
 }

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/carkeeper/backend/internal/apperr"
@@ -182,23 +181,48 @@ func boolPtr(b bool) *bool {
 
 // AdminCreateServiceType creates a catalog service offering.
 func (s *ServiceService) AdminCreateServiceType(ctx context.Context, name, category string, description *string, price float64, durationMinutes *int, isAvailable bool) (*model.ServiceType, error) {
-	name = strings.TrimSpace(name)
-	category = strings.TrimSpace(category)
-	if name == "" || category == "" {
-		return nil, apperr.BadRequest("name and category are required")
+	var msg string
+	name, msg = validate.ServiceTypeName(name)
+	if msg != "" {
+		return nil, apperr.BadRequest(msg)
 	}
-	if price < 0 {
-		return nil, apperr.BadRequest("invalid price")
+	category, msg = validate.ServiceCategory(category)
+	if msg != "" {
+		return nil, apperr.BadRequest(msg)
+	}
+	description, msg = validate.ServiceDescription(description)
+	if msg != "" {
+		return nil, apperr.BadRequest(msg)
+	}
+	if msg := validate.ServicePrice(price); msg != "" {
+		return nil, apperr.BadRequest(msg)
+	}
+	if msg := validate.ServiceDurationMinutes(durationMinutes); msg != "" {
+		return nil, apperr.BadRequest(msg)
 	}
 	return s.repo.ServiceType.Create(ctx, name, category, description, price, durationMinutes, isAvailable)
 }
 
 // AdminUpdateServiceType updates a service type.
 func (s *ServiceService) AdminUpdateServiceType(ctx context.Context, id uuid.UUID, name, category string, description *string, price float64, durationMinutes *int, isAvailable bool) error {
-	name = strings.TrimSpace(name)
-	category = strings.TrimSpace(category)
-	if name == "" || category == "" {
-		return apperr.BadRequest("name and category are required")
+	var msg string
+	name, msg = validate.ServiceTypeName(name)
+	if msg != "" {
+		return apperr.BadRequest(msg)
+	}
+	category, msg = validate.ServiceCategory(category)
+	if msg != "" {
+		return apperr.BadRequest(msg)
+	}
+	description, msg = validate.ServiceDescription(description)
+	if msg != "" {
+		return apperr.BadRequest(msg)
+	}
+	if msg := validate.ServicePrice(price); msg != "" {
+		return apperr.BadRequest(msg)
+	}
+	if msg := validate.ServiceDurationMinutes(durationMinutes); msg != "" {
+		return apperr.BadRequest(msg)
 	}
 	return s.repo.ServiceType.Update(ctx, id, name, category, description, price, durationMinutes, isAvailable)
 }
@@ -210,5 +234,27 @@ func (s *ServiceService) AdminDeleteServiceType(ctx context.Context, id uuid.UUI
 
 // AdminUpdateBranch updates branch operational fields.
 func (s *ServiceService) AdminUpdateBranch(ctx context.Context, id uuid.UUID, name, address *string, phone, email *string, isActive *bool) error {
+	if name != nil {
+		n, msg := validate.BranchName(*name)
+		if msg != "" {
+			return apperr.BadRequest(msg)
+		}
+		name = &n
+	}
+	if address != nil {
+		a, msg := validate.BranchAddress(*address)
+		if msg != "" {
+			return apperr.BadRequest(msg)
+		}
+		address = &a
+	}
+	phone, msg := validate.PhonePtr(phone)
+	if msg != "" {
+		return apperr.BadRequest(msg)
+	}
+	email, msg = validate.EmailOptionalPtr(email)
+	if msg != "" {
+		return apperr.BadRequest(msg)
+	}
 	return s.repo.Branch.UpdateBranch(ctx, id, name, address, phone, email, isActive)
 }

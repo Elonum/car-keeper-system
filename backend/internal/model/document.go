@@ -20,6 +20,11 @@ type Document struct {
 	CreatedAt            time.Time  `db:"created_at" json:"created_at"`
 	// FileAvailable is true when the blob exists in storage (seed rows may be metadata-only).
 	FileAvailable bool `db:"-" json:"file_available"`
+	// Context fields are read-only API helpers populated by repository joins.
+	OwnerName       *string `db:"owner_name" json:"owner_name,omitempty"`
+	OwnerEmail      *string `db:"owner_email" json:"owner_email,omitempty"`
+	AttachmentKind  *string `db:"attachment_kind" json:"attachment_kind,omitempty"`
+	AttachmentLabel *string `db:"attachment_label" json:"attachment_label,omitempty"`
 }
 
 // DocumentTypes lists allowed document_type values (must match DB CHECK).

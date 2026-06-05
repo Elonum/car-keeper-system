@@ -2,7 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/lib/AuthContext';
 import { createPageUrl } from '../utils';
-import { validateEmail, validatePassword, FIELD_LIMITS } from '@/lib/authValidation';
+import {
+  validateEmail,
+  validatePassword,
+  normalizeEmail,
+  FIELD_LIMITS,
+} from '@/lib/authValidation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -49,7 +54,7 @@ export default function Login() {
 
     setIsLoading(true);
     try {
-      await login(email.trim(), password);
+      await login(normalizeEmail(email), password);
       navigate(createPageUrl('Catalog'));
     } catch (error) {
       const errorMessage = getApiErrorMessage(error, 'Ошибка входа. Проверьте email и пароль.');

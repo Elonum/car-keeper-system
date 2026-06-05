@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '@/lib/AuthContext';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -19,6 +20,8 @@ import {
   Download,
   AlertCircle,
   Paperclip,
+  Link2,
+  UserRound,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
@@ -35,6 +38,8 @@ import {
   formatFileSize,
 } from '@/lib/documents';
 import { ErrorNotice } from '@/components/common/ErrorNotice';
+import { PERMISSIONS, hasPermission } from '@/lib/authz';
+import ConfirmDialog from '@/components/common/ConfirmDialog';
 
 const DOC_TYPES = Object.keys(DOCUMENT_TYPE_LABELS);
 
@@ -42,8 +47,49 @@ function docId(doc) {
   return doc.document_id?.toString?.() || doc.document_id;
 }
 
+function shortId(value) {
+  return String(value || '').slice(0, 8);
+}
+
+function ownerLabelFromDoc(doc) {
+  return doc.owner_name || doc.owner_email || 'Клиент';
+}
+
+function attachmentLabelFromDoc(doc) {
+  if (doc.attachment_label) return doc.attachment_label;
+  if (doc.order_id) return `Заказ #${shortId(doc.order_id)}`;
+  if (doc.service_appointment_id) return `Запись на ТО #${shortId(doc.service_appointment_id)}`;
+  return 'Привязка не указана';
+}
+
+function orderOptionLabel(order) {
+  const id = order.order_id?.toString?.() || order.order_id;
+  const customer = order.customer_name || order.customer_email;
+  const status = order.status_label || order.status;
+  return [
+    `Заказ #${shortId(id)}`,
+    customer,
+    status,
+  ].filter(Boolean).join(' · ');
+}
+
+function appointmentOptionLabel(appointment) {
+  const id =
+    appointment.service_appointment_id?.toString?.() ||
+    appointment.service_appointment_id;
+  const customer = appointment.owner_name || appointment.owner_email;
+  const vin = appointment.user_car_vin ? `VIN ${appointment.user_car_vin}` : '';
+  return [
+    `Запись #${shortId(id)}`,
+    customer,
+    appointment.branch_name,
+    vin,
+  ].filter(Boolean).join(' · ');
+}
+
 export default function MyDocuments({ orders = [], appointments = [] }) {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const fileInputRef = useRef(null);
   const [file, setFile] = useState(null);
   const [dragOver, setDragOver] = useState(false);
@@ -56,10 +102,12 @@ export default function MyDocuments({ orders = [], appointments = [] }) {
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
   const [downloadingId, setDownloadingId] = useState(null);
+  const [documentToDelete, setDocumentToDelete] = useState(null);
 
   const canLinkOrder = orders.length > 0;
   const canLinkAppointment = appointments.length > 0;
   const canUpload = canLinkOrder || canLinkAppointment;
+  const staffDocumentsView = hasPermission(user?.role, PERMISSIONS.DOCUMENTS_VIEW_ANY);
 
   useEffect(() => {
     if (!canLinkOrder && canLinkAppointment) setLinkKind('appointment');
@@ -147,26 +195,61 @@ export default function MyDocuments({ orders = [], appointments = [] }) {
 
   const list = Array.isArray(documents) ? documents : [];
 
-  const typeFilterOptions = useMemo(() => {
-    const head = [{ value: 'all', label: 'Все типы' }];
+  const filterOptions = useMemo(() => {
+    const head = [{ value: 'all', label: 'Все документы' }];
     const rest = DOC_TYPES.map((t) => ({
-      value: t,
+      value: `type:${t}`,
       label: DOCUMENT_TYPE_LABELS[t],
     }));
-    return [...head, ...rest];
+    return [
+      ...head,
+      ...rest,
+      { value: 'attach:order', label: 'Прикреплены к заказам' },
+      { value: 'attach:service_appointment', label: 'Прикреплены к ТО' },
+      { value: 'availability:missing', label: 'Файлы отсутствуют' },
+    ];
   }, []);
 
   const filteredList = useMemo(() => {
     const q = search.trim().toLowerCase();
     return list.filter((doc) => {
-      if (typeFilter !== 'all' && doc.document_type !== typeFilter) return false;
+      if (typeFilter.startsWith('type:') && doc.document_type !== typeFilter.slice(5)) {
+        return false;
+      }
+      if (
+        typeFilter.startsWith('attach:') &&
+        (doc.attachment_kind || '') !== typeFilter.slice(7)
+      ) {
+        return false;
+      }
+      if (typeFilter === 'availability:missing' && doc.file_available !== false) {
+        return false;
+      }
       if (!q) return true;
       const name = (doc.file_name || DOCUMENT_TYPE_LABELS[doc.document_type] || '').toLowerCase();
       const typeLabel = (DOCUMENT_TYPE_LABELS[doc.document_type] || doc.document_type || '').toLowerCase();
       const id = String(docId(doc) || '').toLowerCase();
-      return name.includes(q) || typeLabel.includes(q) || id.includes(q);
+      const owner = `${doc.owner_name || ''} ${doc.owner_email || ''}`.toLowerCase();
+      const attachment = attachmentLabelFromDoc(doc).toLowerCase();
+      return (
+        name.includes(q) ||
+        typeLabel.includes(q) ||
+        id.includes(q) ||
+        owner.includes(q) ||
+        attachment.includes(q)
+      );
     });
   }, [list, search, typeFilter]);
+
+  const stats = useMemo(() => {
+    const total = list.length;
+    const available = list.filter((doc) => doc.file_available !== false).length;
+    const ordersCount = list.filter((doc) => doc.attachment_kind === 'order' || doc.order_id).length;
+    const appointmentsCount = list.filter(
+      (doc) => doc.attachment_kind === 'service_appointment' || doc.service_appointment_id
+    ).length;
+    return { total, available, ordersCount, appointmentsCount };
+  }, [list]);
 
   const handleDownload = async (doc) => {
     const id = docId(doc);
@@ -180,6 +263,13 @@ export default function MyDocuments({ orders = [], appointments = [] }) {
     } finally {
       setDownloadingId(null);
     }
+  };
+
+  const confirmDeleteDocument = () => {
+    if (!documentToDelete) return;
+    deleteMutation.mutate(docId(documentToDelete), {
+      onSettled: () => setDocumentToDelete(null),
+    });
   };
 
   if (isLoading) {
@@ -325,7 +415,7 @@ export default function MyDocuments({ orders = [], appointments = [] }) {
                       const id = o.order_id?.toString?.() || o.order_id;
                       return (
                         <SelectItem key={id} value={id}>
-                          Заказ #{String(id).slice(0, 8)}…
+                          {orderOptionLabel(o)}
                         </SelectItem>
                       );
                     })}
@@ -353,7 +443,7 @@ export default function MyDocuments({ orders = [], appointments = [] }) {
                         a.service_appointment_id?.toString?.() || a.service_appointment_id;
                       return (
                         <SelectItem key={id} value={id}>
-                          Запись #{String(id).slice(0, 8)}…
+                          {appointmentOptionLabel(a)}
                         </SelectItem>
                       );
                     })}
@@ -370,7 +460,28 @@ export default function MyDocuments({ orders = [], appointments = [] }) {
       </Card>
 
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-slate-900">Мои документы</h3>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h3 className="text-lg font-semibold text-slate-900">Мои документы</h3>
+            <p className="text-sm text-slate-500">
+              {staffDocumentsView
+                ? 'Показаны документы клиентов, доступные вашей роли.'
+                : 'Документы, прикреплённые к вашим заказам и записям на ТО.'}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2 text-xs text-slate-600">
+            <span className="rounded-full bg-slate-100 px-3 py-1">Всего: {stats.total}</span>
+            <span className="rounded-full bg-emerald-50 text-emerald-700 px-3 py-1">
+              Доступно: {stats.available}
+            </span>
+            <span className="rounded-full bg-blue-50 text-blue-700 px-3 py-1">
+              Заказы: {stats.ordersCount}
+            </span>
+            <span className="rounded-full bg-violet-50 text-violet-700 px-3 py-1">
+              ТО: {stats.appointmentsCount}
+            </span>
+          </div>
+        </div>
         <ErrorNotice kind="server" message={actionError} />
 
         {list.length === 0 ? (
@@ -384,10 +495,10 @@ export default function MyDocuments({ orders = [], appointments = [] }) {
             <CabinetListToolbar
               search={search}
               onSearchChange={setSearch}
-              searchPlaceholder="Поиск: имя файла, тип, номер…"
+              searchPlaceholder="Поиск: файл, клиент, email, заказ, VIN…"
               statusValue={typeFilter}
               onStatusChange={setTypeFilter}
-              statusOptions={typeFilterOptions}
+              statusOptions={filterOptions}
             />
             {filteredList.length === 0 ? (
               <p className="text-sm text-slate-500 py-4">Ничего не найдено по фильтрам.</p>
@@ -398,6 +509,8 @@ export default function MyDocuments({ orders = [], appointments = [] }) {
                   const name =
                     doc.file_name || DOCUMENT_TYPE_LABELS[doc.document_type] || 'Файл';
                   const available = Boolean(doc.file_available);
+                  const ownerLabel = ownerLabelFromDoc(doc);
+                  const attachmentLabel = attachmentLabelFromDoc(doc);
                   const created =
                     doc.created_at &&
                     format(new Date(doc.created_at), 'd MMM yyyy, HH:mm', { locale: ru });
@@ -417,6 +530,19 @@ export default function MyDocuments({ orders = [], appointments = [] }) {
                             {DOCUMENT_TYPE_LABELS[doc.document_type] || doc.document_type}
                             {doc.file_size != null ? ` · ${formatFileSize(doc.file_size)}` : ''}
                           </p>
+                          <div className="mt-2 flex flex-col gap-1 text-xs text-slate-500 sm:flex-row sm:flex-wrap sm:gap-x-4">
+                            <span className="inline-flex items-center gap-1 min-w-0">
+                              <UserRound className="h-3.5 w-3.5 flex-shrink-0" />
+                              <span className="truncate">
+                                {ownerLabel}
+                                {staffDocumentsView && doc.owner_email ? ` · ${doc.owner_email}` : ''}
+                              </span>
+                            </span>
+                            <span className="inline-flex items-center gap-1 min-w-0">
+                              <Link2 className="h-3.5 w-3.5 flex-shrink-0" />
+                              <span className="truncate">{attachmentLabel}</span>
+                            </span>
+                          </div>
                           {created ? (
                             <p className="text-xs text-slate-400 mt-0.5">{created}</p>
                           ) : null}
@@ -449,11 +575,7 @@ export default function MyDocuments({ orders = [], appointments = [] }) {
                           size="sm"
                           className="text-red-600 hover:text-red-700 hover:bg-red-50"
                           disabled={deleteMutation.isPending}
-                          onClick={() => {
-                            if (window.confirm('Удалить документ?')) {
-                              deleteMutation.mutate(id);
-                            }
-                          }}
+                          onClick={() => setDocumentToDelete(doc)}
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
@@ -466,6 +588,22 @@ export default function MyDocuments({ orders = [], appointments = [] }) {
           </>
         )}
       </div>
+      <ConfirmDialog
+        open={Boolean(documentToDelete)}
+        onOpenChange={(open) => {
+          if (!open && !deleteMutation.isPending) setDocumentToDelete(null);
+        }}
+        variant="destructive"
+        title="Удалить документ?"
+        description={`Документ «${
+          documentToDelete?.file_name ||
+          DOCUMENT_TYPE_LABELS[documentToDelete?.document_type] ||
+          'Файл'
+        }» будет удалён из кабинета. Если файл был доступен на сервере, он также будет удалён из хранилища.`}
+        confirmLabel={deleteMutation.isPending ? 'Удаление…' : 'Удалить'}
+        disabled={deleteMutation.isPending}
+        onConfirm={confirmDeleteDocument}
+      />
     </div>
   );
 }

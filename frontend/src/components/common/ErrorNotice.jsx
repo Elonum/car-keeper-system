@@ -4,16 +4,22 @@ import { AlertCircle, ShieldAlert, FileWarning } from 'lucide-react';
 
 const VARIANT_META = {
   server: {
-    title: 'Ошибка сервера',
+    title: 'Не удалось выполнить действие',
     Icon: AlertCircle,
+    className: 'border-red-200 bg-red-50 text-red-950',
+    iconClassName: 'text-red-600',
   },
   form: {
     title: 'Проверьте поля формы',
     Icon: FileWarning,
+    className: 'border-amber-200 bg-amber-50 text-amber-950',
+    iconClassName: 'text-amber-600',
   },
   permission: {
     title: 'Недостаточно прав',
     Icon: ShieldAlert,
+    className: 'border-slate-200 bg-slate-50 text-slate-900',
+    iconClassName: 'text-slate-600',
   },
 };
 
@@ -23,12 +29,12 @@ export function ErrorNotice({ kind = 'server', message, className = '' }) {
   const Icon = meta.Icon;
 
   return (
-    <Alert variant="destructive" className={`border-red-200 bg-red-50/90 ${className}`.trim()}>
-      <div className="flex gap-2">
-        <Icon className="h-4 w-4 shrink-0 mt-0.5" />
-        <AlertDescription className="text-sm text-red-900">
-          <span className="font-medium">{meta.title}: </span>
-          {message}
+    <Alert className={`${meta.className} rounded-xl shadow-sm ${className}`.trim()}>
+      <div className="flex gap-3">
+        <Icon className={`h-5 w-5 shrink-0 mt-0.5 ${meta.iconClassName}`} />
+        <AlertDescription className="text-sm">
+          <span className="block font-semibold">{meta.title}</span>
+          <span className="mt-0.5 block leading-5">{message}</span>
         </AlertDescription>
       </div>
     </Alert>

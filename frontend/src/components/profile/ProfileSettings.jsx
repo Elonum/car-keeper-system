@@ -10,6 +10,7 @@ import { profileService } from '@/services/profileService';
 import {
   validatePersonName,
   validatePhoneOptional,
+  normalizePhoneOptional,
   validatePassword,
   validatePasswordConfirm,
   FIELD_LIMITS,
@@ -125,8 +126,7 @@ export default function ProfileSettings() {
       first_name: firstName.trim(),
       last_name: lastName.trim(),
     };
-    const phoneTrim = phone.trim();
-    payload.phone = phoneTrim || null;
+    payload.phone = normalizePhoneOptional(phone);
     profileMutation.mutate(payload);
   };
 
@@ -188,6 +188,12 @@ export default function ProfileSettings() {
                     setProfileErrors((p) => ({ ...p, first_name: undefined }));
                   }
                 }}
+                onBlur={() =>
+                  setProfileErrors((p) => ({
+                    ...p,
+                    first_name: validatePersonName(firstName, 'Имя'),
+                  }))
+                }
                 autoComplete="given-name"
                 disabled={profileMutation.isPending}
                 className={profileErrors.first_name ? 'border-red-500' : ''}
@@ -207,6 +213,12 @@ export default function ProfileSettings() {
                     setProfileErrors((p) => ({ ...p, last_name: undefined }));
                   }
                 }}
+                onBlur={() =>
+                  setProfileErrors((p) => ({
+                    ...p,
+                    last_name: validatePersonName(lastName, 'Фамилия'),
+                  }))
+                }
                 autoComplete="family-name"
                 disabled={profileMutation.isPending}
                 className={profileErrors.last_name ? 'border-red-500' : ''}
@@ -251,6 +263,12 @@ export default function ProfileSettings() {
                   setProfileErrors((p) => ({ ...p, phone: undefined }));
                 }
               }}
+              onBlur={() =>
+                setProfileErrors((p) => ({
+                  ...p,
+                  phone: validatePhoneOptional(phone),
+                }))
+              }
               autoComplete="tel"
               disabled={profileMutation.isPending}
               placeholder="+7 (999) 123-45-67"

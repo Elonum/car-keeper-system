@@ -44,6 +44,12 @@ func TestDocuments_ManagerUploadAppearsInAccessibleLists(t *testing.T) {
 	if created["file_available"] != true {
 		t.Fatalf("created file_available=%v, want true", created["file_available"])
 	}
+	if created["owner_name"] == "" || created["owner_email"] == "" {
+		t.Fatalf("created document missing owner context: %#v", created)
+	}
+	if created["attachment_kind"] != "order" || created["attachment_label"] == "" {
+		t.Fatalf("created document missing attachment context: %#v", created)
+	}
 
 	assertDocumentInList(t, customerToken, documentID)
 	assertDocumentInList(t, managerToken, documentID)
@@ -94,6 +100,9 @@ func assertDocumentInList(t *testing.T, token, documentID string) {
 		if doc["document_id"] == documentID {
 			if doc["file_available"] != true {
 				t.Fatalf("listed file_available=%v, want true", doc["file_available"])
+			}
+			if doc["owner_name"] == "" || doc["attachment_label"] == "" {
+				t.Fatalf("listed document missing context: %#v", doc)
 			}
 			return
 		}

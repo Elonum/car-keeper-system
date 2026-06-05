@@ -9,6 +9,7 @@ import {
   validatePhoneOptional,
   validatePasswordConfirm,
   normalizeEmail,
+  normalizePhoneOptional,
   FIELD_LIMITS,
 } from '@/lib/authValidation';
 import { Button } from '@/components/ui/button';
@@ -87,9 +88,9 @@ export default function Register() {
         email: normalizeEmail(email),
         password,
       };
-      const phoneTrim = phone.trim();
-      if (phoneTrim) {
-        payload.phone = phoneTrim;
+      const phoneNorm = normalizePhoneOptional(phone);
+      if (phoneNorm) {
+        payload.phone = phoneNorm;
       }
 
       await register(payload);

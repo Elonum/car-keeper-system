@@ -27,6 +27,7 @@ const BACKEND_TO_RU = [
   // Auth
   [/^\s*invalid email or password\s*$/i, 'Неверный email или пароль.'],
   [/^\s*this email is already registered\s*$/i, 'Пользователь с таким email уже зарегистрирован.'],
+  [/^\s*this phone is already registered\s*$/i, 'Пользователь с таким телефоном уже зарегистрирован.'],
   [/^\s*user not found\s*$/i, 'Пользователь не найден.'],
   [/^\s*current password is incorrect\s*$/i, 'Неверный текущий пароль.'],
 
@@ -100,6 +101,8 @@ const BACKEND_TO_RU = [
   [/^\s*model_id is required\s*$/i, 'Укажите модель (model_id).'],
   [/^\s*invalid model_id\s*$/i, 'Некорректный model_id.'],
   [/^\s*invalid trim id\s*$/i, 'Некорректный идентификатор комплектации.'],
+  [/^\s*cannot delete:.*in use\s*$/i, 'Нельзя удалить запись: она уже используется в системе.'],
+  [/violates foreign key constraint/i, 'Нельзя удалить запись: она связана с другими данными.'],
 
   // Service / appointments (service layer messages still exposed via HandleError)
   [/^\s*appointment_date is required\s*$/i, 'Укажите дату и время записи.'],
@@ -177,9 +180,30 @@ const BACKEND_TO_RU = [
     'Нет прав прикрепить документ к этому заказу или записи.',
   ],
 
-  // News (handler)
+  // News (handler / service)
   [/^\s*title is required \(max 255 characters\)\s*$/i, 'Заголовок обязателен (до 255 символов).'],
   [/^\s*content is required\s*$/i, 'Текст новости обязателен.'],
+  [/^\s*content is too long\s*$/i, 'Текст новости слишком длинный.'],
+  [/title contains invalid characters/i, 'Заголовок содержит недопустимые символы.'],
+  [/content contains invalid characters/i, 'Текст новости содержит недопустимые символы.'],
+
+  // Catalog / service admin
+  [/^\s*name is required\s*$/i, 'Укажите название.'],
+  [/^\s*country is required\s*$/i, 'Укажите страну.'],
+  [/^\s*name is too long/i, 'Название слишком длинное.'],
+  [/^\s*country is too long/i, 'Страна: слишком длинное значение.'],
+  [/contains invalid characters/i, 'Поле содержит недопустимые символы.'],
+  [/^\s*invalid service category\s*$/i, 'Некорректная категория услуги.'],
+  [/^\s*invalid price\s*$/i, 'Некорректная цена.'],
+  [/^\s*price is too large\s*$/i, 'Цена слишком большая.'],
+  [/duration_minutes must be between/i, 'Длительность: от 1 до 1440 минут.'],
+  [/^\s*address is required\s*$/i, 'Укажите адрес филиала.'],
+  [/^\s*address is too long/i, 'Адрес слишком длинный.'],
+
+  // Order statuses
+  [/^\s*invalid order status code\s*$/i, 'Некорректный код статуса заказа.'],
+  [/^\s*code is too long/i, 'Код статуса слишком длинный.'],
+  [/^\s*invalid sort_order\s*$/i, 'Некорректный порядок сортировки.'],
 
   // Legacy / validation phrases (still possible from validators or old paths)
   [/^\s*invalid credentials\s*$/i, 'Неверный email или пароль.'],
@@ -189,8 +213,14 @@ const BACKEND_TO_RU = [
   [/^\s*password is too long\s*$/i, 'Пароль слишком длинный.'],
   [/^\s*first_name is required/i, 'Имя обязательно (до 100 символов).'],
   [/^\s*last_name is required/i, 'Фамилия обязательна (до 100 символов).'],
-  [/^\s*email is required/i, 'Некорректный email.'],
+  [/first_name contains invalid characters/i, 'Имя содержит недопустимые символы.'],
+  [/last_name contains invalid characters/i, 'Фамилия содержит недопустимые символы.'],
+  [/^\s*email is required/i, 'Укажите email.'],
+  [/^\s*invalid email format\s*$/i, 'Введите корректный email.'],
   [/^\s*phone is too long/i, 'Телефон слишком длинный (до 30 символов).'],
+  [/phone contains invalid characters/i, 'Телефон содержит недопустимые символы.'],
+  [/phone must contain 10/i, 'Введите корректный номер (10–15 цифр).'],
+  [/^\s*password is required\s*$/i, 'Введите пароль.'],
   [
     /^\s*new password must be different from the current password\s*$/i,
     'Новый пароль должен отличаться от текущего.',
@@ -212,6 +242,18 @@ export function formatBackendErrorMessage(text) {
     if (re.test(t)) return ru;
   }
   return t;
+}
+
+function looksTechnicalMessage(text) {
+  const t = String(text || '').trim();
+  if (!t) return false;
+  if (/[А-Яа-яЁё]/.test(t)) return false;
+  return (
+    /(^|[\s:])(sql|pgx|pq|panic|stack|trace|runtime|exception|constraint|jwt|token|uuid|bcrypt)([\s:]|$)/i.test(t) ||
+    /\b(select|insert|update|delete)\b.+\b(from|into|where|set)\b/i.test(t) ||
+    /[A-Z]:\\|\/(src|app|backend|frontend|internal)\//i.test(t) ||
+    /^[a-z][a-z0-9_ .:-]+$/i.test(t)
+  );
 }
 
 function extractPayload(err) {
@@ -259,6 +301,9 @@ export function getApiErrorMessage(err, fallback = GENERIC_FALLBACK_RU) {
   }
 
   const out = formatBackendErrorMessage(raw);
+  if (out === raw && looksTechnicalMessage(raw)) {
+    return fallback;
+  }
   if (out.length > MAX_USER_MESSAGE_LEN) {
     return fallback;
   }

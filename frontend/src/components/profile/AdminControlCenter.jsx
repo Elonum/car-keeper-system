@@ -22,6 +22,11 @@ import { PERMISSIONS, PERMISSION_LABEL_RU, ROLE_TITLE_RU, hasPermission } from '
 import CatalogManagement from './CatalogManagement';
 import { ErrorNotice, FieldErrorText } from '../common/ErrorNotice';
 import { LayoutGrid, ListChecks, Shield, Tags } from 'lucide-react';
+import ConfirmDialog from '@/components/common/ConfirmDialog';
+import {
+  ADMIN_LIMITS,
+  validateOrderStatusForm,
+} from '@/lib/adminValidation';
 
 const STATUS_DEFAULT_FORM = {
   code: '',
@@ -64,6 +69,7 @@ export default function AdminControlCenter({ role }) {
   );
   const [formErrors, setFormErrors] = useState({});
   const [manageError, setManageError] = useState(null);
+  const [confirmIntent, setConfirmIntent] = useState(null);
 
   const { data: statuses = [] } = useQuery({
     queryKey: ['order-statuses', 'admin'],
@@ -166,22 +172,7 @@ export default function AdminControlCenter({ role }) {
   };
 
   const validateStatusForm = () => {
-    const next = {};
-    const code = form.code.trim();
-    const customerLabel = form.customer_label_ru.trim();
-    const adminLabel = form.admin_label_ru.trim();
-
-    if (!code) next.code = 'Укажите код статуса.';
-    if (code && !/^[a-z0-9_]+$/i.test(code)) {
-      next.code = 'Код: латиница, цифры и _.';
-    }
-    if (!customerLabel) next.customer_label_ru = 'Укажите подпись для клиента.';
-    if (adminLabel.length > 100) next.admin_label_ru = 'Подпись для админа: не более 100 символов.';
-    if (!Number.isFinite(form.sort_order)) next.sort_order = 'Укажите корректный порядок сортировки.';
-    if (String(form.description || '').length > 500) {
-      next.description = 'Описание: не более 500 символов.';
-    }
-
+    const next = validateOrderStatusForm(form);
     setFormErrors(next);
     return Object.keys(next).length === 0;
   };
@@ -222,11 +213,31 @@ export default function AdminControlCenter({ role }) {
 
   const requestCloseStatusDialog = () => {
     if (statusPending) return;
-    if (isStatusDirty && !window.confirm('Есть несохранённые изменения. Закрыть без сохранения?')) {
+    if (isStatusDirty) {
+      setConfirmIntent({
+        variant: 'warning',
+        title: 'Закрыть без сохранения?',
+        description: 'Внесённые изменения в статус заказа будут потеряны.',
+        confirmLabel: 'Закрыть',
+        onConfirm: () => {
+          setStatusDialogOpen(false);
+          resetStatusForm();
+        },
+      });
       return;
     }
     setStatusDialogOpen(false);
     resetStatusForm();
+  };
+
+  const requestDeleteStatus = (status) => {
+    setConfirmIntent({
+      variant: 'destructive',
+      title: 'Удалить статус заказа?',
+      description: `Статус «${status.code}» будет удалён из справочника. Если он уже используется в заказах, сервер безопасно отклонит удаление.`,
+      confirmLabel: 'Удалить',
+      onConfirm: () => deleteMutation.mutate(status.order_status_id),
+    });
   };
 
   return (
@@ -355,11 +366,7 @@ export default function AdminControlCenter({ role }) {
                           size="sm"
                           variant="outline"
                           className="text-red-600 hover:text-red-700"
-                          onClick={() => {
-                            if (window.confirm(`Удалить статус «${s.code}»?`)) {
-                              deleteMutation.mutate(s.order_status_id);
-                            }
-                          }}
+                          onClick={() => requestDeleteStatus(s)}
                         >
                           Удалить
                         </Button>
@@ -426,6 +433,7 @@ export default function AdminControlCenter({ role }) {
                   <Label>Код *</Label>
                   <Input
                     value={form.code}
+                    maxLength={ADMIN_LIMITS.ORDER_STATUS_CODE}
                     onChange={(e) => {
                       setForm((v) => ({ ...v, code: e.target.value }));
                       setFormErrors((prev) => ({ ...prev, code: undefined }));
@@ -452,6 +460,7 @@ export default function AdminControlCenter({ role }) {
                   <Label>Подпись для клиента *</Label>
                   <Input
                     value={form.customer_label_ru}
+                    maxLength={ADMIN_LIMITS.ORDER_STATUS_LABEL}
                     onChange={(e) => {
                       setForm((v) => ({ ...v, customer_label_ru: e.target.value }));
                       setFormErrors((prev) => ({ ...prev, customer_label_ru: undefined }));
@@ -464,6 +473,7 @@ export default function AdminControlCenter({ role }) {
                   <Label>Подпись для сотрудников</Label>
                   <Input
                     value={form.admin_label_ru}
+                    maxLength={ADMIN_LIMITS.ORDER_STATUS_LABEL}
                     onChange={(e) => {
                       setForm((v) => ({ ...v, admin_label_ru: e.target.value }));
                       setFormErrors((prev) => ({ ...prev, admin_label_ru: undefined }));
@@ -482,7 +492,7 @@ export default function AdminControlCenter({ role }) {
                     setFormErrors((prev) => ({ ...prev, description: undefined }));
                     setManageError(null);
                   }}
-                  maxLength={500}
+                  maxLength={ADMIN_LIMITS.ORDER_STATUS_DESCRIPTION}
                 />
                 <FieldErrorText>{formErrors.description}</FieldErrorText>
               </div>
@@ -534,6 +544,22 @@ export default function AdminControlCenter({ role }) {
           </DialogContent>
         </Dialog>
       )}
+      <ConfirmDialog
+        open={Boolean(confirmIntent)}
+        onOpenChange={(open) => {
+          if (!open && !deleteMutation.isPending) setConfirmIntent(null);
+        }}
+        variant={confirmIntent?.variant}
+        title={confirmIntent?.title}
+        description={confirmIntent?.description}
+        confirmLabel={deleteMutation.isPending ? 'Удаление…' : confirmIntent?.confirmLabel}
+        disabled={deleteMutation.isPending}
+        onConfirm={() => {
+          const action = confirmIntent?.onConfirm;
+          action?.();
+          if (!deleteMutation.isPending) setConfirmIntent(null);
+        }}
+      />
     </div>
   );
 }

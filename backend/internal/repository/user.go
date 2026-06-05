@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/carkeeper/backend/database"
 	"github.com/carkeeper/backend/internal/apperr"
@@ -57,9 +58,8 @@ func (r *UserRepository) Create(ctx context.Context, userCreate model.UserCreate
 	)
 
 	if err != nil {
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-			return nil, apperr.Conflict("This email is already registered")
+		if conflict := uniqueUserConflict(err); conflict != nil {
+			return nil, conflict
 		}
 		return nil, apperr.Internal(err)
 	}
@@ -235,8 +235,24 @@ func (r *UserRepository) UpdateProfile(ctx context.Context, userID uuid.UUID, fi
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, fmt.Errorf("%w", apperr.ErrNotFound)
 		}
+		if conflict := uniqueUserConflict(err); conflict != nil {
+			return nil, conflict
+		}
 		return nil, apperr.Internal(err)
 	}
 	return &user, nil
+}
+
+func uniqueUserConflict(err error) error {
+	var pgErr *pgconn.PgError
+	if !errors.As(err, &pgErr) || pgErr.Code != "23505" {
+		return nil
+	}
+	switch {
+	case strings.Contains(pgErr.ConstraintName, "phone"):
+		return apperr.Conflict("This phone is already registered")
+	default:
+		return apperr.Conflict("This email is already registered")
+	}
 }
 

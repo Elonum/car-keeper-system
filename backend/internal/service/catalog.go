@@ -13,6 +13,7 @@ import (
 	"github.com/carkeeper/backend/internal/apperr"
 	"github.com/carkeeper/backend/internal/model"
 	"github.com/carkeeper/backend/internal/repository"
+	"github.com/carkeeper/backend/internal/validate"
 	"github.com/carkeeper/backend/internal/storage"
 	"github.com/google/uuid"
 )
@@ -60,19 +61,27 @@ func (s *CatalogService) GetDriveTypes(ctx context.Context) ([]model.DriveType, 
 }
 
 func (s *CatalogService) AdminCreateBrand(ctx context.Context, name, country string) (*model.Brand, error) {
-	name = strings.TrimSpace(name)
-	country = strings.TrimSpace(country)
-	if name == "" || country == "" {
-		return nil, apperr.BadRequest("name and country are required")
+	var msg string
+	name, msg = validate.BrandName(name)
+	if msg != "" {
+		return nil, apperr.BadRequest(msg)
+	}
+	country, msg = validate.BrandCountry(country)
+	if msg != "" {
+		return nil, apperr.BadRequest(msg)
 	}
 	return s.repo.Brand.Create(ctx, name, country)
 }
 
 func (s *CatalogService) AdminUpdateBrand(ctx context.Context, id uuid.UUID, name, country string) error {
-	name = strings.TrimSpace(name)
-	country = strings.TrimSpace(country)
-	if name == "" || country == "" {
-		return apperr.BadRequest("name and country are required")
+	var msg string
+	name, msg = validate.BrandName(name)
+	if msg != "" {
+		return apperr.BadRequest(msg)
+	}
+	country, msg = validate.BrandCountry(country)
+	if msg != "" {
+		return apperr.BadRequest(msg)
 	}
 	return s.repo.Brand.Update(ctx, id, name, country)
 }
@@ -86,22 +95,36 @@ func (s *CatalogService) AdminListModels(ctx context.Context) ([]model.Model, er
 }
 
 func (s *CatalogService) AdminCreateModel(ctx context.Context, brandID uuid.UUID, name string, segment, description *string) (*model.Model, error) {
-	name = strings.TrimSpace(name)
-	if name == "" {
-		return nil, apperr.BadRequest("name is required")
+	var msg string
+	name, msg = validate.ModelName(name)
+	if msg != "" {
+		return nil, apperr.BadRequest(msg)
 	}
-	segment = normalizeOptional(segment, 100)
-	description = normalizeOptional(description, 2000)
+	segment, msg = validate.ModelSegment(segment)
+	if msg != "" {
+		return nil, apperr.BadRequest(msg)
+	}
+	description, msg = validate.ModelDescription(description)
+	if msg != "" {
+		return nil, apperr.BadRequest(msg)
+	}
 	return s.repo.Model.Create(ctx, brandID, name, segment, description)
 }
 
 func (s *CatalogService) AdminUpdateModel(ctx context.Context, id, brandID uuid.UUID, name string, segment, description *string) error {
-	name = strings.TrimSpace(name)
-	if name == "" {
-		return apperr.BadRequest("name is required")
+	var msg string
+	name, msg = validate.ModelName(name)
+	if msg != "" {
+		return apperr.BadRequest(msg)
 	}
-	segment = normalizeOptional(segment, 100)
-	description = normalizeOptional(description, 2000)
+	segment, msg = validate.ModelSegment(segment)
+	if msg != "" {
+		return apperr.BadRequest(msg)
+	}
+	description, msg = validate.ModelDescription(description)
+	if msg != "" {
+		return apperr.BadRequest(msg)
+	}
 	return s.repo.Model.Update(ctx, id, brandID, name, segment, description)
 }
 
@@ -159,23 +182,6 @@ func (s *CatalogService) OpenModelImage(ctx context.Context, modelID uuid.UUID) 
 		return nil, "", apperr.NotFoundErr("Model image not found")
 	}
 	return rc, mimeType, nil
-}
-
-func normalizeOptional(v *string, maxLen int) *string {
-	if v == nil {
-		return nil
-	}
-	s := strings.TrimSpace(*v)
-	if s == "" {
-		return nil
-	}
-	if maxLen > 0 {
-		rs := []rune(s)
-		if len(rs) > maxLen {
-			s = string(rs[:maxLen])
-		}
-	}
-	return &s
 }
 
 func normalizeImageMime(detected, hint, fileName string) string {

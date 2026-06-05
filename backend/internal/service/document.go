@@ -138,6 +138,7 @@ func (s *DocumentService) Create(ctx context.Context, in DocumentCreateInput) (*
 		return nil, err
 	}
 	s.enrichFileAvailable(ctx, out)
+	s.redactDocumentContext(out, in.Role)
 	return out, nil
 }
 
@@ -178,6 +179,7 @@ func (s *DocumentService) List(ctx context.Context, requester uuid.UUID, role st
 	}
 	for i := range list {
 		s.enrichFileAvailable(ctx, &list[i])
+		s.redactDocumentContext(&list[i], role)
 	}
 	return list, nil
 }
@@ -191,6 +193,7 @@ func (s *DocumentService) Get(ctx context.Context, documentID uuid.UUID, request
 		return nil, fmt.Errorf("%w", apperr.ErrNotFound)
 	}
 	s.enrichFileAvailable(ctx, d)
+	s.redactDocumentContext(d, role)
 	return d, nil
 }
 
@@ -240,6 +243,15 @@ func (s *DocumentService) enrichFileAvailable(ctx context.Context, d *model.Docu
 		return
 	}
 	d.FileAvailable = exists
+}
+
+func (s *DocumentService) redactDocumentContext(d *model.Document, role string) {
+	if d == nil {
+		return
+	}
+	if !authz.HasPermission(role, authz.PermDocumentsViewAny) {
+		d.OwnerEmail = nil
+	}
 }
 
 func (s *DocumentService) canAccessDocument(d *model.Document, requester uuid.UUID, role string) bool {

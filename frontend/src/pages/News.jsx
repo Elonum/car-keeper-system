@@ -15,7 +15,8 @@ import { Card } from "@/components/ui/card";
 import PageLoader from '../components/common/PageLoader';
 import EmptyState from '../components/common/EmptyState';
 import SectionHeader from '../components/common/SectionHeader';
-import { ErrorNotice } from '../components/common/ErrorNotice';
+import { ErrorNotice, FieldErrorText } from '../components/common/ErrorNotice';
+import { ADMIN_LIMITS, validateNewsDraft } from '@/lib/adminValidation';
 import { Newspaper, Calendar, User, ArrowRight } from 'lucide-react';
 
 export default function News() {
@@ -26,6 +27,7 @@ export default function News() {
   const [draftTitle, setDraftTitle] = React.useState('');
   const [draftContent, setDraftContent] = React.useState('');
   const [newsError, setNewsError] = React.useState(null);
+  const [draftErrors, setDraftErrors] = React.useState({});
   const { data: news, isLoading } = useQuery({
     queryKey: ['news', scope, canManageNews],
     queryFn: () =>
@@ -36,15 +38,31 @@ export default function News() {
       ),
   });
   const createMutation = useMutation({
-    mutationFn: () => newsService.createNews({ title: draftTitle, content: draftContent }),
+    mutationFn: () =>
+      newsService.createNews({
+        title: draftTitle.trim(),
+        content: draftContent.trim(),
+      }),
     onSuccess: () => {
       setDraftTitle('');
       setDraftContent('');
+      setDraftErrors({});
       setNewsError(null);
       qc.invalidateQueries({ queryKey: ['news'] });
     },
     onError: (e) => setNewsError(getApiErrorMessage(e, 'Не удалось создать новость')),
   });
+
+  const handleCreateDraft = () => {
+    const next = validateNewsDraft(draftTitle, draftContent);
+    setDraftErrors(next);
+    if (Object.keys(next).length > 0) {
+      setNewsError('Проверьте поля формы');
+      return;
+    }
+    createMutation.mutate();
+  };
+
   const publishMutation = useMutation({
     mutationFn: ({ id, publish } = {}) =>
       publish ? newsService.publishNews(id) : newsService.unpublishNews(id),
@@ -88,20 +106,42 @@ export default function News() {
               </Button>
             </div>
             <div className="grid md:grid-cols-2 gap-3">
-              <Input placeholder="Заголовок новой новости" value={draftTitle} onChange={(e) => setDraftTitle(e.target.value)} />
+              <div className="space-y-1">
+                <Input
+                  placeholder="Заголовок новой новости"
+                  value={draftTitle}
+                  maxLength={ADMIN_LIMITS.NEWS_TITLE}
+                  onChange={(e) => {
+                    setDraftTitle(e.target.value);
+                    setDraftErrors((p) => ({ ...p, title: undefined }));
+                    setNewsError(null);
+                  }}
+                  className={draftErrors.title ? 'border-red-500' : ''}
+                />
+                <FieldErrorText>{draftErrors.title}</FieldErrorText>
+              </div>
               <Button
-                onClick={() => createMutation.mutate()}
-                disabled={createMutation.isPending || !draftTitle.trim() || !draftContent.trim()}
+                onClick={handleCreateDraft}
+                disabled={createMutation.isPending}
               >
                 Создать черновик
               </Button>
             </div>
-            <Textarea
-              placeholder="Текст новости (markdown поддерживается)"
-              value={draftContent}
-              onChange={(e) => setDraftContent(e.target.value)}
-              rows={5}
-            />
+            <div className="space-y-1">
+              <Textarea
+                placeholder="Текст новости (markdown поддерживается)"
+                value={draftContent}
+                maxLength={ADMIN_LIMITS.NEWS_CONTENT}
+                onChange={(e) => {
+                  setDraftContent(e.target.value);
+                  setDraftErrors((p) => ({ ...p, content: undefined }));
+                  setNewsError(null);
+                }}
+                rows={5}
+                className={draftErrors.content ? 'border-red-500' : ''}
+              />
+              <FieldErrorText>{draftErrors.content}</FieldErrorText>
+            </div>
           </Card>
         )}
 
