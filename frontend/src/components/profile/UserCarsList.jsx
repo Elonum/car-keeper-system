@@ -7,7 +7,7 @@ import EmptyState from '../common/EmptyState';
 import { Car, Calendar, Gauge, Wrench, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
-import { resolveApiAssetUrl } from '@/lib/assetUrls';
+import { resolveApiAssetUrl, modelImageCacheKey } from '@/lib/assetUrls';
 
 export default function UserCarsList({ cars, isLoading, onRequestDelete, deletingId }) {
   if (isLoading) {
@@ -44,6 +44,7 @@ export default function UserCarsList({ cars, isLoading, onRequestDelete, deletin
             {car.image_url && (
               <div className="aspect-video rounded-lg overflow-hidden mb-4 bg-slate-100">
                 <img
+                  key={modelImageCacheKey(car.image_url, carId)}
                   src={resolveApiAssetUrl(car.image_url)}
                   alt={`${car.brand_name || ''} ${car.model_name || ''}`.trim()}
                   loading="lazy"

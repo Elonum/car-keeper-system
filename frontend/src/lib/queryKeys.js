@@ -32,6 +32,7 @@ export const queryKeys = {
 export function invalidatePublicCatalog(qc) {
   qc.invalidateQueries({ queryKey: queryKeys.brands() });
   qc.invalidateQueries({ queryKey: ['trims'] });
+  invalidateGarageRelated(qc);
 }
 
 /** Invalidate garage and appointment car pickers. */

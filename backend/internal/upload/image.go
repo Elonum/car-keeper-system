@@ -18,12 +18,28 @@ func ResolveImageMIME(head []byte, hint, fileName string) string {
 	if len(head) == 0 {
 		return ""
 	}
+	if mimeType := sniffImageMIME(head); mimeType != "" {
+		return mimeType
+	}
 	detected := strings.TrimSpace(strings.ToLower(http.DetectContentType(head)))
 	if i := strings.Index(detected, ";"); i >= 0 {
 		detected = strings.TrimSpace(detected[:i])
 	}
 	if isAllowedImageMIME(detected) {
 		return detected
+	}
+	return ""
+}
+
+func sniffImageMIME(head []byte) string {
+	if len(head) >= 12 && string(head[0:4]) == "RIFF" && string(head[8:12]) == "WEBP" {
+		return "image/webp"
+	}
+	if len(head) >= 3 && head[0] == 0xFF && head[1] == 0xD8 && head[2] == 0xFF {
+		return "image/jpeg"
+	}
+	if len(head) >= 8 && head[0] == 0x89 && head[1] == 'P' && head[2] == 'N' && head[3] == 'G' {
+		return "image/png"
 	}
 	return ""
 }

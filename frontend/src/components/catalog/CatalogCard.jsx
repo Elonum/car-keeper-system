@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '../../utils';
-import { resolveApiAssetUrl } from '@/lib/assetUrls';
+import { resolveApiAssetUrl, modelImageCacheKey } from '@/lib/assetUrls';
 import PriceDisplay from '../common/PriceDisplay';
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +21,7 @@ export default function CatalogCard({ trim }) {
       {/* Image */}
       <div className="relative aspect-[16/10] overflow-hidden bg-slate-100">
         <img
+          key={modelImageCacheKey(trim.image_url, trim.trim_id || trim.id)}
           src={imageUrl}
           alt={`${trim.brand_name || ''} ${trim.model_name || ''}`.trim()}
           loading="lazy"

@@ -54,10 +54,7 @@ export default function Catalog() {
     queryKey,
     queryFn: () => catalogService.getTrims(queryParams),
     keepPreviousData: true,
-    refetchOnWindowFocus: false,
-    refetchOnMount: false,
-    refetchOnReconnect: false,
-    staleTime: 5 * 60 * 1000,
+    staleTime: 60 * 1000,
   });
 
   const { data: brands } = useQuery({

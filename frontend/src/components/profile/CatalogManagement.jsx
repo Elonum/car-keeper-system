@@ -26,7 +26,7 @@ import { serviceService } from '@/services/serviceService';
 import { adminCatalogService } from '@/services/adminCatalogService';
 import { PERMISSIONS, hasPermission } from '@/lib/authz';
 import { getApiErrorMessage } from '@/lib/apiErrors';
-import { resolveApiAssetUrl } from '@/lib/assetUrls';
+import { resolveApiAssetUrl, modelImageCacheKey } from '@/lib/assetUrls';
 import { MODEL_IMAGE_ACCEPT, validateModelImageFile } from '@/lib/modelImages';
 import { queryKeys, invalidatePublicCatalog } from '@/lib/queryKeys';
 import { ErrorNotice, FieldErrorText } from '@/components/common/ErrorNotice';
@@ -290,6 +290,7 @@ export default function CatalogManagement({ role }) {
   const resetModelForm = () => {
     setModelForm(MODEL_DEFAULT_FORM);
     setModelImageFile(null);
+    setModelImagePreviewUrl('');
     setModelErrors({});
     setEditingModelId(null);
     setEditingModelImageUrl('');
@@ -647,6 +648,7 @@ export default function CatalogManagement({ role }) {
                   <div className="flex items-center gap-2 min-w-0">
                     {m.image_url ? (
                       <img
+                        key={modelImageCacheKey(m.image_url, m.model_id)}
                         src={resolveApiAssetUrl(m.image_url)}
                         alt=""
                         loading="lazy"

@@ -272,11 +272,12 @@ func (h *Handler) AdminUploadModelImage(w http.ResponseWriter, r *http.Request) 
 	}
 	defer file.Close()
 
-	if err := h.services.Catalog.AdminUploadModelImage(r.Context(), modelID, file, header.Filename, header.Header.Get("Content-Type")); err != nil {
+	imageURL, err := h.services.Catalog.AdminUploadModelImage(r.Context(), modelID, file, header.Filename, header.Header.Get("Content-Type"))
+	if err != nil {
 		HandleError(w, r, err)
 		return
 	}
-	Success(w, map[string]string{"message": "uploaded"})
+	Success(w, map[string]string{"message": "uploaded", "image_url": imageURL})
 }
 
 func (h *Handler) GetModelImage(w http.ResponseWriter, r *http.Request) {
@@ -301,7 +302,7 @@ func (h *Handler) GetModelImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", mimeType)
-	w.Header().Set("Cache-Control", "public, max-age=86400")
+	w.Header().Set("Cache-Control", "public, max-age=86400, must-revalidate")
 	w.Header().Set("ETag", etag)
 	w.Header().Set("Content-Disposition", mime.FormatMediaType("inline", map[string]string{"filename": "model-image"}))
 	w.WriteHeader(http.StatusOK)

@@ -148,9 +148,9 @@ func (s *CatalogService) maxModelImageBytes() int64 {
 	return 5 << 20
 }
 
-func (s *CatalogService) AdminUploadModelImage(ctx context.Context, modelID uuid.UUID, r io.Reader, fileName, mimeHint string) error {
+func (s *CatalogService) AdminUploadModelImage(ctx context.Context, modelID uuid.UUID, r io.Reader, fileName, mimeHint string) (string, error) {
 	if s.store == nil {
-		return apperr.Internal(fmt.Errorf("file storage is not configured"))
+		return "", apperr.Internal(fmt.Errorf("file storage is not configured"))
 	}
 	maxUpload := s.maxModelImageBytes()
 
@@ -158,19 +158,19 @@ func (s *CatalogService) AdminUploadModelImage(ctx context.Context, modelID uuid
 	limited := io.LimitReader(r, maxUpload+1)
 	written, err := io.Copy(buf, limited)
 	if err != nil {
-		return apperr.BadRequest("failed to read image")
+		return "", apperr.BadRequest("failed to read image")
 	}
 	if written > maxUpload {
-		return apperr.BadRequest("image too large")
+		return "", apperr.BadRequest("image too large")
 	}
 	if written == 0 {
-		return apperr.BadRequest("image file is required")
+		return "", apperr.BadRequest("image file is required")
 	}
 
 	data := buf.Bytes()
 	mimeType := upload.ResolveImageMIME(data, mimeHint, fileName)
 	if mimeType == "" {
-		return apperr.BadRequest("only jpeg/png/webp images are allowed")
+		return "", apperr.BadRequest("only jpeg/png/webp images are allowed")
 	}
 
 	var oldKey string
@@ -180,16 +180,16 @@ func (s *CatalogService) AdminUploadModelImage(ctx context.Context, modelID uuid
 
 	key := uuid.NewString()
 	if err := s.store.Store(ctx, key, bytes.NewReader(data), written); err != nil {
-		return apperr.Internal(err)
+		return "", apperr.Internal(err)
 	}
 	if err := s.repo.Model.SetImageMeta(ctx, modelID, key, mimeType); err != nil {
 		_ = s.store.Remove(ctx, key)
-		return err
+		return "", err
 	}
 	if oldKey != "" && oldKey != key {
 		_ = s.store.Remove(ctx, oldKey)
 	}
-	return nil
+	return model.BuildModelImageURL(modelID, key), nil
 }
 
 // OpenModelImage streams a model image. etagKey is the storage key (stable cache validator).

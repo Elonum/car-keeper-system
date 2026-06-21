@@ -15,8 +15,8 @@ import (
 )
 
 const (
-	modelImageColsSelect = `image_key, image_mime, CASE WHEN image_key IS NOT NULL THEN '/api/catalog/models/' || model_id::text || '/image' ELSE NULL END as image_url`
-	modelImageURLJoin    = `CASE WHEN m.image_key IS NOT NULL THEN '/api/catalog/models/' || m.model_id::text || '/image' ELSE NULL END as image_url`
+	modelImageColsSelect = `image_key, image_mime, CASE WHEN image_key IS NOT NULL THEN '/api/catalog/models/' || model_id::text || '/image?v=' || image_key ELSE NULL END as image_url`
+	modelImageURLJoin    = `CASE WHEN m.image_key IS NOT NULL THEN '/api/catalog/models/' || m.model_id::text || '/image?v=' || m.image_key ELSE NULL END as image_url`
 )
 
 type BrandRepository struct {
