@@ -50,14 +50,15 @@ function normalizeStatusForm(form) {
   };
 }
 
-export default function AdminControlCenter({ role }) {
+export default function AdminControlCenter({ user }) {
+  const role = user?.role || '';
   const qc = useQueryClient();
-  const canManageDict = hasPermission(role, PERMISSIONS.ADMIN_ORDER_STATUSES);
-  const canViewRoles = hasPermission(role, PERMISSIONS.ADMIN_ROLES_VIEW);
-  const canCatalog = hasPermission(role, PERMISSIONS.CATALOG_MANAGE);
-  const canService = hasPermission(role, PERMISSIONS.SERVICE_MANAGE);
+  const canManageDict = hasPermission(user, PERMISSIONS.ADMIN_ORDER_STATUSES);
+  const canViewRoles = hasPermission(user, PERMISSIONS.ADMIN_ROLES_VIEW);
+  const canCatalog = hasPermission(user, PERMISSIONS.CATALOG_MANAGE);
+  const canService = hasPermission(user, PERMISSIONS.SERVICE_MANAGE);
   const canStatuses =
-    canManageDict || hasPermission(role, PERMISSIONS.ORDERS_MANAGE_STATUS);
+    canManageDict || hasPermission(user, PERMISSIONS.ORDERS_MANAGE_STATUS);
 
   const defaultTab = canCatalog || canService ? 'catalog' : canStatuses ? 'statuses' : 'access';
 
@@ -119,7 +120,7 @@ export default function AdminControlCenter({ role }) {
   const statusPending = createMutation.isPending || patchMutation.isPending;
   const permissionRows = Object.values(PERMISSIONS).map((code) => ({
     code,
-    on: hasPermission(role, code),
+    on: hasPermission(user, code),
     label: PERMISSION_LABEL_RU[code] || code,
   }));
   const enabledPermissionsCount = permissionRows.filter((row) => row.on).length;
@@ -315,7 +316,7 @@ export default function AdminControlCenter({ role }) {
 
         {(canCatalog || canService) && (
           <TabsContent value="catalog" className="mt-0">
-            <CatalogManagement role={role} />
+            <CatalogManagement user={user} />
           </TabsContent>
         )}
 

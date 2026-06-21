@@ -1,6 +1,7 @@
 package authz
 
 import (
+	"sort"
 	"sync"
 
 	"github.com/google/uuid"
@@ -82,6 +83,37 @@ func HasPermission(role, permission string) bool {
 	}
 	_, ok := set[permission]
 	return ok
+}
+
+// PermissionsForRole returns all permission codes granted to role (sorted, from DB matrix or defaults).
+func PermissionsForRole(role string) []string {
+	if role == "" {
+		return nil
+	}
+	permMu.RLock()
+	custom := rolePerms
+	permMu.RUnlock()
+
+	var list []string
+	if len(custom) > 0 {
+		set := custom[role]
+		if len(set) == 0 {
+			return nil
+		}
+		list = make([]string, 0, len(set))
+		for p := range set {
+			list = append(list, p)
+		}
+	} else {
+		def := DefaultRolePermissions()
+		src, ok := def[role]
+		if !ok || len(src) == 0 {
+			return nil
+		}
+		list = append([]string(nil), src...)
+	}
+	sort.Strings(list)
+	return list
 }
 
 // IsStaff returns true if the role is marked staff in role_definitions (elevated internal account).

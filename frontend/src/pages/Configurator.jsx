@@ -22,7 +22,7 @@ const STEPS = ['Комплектация', 'Цвет', 'Опции', 'Итог']
 export default function Configurator() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { user, isAuthenticated, isLoadingAuth, navigateToLogin } = useAuth();
+  const { user, isAuthenticated, navigateToLogin } = useAuth();
   const [searchParams] = useSearchParams();
   const trimId = searchParams.get('trim_id');
   const configId = searchParams.get('config_id');
@@ -32,12 +32,6 @@ export default function Configurator() {
   const [selectedColorId, setSelectedColorId] = useState(null);
   const [selectedOptionIds, setSelectedOptionIds] = useState([]);
   const [formError, setFormError] = useState(null);
-
-  useEffect(() => {
-    if (isEditMode && !isLoadingAuth && !isAuthenticated) {
-      navigateToLogin();
-    }
-  }, [isEditMode, isLoadingAuth, isAuthenticated, navigateToLogin]);
 
   const { data: existingConfig, isLoading: configLoading } = useQuery({
     queryKey: ['configuration', configId],

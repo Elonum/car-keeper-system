@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/carkeeper/backend/internal/authz"
+	"github.com/carkeeper/backend/internal/upload"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 )
@@ -254,12 +255,10 @@ func (h *Handler) AdminUploadModelImage(w http.ResponseWriter, r *http.Request) 
 		BadRequest(w, "Invalid model ID")
 		return
 	}
-	maxB := h.cfg.Storage.MaxUploadBytes
-	if maxB <= 0 {
-		maxB = 5 << 20
-	}
-	r.Body = http.MaxBytesReader(w, r.Body, maxB+(8<<20))
-	if err := r.ParseMultipartForm(8 << 20); err != nil {
+	maxB := upload.MaxModelImageBytes
+	const multipartOverhead int64 = 1 << 20
+	r.Body = http.MaxBytesReader(w, r.Body, maxB+multipartOverhead)
+	if err := r.ParseMultipartForm(multipartOverhead); err != nil {
 		BadRequest(w, "invalid multipart form")
 		return
 	}

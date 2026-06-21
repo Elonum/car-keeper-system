@@ -107,7 +107,7 @@ export default function MyDocuments({ orders = [], appointments = [] }) {
   const canLinkOrder = orders.length > 0;
   const canLinkAppointment = appointments.length > 0;
   const canUpload = canLinkOrder || canLinkAppointment;
-  const staffDocumentsView = hasPermission(user?.role, PERMISSIONS.DOCUMENTS_VIEW_ANY);
+  const staffDocumentsView = hasPermission(user, PERMISSIONS.DOCUMENTS_VIEW_ANY);
 
   useEffect(() => {
     if (!canLinkOrder && canLinkAppointment) setLinkKind('appointment');

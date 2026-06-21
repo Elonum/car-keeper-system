@@ -108,6 +108,16 @@ func TestAuth_RegisterLoginMe(t *testing.T) {
 	if me["role"] != "customer" {
 		t.Fatalf("role=%v", me["role"])
 	}
+	perms, ok := me["permissions"].([]any)
+	if !ok {
+		t.Fatalf("permissions missing or wrong type: %T", me["permissions"])
+	}
+	if len(perms) != 0 {
+		t.Fatalf("customer should have no permissions, got %v", perms)
+	}
+	if isStaff, _ := me["is_staff"].(bool); isStaff {
+		t.Fatal("customer should not be staff")
+	}
 }
 
 func TestAuth_Login_InvalidPassword(t *testing.T) {
@@ -136,6 +146,36 @@ func TestRBAC_ManagerCanListAdminOrders(t *testing.T) {
 	rr, resp := testsupport.DoJSON(t, testHandler, http.MethodGet, "/api/admin/orders", nil, token)
 	if rr.Code != http.StatusOK || !resp.Success {
 		t.Fatalf("status=%d err=%s", rr.Code, resp.Error)
+	}
+}
+
+func TestAuth_MeIncludesStaffPermissions(t *testing.T) {
+	token := loginSeedUser(t, "manager@carkeeper.ru")
+	rr, resp := testsupport.DoJSON(t, testHandler, http.MethodGet, "/api/auth/me", nil, token)
+	if rr.Code != http.StatusOK || !resp.Success {
+		t.Fatalf("me status=%d err=%s", rr.Code, resp.Error)
+	}
+	me := testsupport.ParseDataMap(t, resp.Data)
+	if me["role"] != "manager" {
+		t.Fatalf("role=%v", me["role"])
+	}
+	isStaff, ok := me["is_staff"].(bool)
+	if !ok || !isStaff {
+		t.Fatalf("manager should be staff, got %v", me["is_staff"])
+	}
+	perms, ok := me["permissions"].([]any)
+	if !ok || len(perms) == 0 {
+		t.Fatalf("manager should have permissions, got %v", me["permissions"])
+	}
+	foundOrders := false
+	for _, p := range perms {
+		if s, ok := p.(string); ok && s == "orders.view_any" {
+			foundOrders = true
+			break
+		}
+	}
+	if !foundOrders {
+		t.Fatalf("manager permissions should include orders.view_any: %v", perms)
 	}
 }
 

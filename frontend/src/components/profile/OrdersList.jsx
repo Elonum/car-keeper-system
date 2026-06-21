@@ -35,7 +35,7 @@ function customerAllowedStatuses(currentStatus) {
 export default function OrdersList({ orders, isLoading, staffMode = false }) {
   const qc = useQueryClient();
   const { user } = useAuth();
-  const canManageStatuses = hasPermission(user?.role, PERMISSIONS.ORDERS_MANAGE_STATUS);
+  const canManageStatuses = hasPermission(user, PERMISSIONS.ORDERS_MANAGE_STATUS);
   const role = user?.role || '';
   const { labelByCode, data: orderStatusRows } = useOrderStatusLabelMap();
   const [search, setSearch] = useState('');

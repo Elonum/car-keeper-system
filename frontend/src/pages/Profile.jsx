@@ -40,9 +40,8 @@ export default function Profile() {
     setSearchParams({ tab: value }, { replace: true });
   };
 
-  const role = user?.role || '';
-  const staffOrdersView = hasPermission(role, PERMISSIONS.ORDERS_VIEW_ANY);
-  const staffApptsView = hasPermission(role, PERMISSIONS.APPOINTMENTS_VIEW_ANY);
+  const staffOrdersView = hasPermission(user, PERMISSIONS.ORDERS_VIEW_ANY);
+  const staffApptsView = hasPermission(user, PERMISSIONS.APPOINTMENTS_VIEW_ANY);
 
   const { data: configurations, isLoading: configsLoading } = useQuery({
     queryKey: ['my-configurations'],
@@ -64,13 +63,13 @@ export default function Profile() {
   });
 
   const canOpenAdminTab =
-    hasPermission(role, PERMISSIONS.ORDERS_VIEW_ANY) ||
-    hasPermission(role, PERMISSIONS.APPOINTMENTS_VIEW_ANY) ||
-    hasPermission(role, PERMISSIONS.CATALOG_MANAGE) ||
-    hasPermission(role, PERMISSIONS.SERVICE_MANAGE) ||
-    hasPermission(role, PERMISSIONS.ADMIN_ORDER_STATUSES) ||
-    hasPermission(role, PERMISSIONS.ADMIN_ROLES_VIEW) ||
-    hasPermission(role, PERMISSIONS.ORDERS_MANAGE_STATUS);
+    hasPermission(user, PERMISSIONS.ORDERS_VIEW_ANY) ||
+    hasPermission(user, PERMISSIONS.APPOINTMENTS_VIEW_ANY) ||
+    hasPermission(user, PERMISSIONS.CATALOG_MANAGE) ||
+    hasPermission(user, PERMISSIONS.SERVICE_MANAGE) ||
+    hasPermission(user, PERMISSIONS.ADMIN_ORDER_STATUSES) ||
+    hasPermission(user, PERMISSIONS.ADMIN_ROLES_VIEW) ||
+    hasPermission(user, PERMISSIONS.ORDERS_MANAGE_STATUS);
 
   useEffect(() => {
     if (activeTab === 'management' && !canOpenAdminTab) {
@@ -168,7 +167,7 @@ export default function Profile() {
 
           {canOpenAdminTab && (
             <TabsContent value="management" className="space-y-4">
-              <AdminControlCenter role={role} />
+              <AdminControlCenter user={user} />
             </TabsContent>
           )}
         </Tabs>

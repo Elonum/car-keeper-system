@@ -49,8 +49,8 @@ func main() {
 	server := &http.Server{
 		Addr:         cfg.Server.Address(),
 		Handler:      router,
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
+		ReadTimeout:  60 * time.Second,
+		WriteTimeout: 65 * time.Second,
 		IdleTimeout:  60 * time.Second,
 	}
 

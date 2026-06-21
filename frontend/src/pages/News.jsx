@@ -22,7 +22,7 @@ import { Newspaper, Calendar, User, ArrowRight } from 'lucide-react';
 export default function News() {
   const qc = useQueryClient();
   const { user } = useAuth();
-  const canManageNews = hasPermission(user?.role, PERMISSIONS.NEWS_MANAGE);
+  const canManageNews = hasPermission(user, PERMISSIONS.NEWS_MANAGE);
   const [scope, setScope] = React.useState('published');
   const [draftTitle, setDraftTitle] = React.useState('');
   const [draftContent, setDraftContent] = React.useState('');

@@ -68,13 +68,13 @@ export default function Layout({ children, currentPageName }) {
   };
   const role = user?.role || '';
   const canOpenManagement =
-    hasPermission(role, PERMISSIONS.ORDERS_VIEW_ANY) ||
-    hasPermission(role, PERMISSIONS.APPOINTMENTS_VIEW_ANY) ||
-    hasPermission(role, PERMISSIONS.CATALOG_MANAGE) ||
-    hasPermission(role, PERMISSIONS.SERVICE_MANAGE) ||
-    hasPermission(role, PERMISSIONS.ADMIN_ORDER_STATUSES) ||
-    hasPermission(role, PERMISSIONS.ADMIN_ROLES_VIEW) ||
-    hasPermission(role, PERMISSIONS.ORDERS_MANAGE_STATUS);
+    hasPermission(user, PERMISSIONS.ORDERS_VIEW_ANY) ||
+    hasPermission(user, PERMISSIONS.APPOINTMENTS_VIEW_ANY) ||
+    hasPermission(user, PERMISSIONS.CATALOG_MANAGE) ||
+    hasPermission(user, PERMISSIONS.SERVICE_MANAGE) ||
+    hasPermission(user, PERMISSIONS.ADMIN_ORDER_STATUSES) ||
+    hasPermission(user, PERMISSIONS.ADMIN_ROLES_VIEW) ||
+    hasPermission(user, PERMISSIONS.ORDERS_MANAGE_STATUS);
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans overflow-x-hidden">

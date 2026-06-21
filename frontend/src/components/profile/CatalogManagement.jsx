@@ -79,10 +79,10 @@ function normalizeModelForm(form) {
   };
 }
 
-export default function CatalogManagement({ role }) {
+export default function CatalogManagement({ user }) {
   const qc = useQueryClient();
-  const canCatalog = hasPermission(role, PERMISSIONS.CATALOG_MANAGE);
-  const canService = hasPermission(role, PERMISSIONS.SERVICE_MANAGE);
+  const canCatalog = hasPermission(user, PERMISSIONS.CATALOG_MANAGE);
+  const canService = hasPermission(user, PERMISSIONS.SERVICE_MANAGE);
 
   const { data: brands = [] } = useQuery({
     queryKey: queryKeys.catalogBrandsAdmin(),

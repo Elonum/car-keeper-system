@@ -41,13 +41,15 @@ type UserLogin struct {
 }
 
 type UserResponse struct {
-	UserID    uuid.UUID `json:"user_id"`
-	FirstName string    `json:"first_name"`
-	LastName  string    `json:"last_name"`
-	Email     string    `json:"email"`
-	Phone     *string   `json:"phone,omitempty"`
-	Role      string    `json:"role"`
-	FullName  string    `json:"full_name"`
+	UserID      uuid.UUID `json:"user_id"`
+	FirstName   string    `json:"first_name"`
+	LastName    string    `json:"last_name"`
+	Email       string    `json:"email"`
+	Phone       *string   `json:"phone,omitempty"`
+	Role        string    `json:"role"`
+	FullName    string    `json:"full_name"`
+	Permissions []string  `json:"permissions"`
+	IsStaff     bool      `json:"is_staff"`
 }
 
 func (u *User) ToResponse() UserResponse {

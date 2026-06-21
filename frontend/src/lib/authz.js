@@ -15,6 +15,7 @@ export const PERMISSIONS = {
 
 const ALL_PERMISSIONS = Object.values(PERMISSIONS);
 
+/** Fallback matrix when API permissions are unavailable (e.g. logged-out). */
 const DEFAULT_ROLE_PERMISSIONS = {
   customer: [],
   manager: [
@@ -63,9 +64,43 @@ export const ROLE_TITLE_RU = {
   admin: 'Администратор',
 };
 
-export function hasPermission(role, permission) {
-  if (!role || !permission) return false;
-  const perms = DEFAULT_ROLE_PERMISSIONS[role] || [];
-  return perms.includes(permission);
+function permissionsFromSubject(subject) {
+  if (subject && typeof subject === 'object' && Array.isArray(subject.permissions)) {
+    return subject.permissions;
+  }
+  return null;
 }
 
+function roleFromSubject(subject) {
+  if (subject && typeof subject === 'object') {
+    return subject.role || '';
+  }
+  return typeof subject === 'string' ? subject : '';
+}
+
+/**
+ * Checks permission using server-provided user.permissions when available,
+ * otherwise falls back to the static role matrix.
+ * @param {string|{role?: string, permissions?: string[]}} subject
+ */
+export function hasPermission(subject, permission) {
+  if (!permission) return false;
+
+  const live = permissionsFromSubject(subject);
+  if (live) {
+    return live.includes(permission);
+  }
+
+  const role = roleFromSubject(subject);
+  if (!role) return false;
+  const fallback = DEFAULT_ROLE_PERMISSIONS[role] || [];
+  return fallback.includes(permission);
+}
+
+/** True when user is staff according to API or role fallback. */
+export function isStaffUser(user) {
+  if (!user) return false;
+  if (typeof user.is_staff === 'boolean') return user.is_staff;
+  const role = user.role || '';
+  return role === 'admin' || role === 'manager' || role === 'service_advisor';
+}

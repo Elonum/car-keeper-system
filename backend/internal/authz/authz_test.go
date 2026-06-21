@@ -174,6 +174,24 @@ func TestRolePermissionRegressionMatrix(t *testing.T) {
 	}
 }
 
+func TestPermissionsForRole(t *testing.T) {
+	perms := PermissionsForRole("customer")
+	if len(perms) != 0 {
+		t.Fatalf("customer should have no permissions, got %v", perms)
+	}
+	manager := PermissionsForRole("manager")
+	if len(manager) == 0 {
+		t.Fatal("manager should have permissions")
+	}
+	if !slices.Contains(manager, PermOrdersViewAny) {
+		t.Fatalf("manager permissions: %v", manager)
+	}
+	admin := PermissionsForRole("admin")
+	if len(admin) != len(AllPermissionCodes) {
+		t.Fatalf("admin count: got %d want %d", len(admin), len(AllPermissionCodes))
+	}
+}
+
 func TestSetRolePermissionsOverrideAndReset(t *testing.T) {
 	SetRolePermissions(map[string][]string{
 		"manager": {PermOrdersViewAny},

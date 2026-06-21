@@ -142,10 +142,10 @@ func (s *CatalogService) AdminDeleteModel(ctx context.Context, id uuid.UUID) err
 }
 
 func (s *CatalogService) maxModelImageBytes() int64 {
-	if s.maxUploadSize > 0 {
+	if s.maxUploadSize > 0 && s.maxUploadSize < upload.MaxModelImageBytes {
 		return s.maxUploadSize
 	}
-	return 5 << 20
+	return upload.MaxModelImageBytes
 }
 
 func (s *CatalogService) AdminUploadModelImage(ctx context.Context, modelID uuid.UUID, r io.Reader, fileName, mimeHint string) (string, error) {

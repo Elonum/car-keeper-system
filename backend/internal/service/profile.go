@@ -85,6 +85,6 @@ func (s *ProfileService) UpdateProfile(ctx context.Context, userID uuid.UUID, fi
 	if err != nil {
 		return nil, err
 	}
-	resp := user.ToResponse()
+	resp := UserResponseFrom(user)
 	return &resp, nil
 }

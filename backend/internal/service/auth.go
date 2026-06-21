@@ -48,7 +48,7 @@ func (s *AuthService) Register(ctx context.Context, in model.UserRegisterInput) 
 		return nil, apperr.Internal(err)
 	}
 
-	response := user.ToResponse()
+	response := UserResponseFrom(user)
 	return &response, nil
 }
 
@@ -68,7 +68,7 @@ func (s *AuthService) Login(ctx context.Context, login model.UserLogin) (string,
 		return "", nil, apperr.Internal(err)
 	}
 
-	response := user.ToResponse()
+	response := UserResponseFrom(user)
 	return token, &response, nil
 }
 
@@ -81,7 +81,7 @@ func (s *AuthService) GetUser(ctx context.Context, userID uuid.UUID) (*model.Use
 		return nil, err
 	}
 
-	response := user.ToResponse()
+	response := UserResponseFrom(user)
 	return &response, nil
 }
 

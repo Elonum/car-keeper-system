@@ -11,6 +11,9 @@ var allowedImageMIME = map[string]struct{}{
 	"image/webp": {},
 }
 
+// MaxModelImageBytes is the maximum catalog model image upload size (5 MiB).
+const MaxModelImageBytes int64 = 5 << 20
+
 // ResolveImageMIME picks a trusted image MIME from file magic bytes only.
 func ResolveImageMIME(head []byte, hint, fileName string) string {
 	_ = hint
