@@ -28,6 +28,7 @@ import {
   validateMileage,
 } from '@/lib/userCarValidation';
 import { getApiErrorMessage } from '@/lib/apiErrors';
+import { asArray } from '@/lib/collections';
 import { invalidateGarageRelated } from '@/lib/queryKeys';
 import { ErrorNotice, FieldErrorText } from '../common/ErrorNotice';
 
@@ -37,6 +38,56 @@ function pickId(entity, ...keys) {
     if (entity[k]) return String(entity[k]);
   }
   return '';
+}
+
+function CatalogSelectField({
+  label,
+  value,
+  onValueChange,
+  disabled,
+  placeholder,
+  items,
+  isLoading,
+  isError,
+  errorMessage,
+  emptyHint,
+  fieldError,
+  getLabel,
+  idKeys,
+}) {
+  const list = asArray(items);
+  const showEmpty = !isLoading && !isError && !disabled && list.length === 0;
+
+  return (
+    <div className="space-y-2">
+      <Label>{label}</Label>
+      <Select value={value || undefined} onValueChange={onValueChange} disabled={disabled || isLoading}>
+        <SelectTrigger className={fieldError ? 'border-red-500' : ''}>
+          <SelectValue placeholder={isLoading ? 'Загрузка…' : placeholder} />
+        </SelectTrigger>
+        <SelectContent className="max-h-60">
+          {list.map((item) => {
+            const id = pickId(item, ...idKeys);
+            if (!id) return null;
+            return (
+              <SelectItem key={id} value={id}>
+                {getLabel(item)}
+              </SelectItem>
+            );
+          })}
+        </SelectContent>
+      </Select>
+      {isError && (
+        <ErrorNotice kind="inline" message={errorMessage || 'Не удалось загрузить список'} />
+      )}
+      {showEmpty && emptyHint && (
+        <p className="text-sm text-amber-800 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+          {emptyHint}
+        </p>
+      )}
+      <FieldErrorText>{fieldError}</FieldErrorText>
+    </div>
+  );
 }
 
 export default function AddUserCarDialog({ open, onOpenChange }) {
@@ -71,26 +122,26 @@ export default function AddUserCarDialog({ open, onOpenChange }) {
     }
   }, [open]);
 
-  const { data: brands = [] } = useQuery({
+  const brandsQuery = useQuery({
     queryKey: ['brands'],
     queryFn: () => catalogService.getBrands(),
     enabled: open,
     staleTime: 5 * 60 * 1000,
   });
 
-  const { data: models = [] } = useQuery({
+  const modelsQuery = useQuery({
     queryKey: ['catalog-models', brandId],
     queryFn: () => catalogService.getModels(brandId),
     enabled: open && !!brandId,
   });
 
-  const { data: generations = [] } = useQuery({
+  const generationsQuery = useQuery({
     queryKey: ['catalog-generations', modelId],
     queryFn: () => catalogService.getGenerations(modelId),
     enabled: open && !!modelId,
   });
 
-  const { data: trims = [] } = useQuery({
+  const trimsQuery = useQuery({
     queryKey: ['catalog-trims-garage', generationId],
     queryFn: () =>
       catalogService.getTrims({
@@ -100,12 +151,23 @@ export default function AddUserCarDialog({ open, onOpenChange }) {
     enabled: open && !!generationId,
   });
 
-  const { data: colors = [] } = useQuery({
+  const colorsQuery = useQuery({
     queryKey: ['configurator-colors'],
     queryFn: () => configuratorService.getColors(),
     enabled: open,
     staleTime: 5 * 60 * 1000,
   });
+
+  const brands = useMemo(() => asArray(brandsQuery.data), [brandsQuery.data]);
+  const models = useMemo(() => asArray(modelsQuery.data), [modelsQuery.data]);
+  const generations = useMemo(() => asArray(generationsQuery.data), [generationsQuery.data]);
+  const trims = useMemo(() => asArray(trimsQuery.data), [trimsQuery.data]);
+  const colors = useMemo(() => asArray(colorsQuery.data), [colorsQuery.data]);
+
+  const availableColors = useMemo(
+    () => colors.filter((c) => c.is_available !== false),
+    [colors]
+  );
 
   const createMutation = useMutation({
     mutationFn: (payload) => profileService.createUserCar(payload),
@@ -168,162 +230,120 @@ export default function AddUserCarDialog({ open, onOpenChange }) {
 
         <form onSubmit={handleSubmit} className="space-y-4" noValidate>
           <ErrorNotice kind="form" message={formError} />
+
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label>Марка</Label>
-              <Select
-                value={brandId || undefined}
-                onValueChange={(v) => {
-                  setBrandId(v);
-                  setModelId('');
-                  setGenerationId('');
-                  setTrimId('');
-                  setFieldErrors({});
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Выберите марку" />
-                </SelectTrigger>
-                <SelectContent>
-                  {brands.map((b) => {
-                    const id = pickId(b, 'brand_id', 'id');
-                    return (
-                      <SelectItem key={id} value={id}>
-                        {b.name}
-                      </SelectItem>
-                    );
-                  })}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Модель</Label>
-              <Select
-                value={modelId || undefined}
-                onValueChange={(v) => {
-                  setModelId(v);
-                  setGenerationId('');
-                  setTrimId('');
-                  setFieldErrors({});
-                }}
-                disabled={!brandId}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Выберите модель" />
-                </SelectTrigger>
-                <SelectContent>
-                  {models.map((m) => {
-                    const id = pickId(m, 'model_id', 'id');
-                    return (
-                      <SelectItem key={id} value={id}>
-                        {m.name}
-                      </SelectItem>
-                    );
-                  })}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Поколение</Label>
-            <Select
-              value={generationId || undefined}
+            <CatalogSelectField
+              label="Марка"
+              value={brandId}
               onValueChange={(v) => {
-                setGenerationId(v);
+                setBrandId(v);
+                setModelId('');
+                setGenerationId('');
                 setTrimId('');
                 setFieldErrors({});
               }}
-              disabled={!modelId}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Выберите поколение" />
-              </SelectTrigger>
-              <SelectContent>
-                {generations.map((g) => {
-                  const id = pickId(g, 'generation_id', 'id');
-                  let label = g.name;
-                  if (g.year_from != null) {
-                    label =
-                      g.year_to != null
-                        ? `${g.name} (${g.year_from}–${g.year_to})`
-                        : `${g.name} (с ${g.year_from})`;
-                  }
-                  return (
-                    <SelectItem key={id} value={id}>
-                      {label}
-                    </SelectItem>
-                  );
-                })}
-              </SelectContent>
-            </Select>
+              placeholder="Выберите марку"
+              items={brands}
+              isLoading={brandsQuery.isLoading}
+              isError={brandsQuery.isError}
+              errorMessage={getApiErrorMessage(brandsQuery.error, 'Не удалось загрузить марки')}
+              emptyHint="Марки каталога пока не добавлены."
+              idKeys={['brand_id', 'id']}
+              getLabel={(b) => b.name}
+            />
+
+            <CatalogSelectField
+              label="Модель"
+              value={modelId}
+              onValueChange={(v) => {
+                setModelId(v);
+                setGenerationId('');
+                setTrimId('');
+                setFieldErrors({});
+              }}
+              disabled={!brandId}
+              placeholder="Выберите модель"
+              items={models}
+              isLoading={modelsQuery.isLoading}
+              isError={modelsQuery.isError}
+              errorMessage={getApiErrorMessage(modelsQuery.error, 'Не удалось загрузить модели')}
+              emptyHint="Для выбранной марки нет моделей."
+              idKeys={['model_id', 'id']}
+              getLabel={(m) => m.name}
+            />
           </div>
 
-          <div className="space-y-2">
-            <Label>Комплектация</Label>
-            <Select
-              value={trimId || undefined}
-              onValueChange={(v) => {
-                setTrimId(v);
-                setFieldErrors((p) => ({ ...p, trim: undefined }));
-              }}
-              disabled={!generationId}
-            >
-              <SelectTrigger className={fieldErrors.trim ? 'border-red-500' : ''}>
-                <SelectValue placeholder="Выберите комплектацию" />
-              </SelectTrigger>
-              <SelectContent className="max-h-60">
-                {trims.map((t) => {
-                  const id = pickId(t, 'trim_id', 'id');
-                  const label = [t.brand_name, t.model_name, t.name].filter(Boolean).join(' · ');
-                  return (
-                    <SelectItem key={id} value={id}>
-                      {label}
-                    </SelectItem>
-                  );
-                })}
-              </SelectContent>
-            </Select>
-            <FieldErrorText>{fieldErrors.trim}</FieldErrorText>
-          </div>
+          <CatalogSelectField
+            label="Поколение"
+            value={generationId}
+            onValueChange={(v) => {
+              setGenerationId(v);
+              setTrimId('');
+              setFieldErrors({});
+            }}
+            disabled={!modelId}
+            placeholder="Выберите поколение"
+            items={generations}
+            isLoading={generationsQuery.isLoading}
+            isError={generationsQuery.isError}
+            errorMessage={getApiErrorMessage(generationsQuery.error, 'Не удалось загрузить поколения')}
+            emptyHint="Для выбранной модели нет поколений."
+            idKeys={['generation_id', 'id']}
+            getLabel={(g) => {
+              if (g.year_from == null) return g.name;
+              return g.year_to != null
+                ? `${g.name} (${g.year_from}–${g.year_to})`
+                : `${g.name} (с ${g.year_from})`;
+            }}
+          />
 
-          <div className="space-y-2">
-            <Label>Цвет кузова</Label>
-            <Select
-              value={colorId || undefined}
-              onValueChange={(v) => {
-                setColorId(v);
-                setFieldErrors((p) => ({ ...p, color: undefined }));
-              }}
-            >
-              <SelectTrigger className={fieldErrors.color ? 'border-red-500' : ''}>
-                <SelectValue placeholder="Выберите цвет" />
-              </SelectTrigger>
-              <SelectContent className="max-h-60">
-                {colors
-                  .filter((c) => c.is_available !== false)
-                  .map((c) => {
-                    const id = pickId(c, 'color_id', 'id');
-                    return (
-                      <SelectItem key={id} value={id}>
-                        <span className="flex items-center gap-2">
-                          {c.hex_code && (
-                            <span
-                              className="inline-block h-3 w-3 rounded-full border border-slate-200"
-                              style={{ backgroundColor: c.hex_code }}
-                              aria-hidden
-                            />
-                          )}
-                          {c.name}
-                        </span>
-                      </SelectItem>
-                    );
-                  })}
-              </SelectContent>
-            </Select>
-            <FieldErrorText>{fieldErrors.color}</FieldErrorText>
-          </div>
+          <CatalogSelectField
+            label="Комплектация"
+            value={trimId}
+            onValueChange={(v) => {
+              setTrimId(v);
+              setFieldErrors((p) => ({ ...p, trim: undefined }));
+            }}
+            disabled={!generationId}
+            placeholder="Выберите комплектацию"
+            items={trims}
+            isLoading={trimsQuery.isLoading}
+            isError={trimsQuery.isError}
+            errorMessage={getApiErrorMessage(trimsQuery.error, 'Не удалось загрузить комплектации')}
+            emptyHint="Для выбранного поколения нет доступных комплектаций."
+            fieldError={fieldErrors.trim}
+            idKeys={['trim_id', 'id']}
+            getLabel={(t) => [t.brand_name, t.model_name, t.name].filter(Boolean).join(' · ')}
+          />
+
+          <CatalogSelectField
+            label="Цвет кузова"
+            value={colorId}
+            onValueChange={(v) => {
+              setColorId(v);
+              setFieldErrors((p) => ({ ...p, color: undefined }));
+            }}
+            placeholder="Выберите цвет"
+            items={availableColors}
+            isLoading={colorsQuery.isLoading}
+            isError={colorsQuery.isError}
+            errorMessage={getApiErrorMessage(colorsQuery.error, 'Не удалось загрузить цвета')}
+            emptyHint="Нет доступных цветов в каталоге."
+            fieldError={fieldErrors.color}
+            idKeys={['color_id', 'id']}
+            getLabel={(c) => (
+              <span className="flex items-center gap-2">
+                {c.hex_code && (
+                  <span
+                    className="inline-block h-3 w-3 rounded-full border border-slate-200"
+                    style={{ backgroundColor: c.hex_code }}
+                    aria-hidden
+                  />
+                )}
+                {c.name}
+              </span>
+            )}
+          />
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">

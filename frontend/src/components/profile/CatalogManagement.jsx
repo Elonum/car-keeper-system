@@ -26,6 +26,7 @@ import { serviceService } from '@/services/serviceService';
 import { adminCatalogService } from '@/services/adminCatalogService';
 import { PERMISSIONS, hasPermission } from '@/lib/authz';
 import { getApiErrorMessage } from '@/lib/apiErrors';
+import { asArray } from '@/lib/collections';
 import { resolveApiAssetUrl, modelImageCacheKey } from '@/lib/assetUrls';
 import { MODEL_IMAGE_ACCEPT, validateModelImageFile } from '@/lib/modelImages';
 import { queryKeys, invalidatePublicCatalog } from '@/lib/queryKeys';
@@ -84,28 +85,33 @@ export default function CatalogManagement({ user }) {
   const canCatalog = hasPermission(user, PERMISSIONS.CATALOG_MANAGE);
   const canService = hasPermission(user, PERMISSIONS.SERVICE_MANAGE);
 
-  const { data: brands = [] } = useQuery({
+  const { data: brandsData } = useQuery({
     queryKey: queryKeys.catalogBrandsAdmin(),
     queryFn: () => catalogService.getBrands(),
     enabled: canCatalog,
   });
 
-  const { data: serviceTypes = [] } = useQuery({
+  const { data: serviceTypesData } = useQuery({
     queryKey: queryKeys.serviceTypesAdmin(),
     queryFn: () => serviceService.getServiceTypes(),
     enabled: canService,
   });
 
-  const { data: branches = [] } = useQuery({
+  const { data: branchesData } = useQuery({
     queryKey: queryKeys.serviceBranchesAdmin(),
     queryFn: () => serviceService.getBranches(),
     enabled: canService,
   });
-  const { data: models = [] } = useQuery({
+  const { data: modelsData } = useQuery({
     queryKey: queryKeys.catalogModelsAdmin(),
     queryFn: () => adminCatalogService.listModels(),
     enabled: canCatalog,
   });
+
+  const brands = useMemo(() => asArray(brandsData), [brandsData]);
+  const serviceTypes = useMemo(() => asArray(serviceTypesData), [serviceTypesData]);
+  const branches = useMemo(() => asArray(branchesData), [branchesData]);
+  const models = useMemo(() => asArray(modelsData), [modelsData]);
 
   const [brandForm, setBrandForm] = useState(BRAND_DEFAULT_FORM);
   const [modelForm, setModelForm] = useState(MODEL_DEFAULT_FORM);

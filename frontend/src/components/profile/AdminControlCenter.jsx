@@ -18,6 +18,7 @@ import {
 import { orderService } from '@/services/orderService';
 import { roleService } from '@/services/roleService';
 import { getApiErrorMessage } from '@/lib/apiErrors';
+import { asArray } from '@/lib/collections';
 import { PERMISSIONS, PERMISSION_LABEL_RU, ROLE_TITLE_RU, hasPermission } from '@/lib/authz';
 import CatalogManagement from './CatalogManagement';
 import { ErrorNotice, FieldErrorText } from '../common/ErrorNotice';
@@ -72,17 +73,20 @@ export default function AdminControlCenter({ user }) {
   const [manageError, setManageError] = useState(null);
   const [confirmIntent, setConfirmIntent] = useState(null);
 
-  const { data: statuses = [] } = useQuery({
+  const { data: statusesData } = useQuery({
     queryKey: ['order-statuses', 'admin'],
     queryFn: () => orderService.getAdminOrderStatuses(),
     enabled: canStatuses,
   });
 
-  const { data: roles = [] } = useQuery({
+  const { data: rolesData } = useQuery({
     queryKey: ['roles', 'admin'],
     queryFn: () => roleService.listRoles(),
     enabled: canViewRoles,
   });
+
+  const statuses = useMemo(() => asArray(statusesData), [statusesData]);
+  const roles = useMemo(() => asArray(rolesData), [rolesData]);
 
   const createMutation = useMutation({
     mutationFn: (payload) => orderService.createOrderStatus(payload),

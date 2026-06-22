@@ -48,7 +48,8 @@ apiClient.interceptors.response.use(
   (response) => {
     const backendResponse = response.data;
     if (backendResponse.success) {
-      return backendResponse.data;
+      // Go nil slices encode as JSON null; normalize for list consumers.
+      return backendResponse.data === null ? [] : backendResponse.data;
     } else {
       const raw = backendResponse.error || backendResponse.message || 'Ошибка запроса';
       return Promise.reject({

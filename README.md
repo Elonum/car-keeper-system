@@ -112,3 +112,9 @@ docker-compose.yml
 - Файлы документов: каталог `DOCUMENT_STORAGE_ROOT`, бэкап вместе с БД
 
 См. `backend/.env.example` и `frontend/.env.example`.
+
+## Подготовка к защите диплома
+
+Полное руководство по архитектуре, стеку, БД и типовым вопросам комиссии:
+
+**[docs/DIPLOMA_GUIDE.md](docs/DIPLOMA_GUIDE.md)**

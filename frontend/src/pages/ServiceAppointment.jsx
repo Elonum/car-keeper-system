@@ -17,6 +17,7 @@ import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { UI_LIMITS } from '@/lib/authValidation';
 import { getApiErrorMessage } from '@/lib/apiErrors';
+import { asArray } from '@/lib/collections';
 import { ArrowLeft, ArrowRight, Check, Wrench, Car, MapPin, Clock, Package, CalendarDays } from 'lucide-react';
 import { format, startOfDay, isBefore } from 'date-fns';
 import { Calendar } from "@/components/ui/calendar";
@@ -88,17 +89,19 @@ export default function ServiceAppointment() {
     enabled: isAuthenticated,
   });
 
-  const { data: branches = [], isLoading: branchesLoading } = useQuery({
+  const { data: branchesData, isLoading: branchesLoading } = useQuery({
     queryKey: ['branches'],
     queryFn: () => serviceService.getBranches({ is_active: true }),
   });
 
-  const { data: serviceTypes = [], isLoading: servicesLoading } = useQuery({
+  const { data: serviceTypesData, isLoading: servicesLoading } = useQuery({
     queryKey: ['serviceTypes', { is_available: true }],
     queryFn: () => serviceService.getServiceTypes({ is_available: true }),
   });
 
-  const safeUserCars = Array.isArray(userCars) ? userCars : [];
+  const safeUserCars = asArray(userCars);
+  const branches = asArray(branchesData);
+  const serviceTypes = asArray(serviceTypesData);
   const selectedCar = safeUserCars.find(c => (c.user_car_id || c.id) === selectedCarId);
   const selectedBranch = branches.find(b => (b.branch_id || b.id) === selectedBranchId);
   const getServiceId = (s) => s.service_type_id || s.id;

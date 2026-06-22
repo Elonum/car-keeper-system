@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { catalogService } from '@/services/catalogService';
+import { asArray } from '@/lib/collections';
 import CatalogCard from '../components/catalog/CatalogCard';
 import FilterPanel from '../components/catalog/FilterPanel';
 import SortSelect from '../components/catalog/SortSelect';
@@ -78,9 +79,7 @@ export default function Catalog() {
   });
 
   const filteredAndSortedTrims = useMemo(() => {
-    if (!trims) return [];
-
-    let result = [...trims];
+    let result = [...asArray(trims)];
 
     if (searchQuery) {
       const query = searchQuery.toLowerCase().trim();
@@ -128,10 +127,10 @@ export default function Catalog() {
             <FilterPanel
               filters={filters}
               setFilters={setFilters}
-              brands={brands || []}
-              engineTypes={engineTypes || []}
-              transmissions={transmissions || []}
-              driveTypes={driveTypes || []}
+              brands={asArray(brands)}
+              engineTypes={asArray(engineTypes)}
+              transmissions={asArray(transmissions)}
+              driveTypes={asArray(driveTypes)}
             />
           </div>
 

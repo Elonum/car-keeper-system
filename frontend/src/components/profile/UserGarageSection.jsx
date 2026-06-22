@@ -18,6 +18,7 @@ import { getApiErrorMessage } from '@/lib/apiErrors';
 import { Plus } from 'lucide-react';
 import { ErrorNotice } from '../common/ErrorNotice';
 import { invalidateGarageRelated } from '@/lib/queryKeys';
+import { asArray } from '@/lib/collections';
 
 export default function UserGarageSection() {
   const { isAuthenticated } = useAuth();
@@ -26,11 +27,13 @@ export default function UserGarageSection() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [garageError, setGarageError] = useState(null);
 
-  const { data: cars = [], isLoading } = useQuery({
+  const { data: carsData, isLoading } = useQuery({
     queryKey: ['my-cars'],
     queryFn: () => profileService.getUserCars(),
     enabled: isAuthenticated,
   });
+
+  const cars = asArray(carsData);
 
   const deleteMutation = useMutation({
     mutationFn: (id) => profileService.deleteUserCar(id),
@@ -43,8 +46,6 @@ export default function UserGarageSection() {
       setGarageError(getApiErrorMessage(e, 'Не удалось удалить автомобиль'));
     },
   });
-
-  const list = Array.isArray(cars) ? cars : [];
 
   return (
     <div className="space-y-6">
@@ -64,7 +65,7 @@ export default function UserGarageSection() {
       </div>
 
       <UserCarsList
-        cars={list}
+        cars={cars}
         isLoading={isLoading}
         onRequestDelete={(car) => setDeleteTarget(car)}
         deletingId={

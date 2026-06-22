@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
+	"reflect"
 )
 
 type Response struct {
@@ -21,8 +22,20 @@ func JSON(w http.ResponseWriter, status int, data interface{}) {
 func Success(w http.ResponseWriter, data interface{}) {
 	JSON(w, http.StatusOK, Response{
 		Success: true,
-		Data:    data,
+		Data:    normalizeJSONData(data),
 	})
+}
+
+// normalizeJSONData converts nil slices to empty slices so JSON encodes [] not null.
+func normalizeJSONData(data interface{}) interface{} {
+	if data == nil {
+		return data
+	}
+	rv := reflect.ValueOf(data)
+	if rv.Kind() == reflect.Slice && rv.IsNil() {
+		return reflect.MakeSlice(rv.Type(), 0, 0).Interface()
+	}
+	return data
 }
 
 func Error(w http.ResponseWriter, status int, message string) {

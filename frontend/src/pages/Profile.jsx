@@ -16,6 +16,7 @@ import MyDocuments from '../components/profile/MyDocuments';
 import ProfileSettings from '../components/profile/ProfileSettings';
 import AdminControlCenter from '../components/profile/AdminControlCenter';
 import { PERMISSIONS, hasPermission } from '@/lib/authz';
+import { asArray } from '@/lib/collections';
 import { Car, Settings, Wrench, ShoppingCart, FileText, UserCircle, Shield } from 'lucide-react';
 
 export default function Profile() {
@@ -140,13 +141,13 @@ export default function Profile() {
 
           <TabsContent value="configurations" className="space-y-4">
             <ConfigurationList 
-              configurations={configurations} 
+              configurations={asArray(configurations)} 
               isLoading={configsLoading} 
             />
           </TabsContent>
 
           <TabsContent value="orders" className="space-y-4">
-            <OrdersList orders={orders} isLoading={ordersLoading} staffMode={staffOrdersView} />
+            <OrdersList orders={asArray(orders)} isLoading={ordersLoading} staffMode={staffOrdersView} />
           </TabsContent>
 
           <TabsContent value="cars" className="space-y-4">
@@ -155,14 +156,14 @@ export default function Profile() {
 
           <TabsContent value="service" className="space-y-4">
             <ServiceAppointmentsList
-              appointments={appointments}
+              appointments={asArray(appointments)}
               isLoading={appointmentsLoading}
               staffMode={staffApptsView}
             />
           </TabsContent>
 
           <TabsContent value="documents" className="space-y-4">
-            <MyDocuments orders={orders || []} appointments={appointments || []} />
+            <MyDocuments orders={asArray(orders)} appointments={asArray(appointments)} />
           </TabsContent>
 
           {canOpenAdminTab && (

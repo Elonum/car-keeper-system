@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ArrowLeft, ArrowRight, Save, ShoppingCart, Check } from 'lucide-react';
 import { getApiErrorMessage } from '@/lib/apiErrors';
+import { asArray } from '@/lib/collections';
 import { queryKeys } from '@/lib/queryKeys';
 
 const STEPS = ['Комплектация', 'Цвет', 'Опции', 'Итог'];
@@ -78,14 +79,30 @@ export default function Configurator() {
     }
   }, [existingConfig, isEditMode]);
 
-  const selectedColor = useMemo(() => 
-    colors?.find(c => c.color_id === selectedColorId || c.id === selectedColorId),
+  const selectedColor = useMemo(
+    () =>
+      asArray(colors).find(
+        (c) => c.color_id === selectedColorId || c.id === selectedColorId
+      ),
     [colors, selectedColorId]
   );
 
-  const selectedOptions = useMemo(() => 
-    options?.filter(o => selectedOptionIds.includes(o.option_id || o.id)) || [],
+  const selectedOptions = useMemo(
+    () =>
+      asArray(options).filter((o) =>
+        selectedOptionIds.includes(o.option_id || o.id)
+      ),
     [options, selectedOptionIds]
+  );
+
+  const availableColors = useMemo(
+    () => asArray(colors).filter((c) => c.is_available !== false),
+    [colors]
+  );
+
+  const availableOptions = useMemo(
+    () => asArray(options).filter((o) => o.is_available !== false),
+    [options]
   );
 
   const totalPrice = useMemo(() => {
@@ -293,7 +310,7 @@ export default function Configurator() {
 
               {currentStep === 1 && (
                 <ColorSelection 
-                  colors={colors?.filter(c => c.is_available !== false) || []}
+                  colors={availableColors}
                   selectedColorId={selectedColorId}
                   onSelectColor={(color) => setSelectedColorId(color.color_id || color.id)}
                 />
@@ -301,7 +318,7 @@ export default function Configurator() {
 
               {currentStep === 2 && (
                 <OptionsSelection 
-                  options={options?.filter(o => o.is_available !== false) || []}
+                  options={availableOptions}
                   selectedOptionIds={selectedOptionIds}
                   onToggleOption={handleToggleOption}
                 />
